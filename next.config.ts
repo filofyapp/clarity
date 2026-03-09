@@ -9,6 +9,10 @@ const withPWA = require("next-pwa")({
 
 const nextConfig: NextConfig = {
   turbopack: {}, // Silence Turbopack warning caused by next-pwa adding webpack config
+  output: "standalone",
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
 };
 
 export default withPWA(nextConfig);

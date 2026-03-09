@@ -1,0 +1,22 @@
+{
+  "name": "CLARITY - Gestión Pericial",
+  "short_name": "CLARITY",
+  "description": "Sistema de gestión operativa para estudios de peritos automotores.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,288 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+
+  /* Typography */
+  --font-sans: var(--font-plus-jakarta);
+  --font-outfit: var(--font-outfit);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Sidebar Mapping */
+  --color-sidebar-ring: var(--border-focus);
+  --color-sidebar-border: var(--border-subtle);
+  --color-sidebar-accent-foreground: var(--brand-primary);
+  --color-sidebar-accent: var(--brand-primary-soft);
+  --color-sidebar-primary-foreground: var(--text-on-brand);
+  --color-sidebar-primary: var(--brand-primary);
+  --color-sidebar-foreground: var(--text-secondary);
+  --color-sidebar: var(--bg-secondary);
+
+  /* UI Components */
+  --color-ring: var(--border-focus);
+  --color-input: var(--bg-tertiary);
+  --color-border: var(--border-default);
+  --color-destructive: var(--color-danger);
+  --color-accent-foreground: var(--text-primary);
+  --color-accent: var(--bg-surface);
+  --color-muted-foreground: var(--text-muted);
+  --color-muted: var(--bg-tertiary);
+  --color-secondary-foreground: var(--text-primary);
+  --color-secondary: var(--bg-secondary);
+  --color-primary-foreground: var(--text-on-brand);
+  --color-primary: var(--brand-primary);
+  --color-card-foreground: var(--text-primary);
+  --color-card: var(--bg-secondary);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+
+  /* Custom Design Tokens Mapping for Tailwind */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-soft: var(--brand-primary-soft);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-secondary-hover: var(--brand-secondary-hover);
+
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-surface: var(--bg-surface);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-hover: var(--border-hover);
+  --color-border-focus: var(--border-focus);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-on-brand: var(--text-on-brand);
+  --color-text-disabled: var(--text-muted);
+
+  --color-color-info: var(--color-info);
+  --color-color-info-soft: var(--color-info-soft);
+  --color-color-success: var(--color-success);
+  --color-color-success-soft: var(--color-success-soft);
+  --color-color-warning: var(--color-warning);
+  --color-color-warning-soft: var(--color-warning-soft);
+  --color-color-danger: var(--color-danger);
+  --color-color-danger-soft: var(--color-danger-soft);
+
+  --shadow-shadow-sm: var(--shadow-sm);
+  --shadow-shadow-md: var(--shadow-md);
+  --shadow-shadow-lg: var(--shadow-lg);
+  --shadow-shadow-glow: var(--shadow-glow);
+}
+
+:root {
+  /* Brand Identity - Vibrant in Light Mode */
+  --brand-primary: #7C3AED;
+  --brand-primary-hover: #6D28D9;
+  --brand-primary-soft: rgba(124, 58, 237, 0.1);
+  --brand-secondary: #0891B2;
+  --brand-secondary-hover: #0E7490;
+
+  /* Classic Bright Light Mode Backgrounds */
+  --bg-primary: #f8fafc;
+  /* slate-50 */
+  --bg-secondary: #ffffff;
+  /* pure white for cards */
+  --bg-tertiary: #f1f5f9;
+  /* slate-100 for inputs */
+  --bg-elevated: #ffffff;
+  --bg-surface: #e2e8f0;
+  /* slate-200 for hovers */
+
+  /* Borders / Dividers (Subtle Dark) */
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border-default: rgba(0, 0, 0, 0.1);
+  --border-hover: rgba(0, 0, 0, 0.15);
+  --border-focus: rgba(124, 58, 237, 0.5);
+
+  /* Shadows for Light Mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15);
+
+  /* Text - High Contrast */
+  --text-primary: #0f172a;
+  /* slate-900 */
+  --text-secondary: #334155;
+  /* slate-700 - darker for better reading under sun */
+  --text-muted: #64748b;
+  /* slate-500 */
+  --text-on-brand: #ffffff;
+
+  /* Functional Colors - HIGH CONTRAST (Sun-readable) */
+  --color-success: #16A34A;
+  /* bold green */
+  --color-success-soft: rgba(22, 163, 74, 0.15);
+  --color-warning: #EA580C;
+  /* bold orange */
+  --color-warning-soft: rgba(234, 88, 12, 0.15);
+  --color-danger: #E11D48;
+  /* bold rose-red */
+  --color-danger-soft: rgba(225, 29, 72, 0.15);
+  --color-critical: #D946EF;
+  /* bold magenta */
+  --color-critical-soft: rgba(217, 70, 239, 0.15);
+  --color-info: #0284C7;
+  /* bold sky blue */
+  --color-info-soft: rgba(2, 132, 199, 0.15);
+  --color-neutral: #475569;
+  /* slate 600 */
+  --color-neutral-soft: rgba(71, 85, 105, 0.15);
+
+  /* Case State Colors (Families) - Adapting to Light mode contrast */
+  --estado-ip-coordinada: var(--color-info);
+  --estado-pendiente-coordinacion: var(--color-warning);
+  --estado-contactado: var(--color-info);
+  --estado-pendiente-carga: var(--color-warning);
+  --estado-pendiente-presupuesto: var(--color-warning);
+  --estado-en-consulta-cia: var(--color-critical);
+  --estado-ip-reclamada-perito: var(--color-danger);
+  --estado-esperando-respuesta-tercero: var(--color-danger);
+  --estado-licitando-repuestos: var(--brand-primary);
+  --estado-ip-cerrada: var(--color-success);
+  --estado-facturada: var(--color-success);
+  --estado-inspeccion-anulada: var(--color-neutral);
+}
+
+.dark {
+  /* Brand Identity */
+  --brand-primary: #8B5CF6;
+  --brand-primary-hover: #7C3AED;
+  --brand-primary-soft: rgba(139, 92, 246, 0.15);
+  --brand-secondary: #06B6D4;
+  --brand-secondary-hover: #0891B2;
+
+  /* Premium Slate-Blue Dark Mode Backgrounds */
+  --bg-primary: #0B0D17;
+  /* Deep navy-slate base */
+  --bg-secondary: #131627;
+  /* Soft blue-tinted card background */
+  --bg-tertiary: #1E2238;
+  /* Inputs and raised secondary surfaces */
+  --bg-elevated: #252A45;
+  /* Deep popovers and menus */
+  --bg-surface: #2A3152;
+  /* Hover states */
+
+  /* Borders (Extremely subtle, 1px rgba) */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.2);
+  --border-focus: rgba(139, 92, 246, 0.5);
+
+  /* Shadows (Depth and texture) for dark mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.15);
+
+  /* Text - Electric Contrast */
+  --text-primary: #ffffff;
+  /* Pure white */
+  --text-secondary: #cbd5e1;
+  /* slate-300 */
+  --text-muted: #94a3b8;
+  /* slate-400 */
+  --text-on-brand: #ffffff;
+
+  /* Functional Colors (Vibrant / Neon / Tech) */
+  --color-success: #10B981;
+  /* bright lime green */
+  --color-success-soft: rgba(16, 185, 129, 0.2);
+  --color-warning: #FACC15;
+  /* intense yellow/amber */
+  --color-warning-soft: rgba(250, 204, 21, 0.2);
+  --color-danger: #FB7185;
+  /* vivid rose/pink-red */
+  --color-danger-soft: rgba(251, 113, 133, 0.2);
+  --color-critical: #E879F9;
+  /* electric magenta */
+  --color-critical-soft: rgba(232, 121, 249, 0.2);
+  --color-info: #38BDF8;
+  /* electric cyan-blue */
+  --color-info-soft: rgba(56, 189, 248, 0.2);
+  --color-neutral: #94a3b8;
+  /* slate 400 */
+  --color-neutral-soft: rgba(148, 163, 184, 0.15);
+
+  /* Case State Colors (Families) */
+  --estado-ip-coordinada: var(--color-info);
+  --estado-pendiente-coordinacion: var(--color-warning);
+  --estado-contactado: var(--color-info);
+  --estado-pendiente-carga: var(--color-warning);
+  --estado-pendiente-presupuesto: var(--color-warning);
+  --estado-en-consulta-cia: var(--color-critical);
+  --estado-ip-reclamada-perito: var(--color-danger);
+  --estado-esperando-respuesta-tercero: var(--color-danger);
+  --estado-licitando-repuestos: var(--brand-primary);
+  --estado-ip-cerrada: var(--color-success);
+  --estado-facturada: var(--color-success);
+  --estado-inspeccion-anulada: var(--color-neutral);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased tracking-tight selection:bg-[var(--brand-primary)] selection:text-white;
+  }
+}
+
+/* Custom Utilities for Premium UI */
+@layer utilities {
+  .glass-panel {
+    @apply bg-bg-secondary/80 backdrop-blur-xl border border-border-default shadow-md;
+  }
+
+  .card-premium {
+    @apply bg-bg-secondary border border-border-subtle rounded-2xl shadow-sm transition-all duration-150 hover:border-border-default hover:shadow-md;
+  }
+
+  .card-hover-up {
+    @apply transition-all duration-150 hover:-translate-y-[1px] hover:shadow-lg hover:border-border-hover;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-text-secondary;
+  }
+
+  .text-gradient-brand {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-brand-secondary;
+  }
+
+  @keyframes pulse-border {
+
+    0%,
+    100% {
+      border-color: rgba(239, 68, 68, 1);
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    }
+
+    50% {
+      border-color: rgba(239, 68, 68, 0.2);
+      box-shadow: 0 0 0px rgba(239, 68, 68, 0);
+    }
+  }
+
+  .animate-pulse-border {
+    animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}

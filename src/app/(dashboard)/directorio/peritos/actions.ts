@@ -180,7 +180,18 @@ export async function deletePerito(userId: string) {
     // Note: Eliminating the auth user cascades to public.usuarios via Supabase FK if set, 
     // but just to be safe we use Admin API to delete the auth account entirely.
     const { error: authError } = await supabaseAuthAdmin.auth.admin.deleteUser(userId);
-    if (authError) return { error: authError.message };
+
+    // Si el usuario fue migrado vía SQL, no existirá en auth.users
+    if (authError && !authError.message.includes("User not found")) {
+        return { error: `Error interno al eliminar auth: ${authError.message}` };
+    }
+
+    // Borramos explícitamente de la tabla pública por si falló el cascade o era un usuario migrado
+    const { error: dbError } = await supabaseData.from("usuarios").delete().eq("id", userId);
+
+    if (dbError) {
+        return { error: `Error al eliminar perfil de base de datos: ${dbError.message}` };
+    }
 
     revalidatePath("/directorio/peritos");
     return { success: true };

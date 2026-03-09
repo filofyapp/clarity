@@ -139,7 +139,7 @@ export function PeritoFormDialog({ perito, trigger }: { perito?: any, trigger?: 
                         <label className="text-xs text-text-muted block mb-1">Roles *</label>
                         <Select
                             isMulti
-                            name="roles"
+                            name="rolesInput"
                             options={roleOptions}
                             value={selectedRoles}
                             onChange={(selected: any) => setSelectedRoles(selected || [])}

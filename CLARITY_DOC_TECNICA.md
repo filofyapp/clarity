@@ -537,6 +537,16 @@ TESTEADO: `npx tsc --noEmit` 0 errores.
 
 ---
 
+FECHA: 09/03/2026
+QUE SE CAMBIO: Fix para la creación de peritos con múltiples roles y fix para la eliminación de peritos migrados.
+POR QUE: Cuando se creaba un nuevo usuario y se asignaban varios roles a la vez (ej: calle y carga), `react-select` enviaba en el FormData múltiples campos nativos llamados `roles`. El backend de Next.js al hacer `formData.get("roles")` tomaba solo el primero, ignorando el resto e ignorando el JSON strigificado manual. Adicionalmente, si el admin intentaba eliminar un perito legado (migrado, no existente en Auth), el sistema arrojaba el mismo 'Database error'.
+COMO: 1) En el frontend (`PeritoFormDialog.tsx`) se renombró el input nativo de react-select a `rolesInput` para que no colisione con el campo enviado manualmente vía `formData.append("roles", ...)` con todo el array de roles. 2) En el backend (`deletePerito`), si el error de Supabase al intentar borrar el Auth es que "no existe", se procede igual a forzar el borrado manual de `public.usuarios`.
+ARCHIVOS AFECTADOS: `PeritoFormDialog.tsx`, `actions.ts`.
+EFECTOS COLATERALES: Ninguno, solo que ahora se guardan múltiples roles perfectamente y se purgan los usuarios migrados.
+TESTEADO: `npx tsc --noEmit` 0 errores.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
 ### BUG-001: Sidebar active state hardcodeado (RESUELTO)

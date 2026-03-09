@@ -505,6 +505,16 @@ TESTEADO: `npx tsc --noEmit` 0 errores.
 
 ---
 
+FECHA: 09/03/2026
+QUE SE CAMBIO: Fix de redirección al cerrar sesión en entorno VPS (EasyPanel).
+POR QUE: Al usar `output: standalone` detrás de un proxy (Traefik), `request.url` devuelve la IP interna del contenedor Docker, lo que enviaba al usuario a una IP privada al cerrar sesión.
+COMO: Modificado `src/app/auth/signout/route.ts` para leer la cabecera `x-forwarded-host` provista por el proxy y reconstituir la URL base correcta (ej. `https://panel.aomsiniestros.com/login`) en lugar de usar la URL interna del request.
+ARCHIVOS AFECTADOS: `src/app/auth/signout/route.ts`.
+EFECTOS COLATERALES: Funciona tanto en local como en producción detrás de proxy.
+TESTEADO: `npx tsc --noEmit` 0 errores.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
 ### BUG-001: Sidebar active state hardcodeado (RESUELTO)

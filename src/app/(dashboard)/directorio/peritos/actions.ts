@@ -53,13 +53,23 @@ export async function upsertPerito(formData: FormData, userId?: string) {
 
         if (userId) {
             // Edit existing
+            const { data: existingAuthUser, error: existingAuthError } = await supabaseAuthAdmin.auth.admin.getUserById(userId);
+            if (existingAuthError) return { error: "Error interno al verificar usuario en Auth." };
+
             const updatePayload: any = {
-                email: email,
                 user_metadata: { nombre, apellido, rol: primaryRol, roles },
             };
+
+            // Only update email if it actually changed, to avoid "Database error loading user"
+            if (email && email !== existingAuthUser.user.email) {
+                updatePayload.email = email;
+                updatePayload.email_confirm = true;
+            }
+
             if (password && password.trim().length >= 6) {
                 updatePayload.password = password;
             }
+
             const { error: authError } = await supabaseAuthAdmin.auth.admin.updateUserById(userId, updatePayload);
             if (authError) return { error: authError.message };
 

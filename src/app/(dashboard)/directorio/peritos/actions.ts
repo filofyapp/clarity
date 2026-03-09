@@ -54,7 +54,7 @@ export async function upsertPerito(formData: FormData, userId?: string) {
         if (userId) {
             // Edit existing
             const { data: existingAuthUser, error: existingAuthError } = await supabaseAuthAdmin.auth.admin.getUserById(userId);
-            if (existingAuthError) return { error: "Error interno al verificar usuario en Auth." };
+            if (existingAuthError) return { error: `Error interno al verificar usuario en Auth: ${existingAuthError.message}` };
 
             const updatePayload: any = {
                 user_metadata: { nombre, apellido, rol: primaryRol, roles },

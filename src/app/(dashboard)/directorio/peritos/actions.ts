@@ -31,12 +31,18 @@ export async function upsertPerito(formData: FormData, userId?: string) {
     const email = formData.get("email") as string;
     const telefono = formData.get("telefono") as string;
     const password = formData.get("password") as string;
-    // Roles are passed via JSON stringified array from the custom react-select
-    const rolesStr = formData.get("roles") as string;
+    // Roles can be a JSON array string or a comma-separated string depending on form submission
     let roles: string[] = ["calle"];
-    try {
-        if (rolesStr) roles = JSON.parse(rolesStr);
-    } catch (e) { console.error("Error parsing roles", e); }
+    const rolesStr = formData.get("roles") as string;
+    if (rolesStr) {
+        try {
+            roles = JSON.parse(rolesStr);
+            if (!Array.isArray(roles)) roles = [rolesStr];
+        } catch (e) {
+            // If it's not JSON, it might be a plain string like 'calle' or 'calle,carga'
+            roles = rolesStr.split(',').map(r => r.trim()).filter(Boolean);
+        }
+    }
 
     // Fallback: We'll take the first role in the array to persist to the old "rol" column temporarily,
     // until we fully drop `rol`.
@@ -54,14 +60,51 @@ export async function upsertPerito(formData: FormData, userId?: string) {
         if (userId) {
             // Edit existing
             const { data: existingAuthUser, error: existingAuthError } = await supabaseAuthAdmin.auth.admin.getUserById(userId);
-            if (existingAuthError) return { error: `Error interno al verificar usuario en Auth: ${existingAuthError.message}` };
+
+            if (existingAuthError && existingAuthError.message.includes("User not found")) {
+                // FALLBACK FOR MIGRATED USERS: The user exists in 'usuarios' but NOT in 'auth.users'
+                if (!password || password.trim().length < 6) return { error: "Este perito fue migrado. Para enlazarlo al sistema, debe asignarle una contraseña de al menos 6 caracteres." };
+
+                // We create them in Auth with the exact SAME UUID so they link up correctly
+                const { data: newAuthUser, error: newAuthError } = await supabaseAuthAdmin.auth.admin.createUser({
+                    email,
+                    password,
+                    email_confirm: true,
+                    user_metadata: { nombre, apellido, rol: primaryRol, roles }
+                });
+
+                if (newAuthError) return { error: `Error creando usuario migrado en Auth: ${newAuthError.message}` };
+
+                // Force update their ID in the local table just to be absolutely sure, though it should be identical if we could pass ID, 
+                // but Supabase createUser doesn't let us force an ID. So we must update the local table to point to the New Auth ID.
+                authUserId = newAuthUser.user.id;
+
+                const { error: linkError } = await supabaseData.from("usuarios").update({
+                    id: authUserId,
+                    nombre,
+                    apellido,
+                    email,
+                    telefono,
+                    rol: primaryRol,
+                    roles,
+                }).eq("id", userId);
+
+                if (linkError) return { error: `Error enlazando perfil migrado: ${linkError.message}` };
+
+                revalidatePath("/directorio/peritos");
+                return { success: true };
+            }
+
+            if (existingAuthError && !existingAuthError.message.includes("User not found")) {
+                return { error: `Error interno al verificar usuario en Auth: ${existingAuthError.message}` };
+            }
 
             const updatePayload: any = {
                 user_metadata: { nombre, apellido, rol: primaryRol, roles },
             };
 
             // Only update email if it actually changed, to avoid "Database error loading user"
-            if (email && email !== existingAuthUser.user.email) {
+            if (email && existingAuthUser?.user && email !== existingAuthUser.user.email) {
                 updatePayload.email = email;
                 updatePayload.email_confirm = true;
             }

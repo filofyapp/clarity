@@ -65,7 +65,8 @@ export async function upsertPerito(formData: FormData, userId?: string) {
                 // FALLBACK FOR MIGRATED USERS: The user exists in 'usuarios' but NOT in 'auth.users'
                 if (!password || password.trim().length < 6) return { error: "Este perito fue migrado. Para enlazarlo al sistema, debe asignarle una contraseña de al menos 6 caracteres." };
 
-                // We create them in Auth with the exact SAME UUID so they link up correctly
+                let authUserId: string;
+
                 const { data: newAuthUser, error: newAuthError } = await supabaseAuthAdmin.auth.admin.createUser({
                     email,
                     password,
@@ -73,11 +74,25 @@ export async function upsertPerito(formData: FormData, userId?: string) {
                     user_metadata: { nombre, apellido, rol: primaryRol, roles }
                 });
 
-                if (newAuthError) return { error: `Error creando usuario migrado en Auth: ${newAuthError.message}` };
+                if (newAuthError && newAuthError.message.includes("Database error checking email")) {
+                    // This means the user was successfully created in auth.users in a prior attempt, 
+                    // but the local DB update failed (orphan auth.users profile). 
+                    // We must find their existing auth ID and reuse it instead of throwing an error.
+                    const { data: listData } = await supabaseAuthAdmin.auth.admin.listUsers();
+                    const orphanedUser = listData.users.find(u => u.email === email);
 
-                // Force update their ID in the local table just to be absolutely sure, though it should be identical if we could pass ID, 
-                // but Supabase createUser doesn't let us force an ID. So we must update the local table to point to the New Auth ID.
-                authUserId = newAuthUser.user.id;
+                    if (!orphanedUser) return { error: "El correo ya está registrado, pero no pudimos recuperar el enlace." };
+
+                    // Force update their password to what the admin provided
+                    if (password) {
+                        await supabaseAuthAdmin.auth.admin.updateUserById(orphanedUser.id, { password, email_confirm: true });
+                    }
+                    authUserId = orphanedUser.id;
+                } else if (newAuthError) {
+                    return { error: `Error creando usuario migrado en Auth: ${newAuthError.message}` };
+                } else {
+                    authUserId = newAuthUser.user.id;
+                }
 
                 const { error: linkError } = await supabaseData.from("usuarios").update({
                     id: authUserId,

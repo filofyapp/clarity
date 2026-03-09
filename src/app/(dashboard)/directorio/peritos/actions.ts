@@ -61,7 +61,7 @@ export async function upsertPerito(formData: FormData, userId?: string) {
             // Edit existing
             const { data: existingAuthUser, error: existingAuthError } = await supabaseAuthAdmin.auth.admin.getUserById(userId);
 
-            if (existingAuthError && existingAuthError.message.includes("User not found")) {
+            if (existingAuthError && (existingAuthError.message.includes("User not found") || existingAuthError.message.includes("Database error loading user"))) {
                 // FALLBACK FOR MIGRATED USERS: The user exists in 'usuarios' but NOT in 'auth.users'
                 if (!password || password.trim().length < 6) return { error: "Este perito fue migrado. Para enlazarlo al sistema, debe asignarle una contraseña de al menos 6 caracteres." };
 
@@ -95,7 +95,7 @@ export async function upsertPerito(formData: FormData, userId?: string) {
                 return { success: true };
             }
 
-            if (existingAuthError && !existingAuthError.message.includes("User not found")) {
+            if (existingAuthError && !existingAuthError.message.includes("User not found") && !existingAuthError.message.includes("Database error loading user")) {
                 return { error: `Error interno al verificar usuario en Auth: ${existingAuthError.message}` };
             }
 
@@ -182,7 +182,7 @@ export async function deletePerito(userId: string) {
     const { error: authError } = await supabaseAuthAdmin.auth.admin.deleteUser(userId);
 
     // Si el usuario fue migrado vía SQL, no existirá en auth.users
-    if (authError && !authError.message.includes("User not found")) {
+    if (authError && !authError.message.includes("User not found") && !authError.message.includes("Database error loading user")) {
         return { error: `Error interno al eliminar auth: ${authError.message}` };
     }
 

@@ -8,7 +8,7 @@ import { es } from "date-fns/locale";
 import { InformePericial } from "@/components/inspeccion/InformePericial";
 import { GaleriaFotosResponsive } from "@/components/inspeccion/GaleriaFotosResponsive";
 import { VistaInforme } from "@/components/inspeccion/VistaInforme";
-import { WidgetRepuesterosMarca } from "@/components/directorio/WidgetRepuesterosMarca";
+
 import { SelectorEstado } from "./SelectorEstado";
 import { ZonaArchivos } from "./ZonaArchivos";
 import { TimelineExpediente } from "./TimelineExpediente";
@@ -254,12 +254,6 @@ export async function CasoDetail({ id }: { id: string }) {
                                     puedeOperar={(rol === "carga" || rol === "admin") && caso.estado === "pendiente_carga"}
                                 />
                             </div>
-                        )}
-
-                    {/* Widget Auxiliar Carga: Recomendación Proveedores por Vehículo */}
-                    {(rol === "carga" || rol === "admin") &&
-                        (caso.estado === "pendiente_carga" || caso.estado === "licitando_repuestos") && (
-                            <WidgetRepuesterosMarca marcaVehiculo={caso.marca} />
                         )}
 
                     {/* Galería Fotográfica Unificada */}

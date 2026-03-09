@@ -209,7 +209,7 @@ Perito de Carga (rol: carga):
 
 Perito de Calle (rol: calle):
 - Ve su agenda y casos asignados
-- NO crea tareas, solo participa cuando lo agregan
+- Crea y participa en tareas (comunicación directa desde la calle)
 - Sube fotos, completa informe pericial, marca Inspeccion realizada
 - Panel personal: inspecciones + ganancias
 
@@ -237,7 +237,7 @@ Tabla comentario_lectura. Badge numerico en tarjetas kanban. Filtro Con respuest
 | Formulario de carga | Pantalla nuevo caso | Carga caso, modo secuencial | Admin |
 | Inspeccion realizada | Vista caso (perito calle) | Estado a pendiente_carga + timestamp + notif | Perito Calle |
 | Selector de estado | Vista caso | Cambia estado manual | Segun permisos |
-| Nueva tarea | Vista caso / tablero | Crea tarea vinculada | Admin, Perito Carga |
+| Nueva tarea | Vista caso / tablero | Crea tarea vinculada | Admin, Perito Carga, Perito Calle |
 | Drag and drop tarjetas | Kanban (@dnd-kit) | Cambia estado tarea al soltar | Participantes + Admin |
 | Filtro tareas | Tablero tareas | Todas / Asignadas a mi / Creadas por mi | Todos |
 | Badge sin leer | Tarjeta tarea | Comentarios no leidos | Automatico |
@@ -247,7 +247,7 @@ Tabla comentario_lectura. Badge numerico en tarjetas kanban. Filtro Con respuest
 | ABM Peritos | Admin / Config | CRUD usuarios con rol calle/carga | Admin |
 | ABM Gestores | Admin / Config | CRUD gestores | Admin |
 | ABM Talleres | Admin / Config | CRUD talleres (con tipos y check remotas) | Admin |
-| ABM Repuesteros | Admin / Config | CRUD repuesteros + marcas | Admin |
+| ABM Repuesteros | Admin / Config | CRUD repuesteros + marcas (Solo informativo) | Admin |
 | Config Honorarios | Admin / Config | Tabla precios por compania + km | Admin |
 | Dashboard Alertas | Dashboard bloque 1 | Casos demorados (umbrales en tabla configuracion) | Admin |
 | Dashboard Resumen | Dashboard bloque 2 | Contadores por estado, click filtra | Admin |
@@ -511,6 +511,16 @@ POR QUE: Al usar `output: standalone` detrás de un proxy (Traefik), `request.ur
 COMO: Modificado `src/app/auth/signout/route.ts` para leer la cabecera `x-forwarded-host` provista por el proxy y reconstituir la URL base correcta (ej. `https://panel.aomsiniestros.com/login`) en lugar de usar la URL interna del request.
 ARCHIVOS AFECTADOS: `src/app/auth/signout/route.ts`.
 EFECTOS COLATERALES: Funciona tanto en local como en producción detrás de proxy.
+TESTEADO: `npx tsc --noEmit` 0 errores.
+
+---
+
+FECHA: 09/03/2026
+QUE SE CAMBIO: Corrección en reglas de negocio y roles (Perito Calle y Repuesteros).
+POR QUE: El perito de calle sí necesita crear tareas, y el sistema de repuesteros es meramente informativo, no se hacen licitaciones en el sistema.
+COMO: (1) Se eliminó `WidgetRepuesterosMarca.tsx` y su llamada en `CasoDetail.tsx`. (2) Se actualizó `CLARITY_DOC_TECNICA.md` y la auditoría de roles para permitir que el perito de calle cree tareas y para remover las funcionalidades de recarga/licitación del perito de carga respecto a repuestos.
+ARCHIVOS AFECTADOS: `CasoDetail.tsx`, `WidgetRepuesterosMarca.tsx` (eliminado), `CLARITY_DOC_TECNICA.md`, `AUDITORIA_ROLES.md`.
+EFECTOS COLATERALES: Roles más apegados a la realidad operativa del estudio.
 TESTEADO: `npx tsc --noEmit` 0 errores.
 
 ---

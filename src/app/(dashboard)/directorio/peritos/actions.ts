@@ -74,7 +74,7 @@ export async function upsertPerito(formData: FormData, userId?: string) {
                     user_metadata: { nombre, apellido, rol: primaryRol, roles }
                 });
 
-                if (newAuthError && newAuthError.message.includes("Database error checking email")) {
+                if (newAuthError && (newAuthError.message.includes("Database error checking email") || newAuthError.message.includes("already been registered"))) {
                     // This means the user was successfully created in auth.users in a prior attempt, 
                     // but the local DB update failed (orphan auth.users profile). 
                     // We must find their existing auth ID and reuse it instead of throwing an error.

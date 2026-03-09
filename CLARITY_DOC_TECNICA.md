@@ -525,6 +525,18 @@ TESTEADO: `npx tsc --noEmit` 0 errores.
 
 ---
 
+FECHA: 09/03/2026
+QUE SE CAMBIO: Fix de parseo JSON y error "Database error loading user" al editar peritos.
+POR QUE: Al editar un perito, el campo `roles` a veces llegaba como un string simple (ej: "calle") en lugar de un JSON array, provocando un error fatal al intentar parsearlo en Next.js. Si se pasaba este punto, al intentar editar un perito migrado del Excel (que existe en `public.usuarios` pero no en `auth.users`), Supabase tiraba el "Database error".
+COMO: En `src/app/(dashboard)/directorio/peritos/actions.ts`:
+1. Se hizo más robusto el try/catch de roles, aplicando split por comas si falla el `JSON.parse`.
+2. Se introdujo una lógica de "fallback": si `getUserById` arroja error de usuario no encontrado (significa que es un usuario migrado), el sistema automáticamente llama a `createUser` con las mismas credenciales y fuerza que el ID local de `usuarios` se alinee al nuevo ID de `auth.users`, "dándole vida" en Auth sin romper nada interno.
+ARCHIVOS AFECTADOS: `src/app/(dashboard)/directorio/peritos/actions.ts`.
+EFECTOS COLATERALES: Ahora los usuarios "fantasma"/migrados pueden ser resucitados en Auth en el momento que un admin decide editarlos e ingresarles una contraseña nueva de 6 caracteres.
+TESTEADO: `npx tsc --noEmit` 0 errores.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
 ### BUG-001: Sidebar active state hardcodeado (RESUELTO)

@@ -7,7 +7,7 @@ interface Props {
     onZonasChange: (zonas: string[]) => void;
 }
 
-const ZONAS_MAP: Record<string, string> = {
+export const ZONAS_MAP: Record<string, string> = {
     paragolpes_del: "Paragolpes Delantero",
     optica_del_izq: "Óptica Izq.",
     capot: "Capot",
@@ -23,9 +23,9 @@ const ZONAS_MAP: Record<string, string> = {
     guardabarros_tra_izq: "Guardabarros Tra. Izq.",
     luneta: "Luneta",
     guardabarros_tra_der: "Guardabarros Tra. Der.",
-    optica_tra_izq: "Óptica Izq.",
+    faro_tra_izq: "Faro Tra. Izq.",
     baul: "Baúl",
-    optica_tra_der: "Óptica Der.",
+    faro_tra_der: "Faro Tra. Der.",
     paragolpes_tra: "Paragolpes Trasero",
 };
 
@@ -114,9 +114,9 @@ export function SelectorZonaDanio({ zonasSeleccionadas, onZonasChange }: Props) 
                         <button onClick={() => toggleZona('luneta')} className={getBtnClass('luneta')}>Luneta</button>
                         <button onClick={() => toggleZona('guardabarros_tra_der')} className={getBtnClass('guardabarros_tra_der')}>Guarda-<br />barros<br />Tra. Der.</button>
 
-                        <button onClick={() => toggleZona('optica_tra_izq')} className={getBtnClass('optica_tra_izq')}>Óptica<br />Izq.</button>
+                        <button onClick={() => toggleZona('faro_tra_izq')} className={getBtnClass('faro_tra_izq')}>Faro<br />Tra. Izq.</button>
                         <button onClick={() => toggleZona('baul')} className={getBtnClass('baul')}>Baúl</button>
-                        <button onClick={() => toggleZona('optica_tra_der')} className={getBtnClass('optica_tra_der')}>Óptica<br />Der.</button>
+                        <button onClick={() => toggleZona('faro_tra_der')} className={getBtnClass('faro_tra_der')}>Faro<br />Tra. Der.</button>
 
                         <button onClick={() => toggleZona('paragolpes_tra')} className={`col-span-3 ${getBtnClass('paragolpes_tra')}`}>
                             Paragolpes<br />Trasero

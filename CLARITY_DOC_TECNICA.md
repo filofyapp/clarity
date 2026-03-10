@@ -465,13 +465,28 @@ TESTEADO: `npx tsc --noEmit` 0 errores. 488/488 filas importadas, 0 errores.
 
 ---
 
-FECHA: **10/03/2026 - UX Refactor Radical: Grilla Anatómica del Selector de Daño (Inspección Remota)**
+FECHA: **10/03/2026 - Hotfix: Terminología, Validación de Fotos y Reportes**
+- **QUE SE CAMBIO**: En `SelectorZonaDanio.tsx`, se corrigió la nomenclatura de las luces traseras de "Ópticas" a "Faros traseros" (Izq/Der) y se exportó el diccionario `ZONAS_MAP`. En `WizardCaptura.tsx`, se forzó la validación del botón Continuar para requerir un mínimo de 2 fotos por cada zona de daño seleccionada (`fotosDanios.length >= zonasDanio.length * 2`). Además, la `descripcion` de las tareas subidas al backend ahora mapea los IDs brutos a nombres legibles por humanos usando `ZONAS_MAP`.
+- **POR QUE**: Pedido del usuario para evitar que se avance sin cargar pruebas de daños reales. Las ópticas son delanteras, los traseros son faros. Los peritos necesitan entender a qué se refería el usuario leyendo el informe de archivos (`Daños reportados: Faro Tra. Izq., Baúl`).
+- **COMO**: Manipulación de arrays, `.map()`, validaciones condicionales en React.
+- **ARCHIVOS AFECTADOS**: `SelectorZonaDanio.tsx`, `WizardCaptura.tsx`.
+- **TESTEADO**: Compilado mediante `npx tsc` satisfactorio.
+
+---
 - **QUE SE CAMBIO**: Se eliminó totalmente la silueta SVG del auto vista desde arriba (top-down) en `SelectorZonaDanio.tsx`. Se implementó una "Grilla Anatómica" de 3 columnas (UI Grid) con botones masivos (touch targets > 60px) distribuyendo el auto en Frente, Lateral y Trasera. Se ató el diccionario `ZONAS_MAP` a nuevas claves modulares (incluyendo ópticas independientes).
 - **POR QUE**: A pedido del usuario, el mapa SVG requería demasiada abstracción espacial y no era a prueba de fallos para personas mayores o usuarios ajenos a la tecnología (Asegurados standard). La grilla por texto categorizado + botones emula el patrón intuitivo de una calculadora o tablero simple.
 - **COMO**: Sustitución total en `SelectorZonaDanio.tsx` usando Tailwind `grid-cols-[1fr_1.8fr_1fr]` para imitar la jerarquía de un coche sin llegar a dibujarlo. Se incorporó feedback visual Magenta para los "active-states".
 - **ARCHIVOS AFECTADOS**: `src/components/inspeccion-remota/SelectorZonaDanio.tsx`.
 - **EFECTOS COLATERALES**: Ninguno negativo. La data de `zonasDanio` enviada al Wizard (`WizardCaptura.tsx`) sigue siendo el array de strings con IDs, pero ahora mucho más rico e intuitivo gracias a las ópticas desglosadas.
 - **TESTEADO**: Se compilaron sin errores las nuevas Props locales.
+
+---
+- **QUE SE CAMBIO**: Se añadió un Resumen Visual de Zonas Dañadas Reportadas en la galería del panel de administración (`GaleriaFotosResponsive.tsx`).
+- **POR QUE**: Para proveer de contexto visual inmediato al perito experto sobre las partes seleccionadas por el asegurado, sin requerirle inspeccionar cada thumbnail.
+- **COMO**: Extrayendo dinámicamente un `Set` de zonas únicas desde las descripciones inyectadas (`Daños reportados: ...`) de las fotos `danio_detalle` subidas. Renderizadas como `Badges` prominentes en el tope de la grilla fotográfica.
+- **ARCHIVOS AFECTADOS**: `src/components/inspeccion/GaleriaFotosResponsive.tsx`.
+- **EFECTOS COLATERALES**: Ninguno negativo. Despliegue condicional seguro para evitar visualizaciones en blanco.
+- **TESTEADO**: Compilado mediante `npx tsc` satisfactorio y reescritura de hooks de array validadas.
 
 FECHA: 07/03/2026
 QUE SE CAMBIO: Portal de Inspección Remota — Sistema de links compartibles para carga guiada de fotos.

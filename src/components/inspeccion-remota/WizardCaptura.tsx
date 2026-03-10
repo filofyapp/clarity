@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { CameraCapture } from "./CameraCapture";
-import { SelectorZonaDanio } from "./SelectorZonaDanio";
+import { SelectorZonaDanio, ZONAS_MAP } from "./SelectorZonaDanio";
 import {
     Camera, CheckCircle2, ChevronRight, ChevronLeft,
     Car, Loader2, PartyPopper, AlertCircle, Image as ImageIcon,
@@ -126,11 +126,13 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
     // Handle damage photo capture (multiple)
     const handleFotoDanioMultiple = (fotos: { blob: Blob, preview: string }[]) => {
+        const zonasNombres = zonasDanio.map(id => ZONAS_MAP[id] || id).join(", ");
+
         const nuevasFotos = fotos.map(f => ({
             tipo: "danio_detalle",
             blob: f.blob,
             preview: f.preview,
-            descripcion: `Daño - Zona: ${zonasDanio.join(", ")}`,
+            descripcion: `Daños reportados: ${zonasNombres}`,
         }));
         setFotosDanios(prev => [...prev, ...nuevasFotos]);
         setCameraActive(false);
@@ -334,10 +336,12 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
                         <button
                             onClick={() => setStep("resumen")}
-                            disabled={zonasDanio.length === 0}
+                            disabled={zonasDanio.length === 0 || fotosDanios.length < (zonasDanio.length * 2)}
                             className="w-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] hover:brightness-110 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(214,0,110,0.3)] active:scale-[0.98] flex items-center justify-center gap-2"
                         >
-                            Continuar · {zonasDanio.length * 2} fotos necesarias <ChevronRight className="w-5 h-5" />
+                            {fotosDanios.length < (zonasDanio.length * 2)
+                                ? `Faltan ${(zonasDanio.length * 2) - fotosDanios.length} fotos mín.`
+                                : `Continuar · ${fotosDanios.length} fotos en total`} <ChevronRight className="w-5 h-5" />
                         </button>
                     </div>
                 </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { X, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Download, FolderDown } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Download, FolderDown, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 
@@ -146,6 +146,13 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
     const countReglamentarias = fotos.filter(f => REGLAMENTARIAS.includes(f.tipo)).length;
     const countDanios = fotos.filter(f => f.tipo === "danio_detalle").length;
 
+    // Extract unique damage zones
+    const zonasReportadas = Array.from(new Set(
+        fotos
+            .filter(f => f.tipo === "danio_detalle" && f.descripcion?.startsWith("Daños reportados: "))
+            .flatMap(f => f.descripcion!.replace("Daños reportados: ", "").split(", "))
+    )).filter(Boolean);
+
     // Download single photo
     const downloadSingle = async (foto: Foto) => {
         try {
@@ -258,6 +265,23 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Zonas de Daño Reportadas */}
+            {(activeTab === "todas" || activeTab === "danios") && zonasReportadas.length > 0 && (
+                <div className="bg-bg-secondary/40 border border-brand-primary/20 rounded-lg p-3 flex flex-col sm:flex-row sm:items-start md:items-center gap-3 animate-in fade-in">
+                    <div className="flex items-center gap-2 text-text-primary text-sm font-medium shrink-0">
+                        <AlertCircle className="w-4 h-4 text-brand-primary" />
+                        Zonas con daños reportados:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                        {zonasReportadas.map(zona => (
+                            <span key={zona} className="bg-brand-primary/10 text-brand-primary border border-brand-primary/20 px-2.5 py-1 rounded-md text-xs font-semibold">
+                                {zona}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Photo Grid */}
             {filteredFotos.length === 0 ? (

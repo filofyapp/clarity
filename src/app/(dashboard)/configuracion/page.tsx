@@ -63,8 +63,8 @@ export default async function ConfiguracionPage() {
                                                 const roles: string[] = p.roles && p.roles.length > 0 ? p.roles : [p.rol];
                                                 return roles.map((r: string) => (
                                                     <span key={r} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${r === 'admin' ? 'bg-brand-primary/20 text-brand-primary'
-                                                            : r === 'carga' ? 'bg-info/20 text-color-info'
-                                                                : 'bg-success/20 text-success'
+                                                        : r === 'carga' ? 'bg-info/20 text-color-info'
+                                                            : 'bg-success/20 text-success'
                                                         }`}>
                                                         {r === 'admin' ? 'Coordinador' : r === 'calle' ? 'Perito Calle' : 'Perito Carga'}
                                                     </span>
@@ -113,10 +113,14 @@ export default async function ConfiguracionPage() {
             </div>
 
             {/* Links a sublocalidades */}
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                <a href="/configuracion/precios" className="bg-card border border-border rounded-lg p-6 hover:border-brand-primary/50 transition-all group max-w-xl">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+                <a href="/configuracion/precios" className="bg-card border border-border rounded-lg p-6 hover:border-brand-primary/50 transition-all group">
                     <h3 className="font-semibold text-text-primary group-hover:text-brand-primary transition-colors">Honorarios y Tarifas</h3>
                     <p className="text-sm text-text-muted mt-1">Configurar precios por tipo de inspección y kilometraje.</p>
+                </a>
+                <a href="/configuracion/notificaciones" className="bg-card border border-border rounded-lg p-6 hover:border-brand-primary/50 transition-all group">
+                    <h3 className="font-semibold text-text-primary group-hover:text-brand-primary transition-colors">Notificaciones Automáticas</h3>
+                    <p className="text-sm text-text-muted mt-1">Configurar plantillas de emails y alertas para Sancor.</p>
                 </a>
             </div>
         </div>

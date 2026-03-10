@@ -624,11 +624,11 @@ TESTEADO: `npm run build` Ok sin errores TS. NextJS Virtualizer mantiene compati
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
 ### BUG-015: Enlace de Seguimiento tirando Error 404 (RESUELTO)
-- PROBLEMA: Al cliquear el enlace de seguimiento (`/seguimiento/[token]`), el navegador reportaba un NotFound o Error 404.
-- CAUSA: 1) El middleware de autenticación (`src/lib/supabase/middleware.ts`) tenía bloqueado el acceso no-autenticado a `/seguimiento/`. 2) Además, como se trata de código nuevo que corría fuera del localhost local, el VPS probablemente aún no contaba con la compilación (`npm run build`) de los archivos creados en el parche anterior.
-- SOLUCION: Se agregó `const isPublicSeguimiento = request.nextUrl.pathname.startsWith('/seguimiento/')` a la whitelist del Auth Middleware. Ahora depende del administrador purgar el cache y recompilar en su VPS.
+- PROBLEMA: Al cliquear el enlace de seguimiento (`/seguimiento/[token]`), el navegador reportaba un NotFound o Error 404 nativo de Next.js.
+- CAUSA: 1) En Next.js 15+ (Turbopack), el objeto `params` en las rutas dinámicas como `[token]` pasó a ser una Promesa asíncrona por defecto. Al intentar leer el token destruyendolo síncronamente u omitiendo el tipado de Promise, el Router fallaba silenciosamente y descartaba la vista, redirigiendo a la pantalla negra `404 This page could not be found`. 2) El middleware de autenticación también tenía la ruta bloqueada accidentalmente.
+- SOLUCION: Se cambió la firma a `export default async function SeguimientoCasoPage({ params }: { params: Promise<{ token: string }> })` y se hizo un `await params`. En simultaneo, se whitelistó la ruta en `middleware.ts`.
 - FECHA: 10/03/2026
-- NO REPETIR: Siempre que se crea una nueva ruta pública en el ecosistema, debe abrirse la "aduana" (el archivo `middleware.ts`) para evitar que rebote los accesos de clientes no logeados.
+- NO REPETIR: Durante migraciones o nuevo código en Next.js 15, recordar que todos los objetos `params` dinámicos desde la URL DEBEN ser designados como Promesas y aguardados asincrónicamente (`await params`).
 
 
 ### BUG-014: Asunto de Emails con caracteres extraños y Link de tracking apuntando a localhost (RESUELTO)

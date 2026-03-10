@@ -8,9 +8,10 @@ export const metadata = {
     description: "Estado actualizado de su siniestro",
 };
 
-export default async function SeguimientoCasoPage({ params }: { params: { token: string } }) {
+export default async function SeguimientoCasoPage({ params }: { params: Promise<{ token: string }> }) {
     const supabase = await createClient();
-    const token = await params?.token; // next.js 15+ needs await params? Check project version. We'll await safely.
+    const resolvedParams = await params;
+    const token = resolvedParams?.token;
 
     if (!token) {
         notFound();
@@ -177,8 +178,8 @@ export default async function SeguimientoCasoPage({ params }: { params: { token:
 
                                     {/* Content */}
                                     <div className={`flex-1 rounded-xl p-4 transition-all ${isCurrent
-                                            ? 'bg-[#D6006E]/10 border border-[#D6006E]/30 shadow-sm'
-                                            : 'bg-[#0C0A0F] border border-white/5 hover:border-white/10'
+                                        ? 'bg-[#D6006E]/10 border border-[#D6006E]/30 shadow-sm'
+                                        : 'bg-[#0C0A0F] border border-white/5 hover:border-white/10'
                                         }`}>
                                         <div className="flex justify-between items-center">
                                             <p className={`font-medium text-[15px] ${isCurrent ? 'text-[#D6006E]' : 'text-white/90'}`}>

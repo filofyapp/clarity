@@ -547,6 +547,16 @@ TESTEADO: `npx tsc --noEmit` 0 errores.
 
 ---
 
+FECHA: 09/03/2026
+QUE SE CAMBIO: Integración de Supabase Realtime para notificaciones y chat, fix de Sidebar roles y rediseño total de UX en Cámara de Inspección.
+POR QUE: (1) Las notificaciones y comentarios del chat requerían recargar la página para verse (retraso severo de realtime). (2) El Perito de Carga con multi-rol (carga + calle) no veía la "Cola de Carga" porque consumía `rol` estático. (3) La cámara de inspección abría la cámara frontal, crasheaba abriendo la galería accidentalmente, y el flujo para tomar daños múltiples era excesivamente lento al cerrar y abrir por cada foto.
+COMO: 1) Creación de `018_fase15_realtime_chat_notif.sql` para inyectar `notificaciones`, `comentarios_tarea` y `fotos_inspeccion` en la policy de `supabase_realtime`. 2) Re-estructuración del `useEffect` en `ComentariosTarea.tsx` con un canal dedicado `chat_tarea_[id]`. 3) Fix `userRoles.includes("carga")` en `SidebarClient.tsx`. 4) Reescritura completa de `CameraCapture.tsx` con prop `allowMultiple`, reel miniatura en la parte inferior, y partición estricta de `<input type="file">` HTML5 para matar la mezcla de galería app-vs-web en Android.
+ARCHIVOS AFECTADOS: `CameraCapture.tsx`, `WizardCaptura.tsx`, `ComentariosTarea.tsx`, `SidebarClient.tsx`, `Sidebar.tsx`, `018..._realtime_chat_notif.sql`.
+EFECTOS COLATERALES: Inspección por daños soporta toma continua como "carrete", el chat es 100% instántaneo sin F5.
+TESTEADO: `npx tsc --noEmit` 0 errores.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
 ### BUG-001: Sidebar active state hardcodeado (RESUELTO)
@@ -626,6 +636,18 @@ TESTEADO: `npx tsc --noEmit` 0 errores.
 - CAUSA: El trigger `fn_precio_historial` (migration 003) referenciaba `OLD.valor_perito` y `NEW.valor_perito`, pero la columna fue renombrada a `valor_perito_calle` en migration 005.
 - SOLUCION: `CREATE OR REPLACE FUNCTION fn_precio_historial()` con campos correctos: `valor_perito_calle`, `valor_perito_carga`. Migración `015_fix_precio_historial_trigger.sql`.
 - NO REPETIR: Al renombrar columnas, SIEMPRE buscar y actualizar triggers, vistas y funciones que las referencien.
+
+### BUG-013: Notificaciones y Chat carecen de Realtime (RESUELTO)
+- PROBLEMA: El usuario notifica grandes "delays" para ver un nuevo mensaje o notificación, viéndose forzado a dar F5.
+- CAUSA: Aunque el código TS se suscribía a `.channel()`, la base de datos de PostgreSQL jamás tuvo configurado `ALTER PUBLICATION supabase_realtime ADD TABLE...` para esas entidades orgánicamente reactivas.
+- SOLUCION: Script `018_fase15_realtime_chat_notif.sql` y actualización en `ComentariosTarea.tsx` para interceptar el payload `INSERT` por el `tarea_id` directo y re-fetchear/inyectar en el estado optimista.
+- NO REPETIR: Toda tabla que requiere presencia Web Socket debe registrarse en la publicación lógica de la Base de Datos.
+
+### BUG-014: Input <file capture> colisionando con Galería en webviews (RESUELTO)
+- PROBLEMA: Tocar "Abrir Cámara" a veces lanzaba el picker de galería en Android nativo.
+- CAUSA: Modificar dinámicamente el property `capture` de un mismo DOM node causa race conditions en la invocación onClick.
+- SOLUCION: Separación absoluta arquitectónica en WebKit: Dos `<input>` gemelos paralelos, uno hardcodeado con `capture="environment"` (Cámara Nativa) y otro con `multiple={true}` descartando el capture (Galería Pura).
+- NO REPETIR: Jamás togglear atributos nativos de sensores sobre la misma referencia HTMLNode. Clocar y bifurcar.
 
 ---
 

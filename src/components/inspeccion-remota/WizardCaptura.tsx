@@ -123,14 +123,15 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
         }
     };
 
-    // Handle damage photo capture
-    const handleFotoDanio = (blob: Blob, preview: string) => {
-        setFotosDanios(prev => [...prev, {
+    // Handle damage photo capture (multiple)
+    const handleFotoDanioMultiple = (fotos: { blob: Blob, preview: string }[]) => {
+        const nuevasFotos = fotos.map(f => ({
             tipo: "danio_detalle",
-            blob,
-            preview,
+            blob: f.blob,
+            preview: f.preview,
             descripcion: `Daño - Zona: ${zonasDanio.join(", ")}`,
-        }]);
+        }));
+        setFotosDanios(prev => [...prev, ...nuevasFotos]);
         setCameraActive(false);
         setCapturingDamage(false);
     };
@@ -298,13 +299,15 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                 </div>
             )}
 
-            {/* ─── CAMERA ACTIVE (Damage) ─── */}
-            {step === "zona_danio" && capturingDamage && cameraActive && (
+            {/* ─── CAMERA ACTIVE (Daños) ─── */}
+            {step === "zona_danio" && capturingDamage && (
                 <CameraCapture
                     tipo="danio_detalle"
-                    label={`Daño - ${zonasDanio.join(", ")}`}
-                    onCapture={handleFotoDanio}
-                    onCancel={() => { setCameraActive(false); setCapturingDamage(false); }}
+                    label="Fotos de Daños"
+                    allowMultiple={true}
+                    onCapture={() => { }} // dummy para type check
+                    onCaptureMultiple={handleFotoDanioMultiple}
+                    onCancel={() => { setCapturingDamage(false); setCameraActive(false); }}
                 />
             )}
 

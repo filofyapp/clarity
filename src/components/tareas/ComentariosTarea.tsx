@@ -63,23 +63,42 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
     }, []);
 
     // Fetch comentarios
-    useEffect(() => {
-        async function fetchComentarios() {
-            setLoading(true);
-            const { data, error } = await supabase
-                .from("comentarios_tarea")
-                .select("id, contenido, created_at, usuario_id, usuario:usuarios(nombre, apellido)")
-                .eq("tarea_id", tareaId)
-                .order("created_at", { ascending: true });
+    const fetchComentarios = useCallback(async (isInitial = true) => {
+        if (isInitial) setLoading(true);
+        const { data, error } = await supabase
+            .from("comentarios_tarea")
+            .select("id, contenido, created_at, usuario_id, usuario:usuarios(nombre, apellido)")
+            .eq("tarea_id", tareaId)
+            .order("created_at", { ascending: true });
 
-            if (!error && data) {
-                setComentarios(data as any);
-                await marcarLeidos(data.map((c: any) => c.id));
-            }
-            setLoading(false);
+        if (!error && data) {
+            setComentarios(data as any);
+            await marcarLeidos(data.map((c: any) => c.id));
         }
+        if (isInitial) setLoading(false);
+    }, [tareaId, currentUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
         fetchComentarios();
-    }, [tareaId]);
+
+        // Suscribirse a realtime para nuevos comentarios
+        const channel = supabase
+            .channel(`chat_tarea_${tareaId}`)
+            .on("postgres_changes", {
+                event: "INSERT",
+                schema: "public",
+                table: "comentarios_tarea",
+                filter: `tarea_id=eq.${tareaId}`
+            }, (payload) => {
+                // Ignore our own optimistic updates (handled locally via handleEnviar)
+                if (payload.new.usuario_id !== currentUserId) {
+                    fetchComentarios(false);
+                }
+            })
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [tareaId, fetchComentarios]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Scroll al final
     useEffect(() => {
@@ -187,7 +206,12 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
                 }
             }
 
-            await marcarLeidos([data.id]);
+            // Also trigger a background fetch just in case to sync perfectly
+            fetchComentarios(false);
+        } else if (error) {
+            console.error(error);
+            // Revert optimistic update on failure
+            setComentarios(prev => prev.filter(c => c.id !== tempId));
         }
         setEnviando(false);
     };

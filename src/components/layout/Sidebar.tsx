@@ -12,5 +12,5 @@ export async function Sidebar() {
     .select("*", { count: "exact", head: true })
     .eq("estado", "pendiente_carga");
 
-  return <SidebarClient userRole={usuario.rol} pendingCargaCount={pendingCargaCount || 0} />;
+  return <SidebarClient userRoles={usuario.roles || [usuario.rol]} pendingCargaCount={pendingCargaCount || 0} />;
 }

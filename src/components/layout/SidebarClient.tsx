@@ -11,11 +11,11 @@ import {
 import { useSidebar } from "./SidebarContext";
 
 interface SidebarClientProps {
-    userRole: string;
+    userRoles: string[];
     pendingCargaCount?: number;
 }
 
-export function SidebarClient({ userRole, pendingCargaCount = 0 }: SidebarClientProps) {
+export function SidebarClient({ userRoles, pendingCargaCount = 0 }: SidebarClientProps) {
     const pathname = usePathname();
     const { isCollapsed, toggleSidebar } = useSidebar();
 
@@ -55,21 +55,21 @@ export function SidebarClient({ userRole, pendingCargaCount = 0 }: SidebarClient
                     ) : <div className="h-4" />}
                     <div className="space-y-1">
                         <SidebarItem href="/casos" icon={Briefcase} label="Casos" pathname={pathname} isCollapsed={isCollapsed} />
-                        {(userRole === "admin") && (
+                        {userRoles.includes("admin") && (
                             <SidebarItem href="/casos/nuevo" icon={PlusCircle} label="Nuevo Caso" pathname={pathname} isCollapsed={isCollapsed} />
                         )}
                         <SidebarItem href="/tareas" icon={ListTodo} label="Tareas" pathname={pathname} isCollapsed={isCollapsed} />
-                        {(userRole === "admin" || userRole === "carga") && (
+                        {(userRoles.includes("admin") || userRoles.includes("carga")) && (
                             <SidebarItem href="/carga" icon={FileBox} label="Cola de Carga" pathname={pathname} badgeCount={pendingCargaCount} isCollapsed={isCollapsed} />
                         )}
-                        {(userRole === "admin" || userRole === "calle") && (
+                        {(userRoles.includes("admin") || userRoles.includes("calle")) && (
                             <SidebarItem href="/kilometraje" icon={Map} label="Kilometraje" pathname={pathname} isCollapsed={isCollapsed} />
                         )}
                     </div>
                 </div>
 
                 {/* Finanzas — solo admin */}
-                {userRole === "admin" && (
+                {userRoles.includes("admin") && (
                     <div>
                         {!isCollapsed ? (
                             <h4 className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted font-outfit">Finanzas</h4>
@@ -88,7 +88,7 @@ export function SidebarClient({ userRole, pendingCargaCount = 0 }: SidebarClient
                     ) : <div className="h-4" />}
                     <div className="space-y-1">
                         <SidebarItem href="/directorio/talleres" icon={Wrench} label="Talleres" pathname={pathname} isCollapsed={isCollapsed} />
-                        {(userRole === "admin" || userRole === "carga") && (
+                        {(userRoles.includes("admin") || userRoles.includes("carga")) && (
                             <>
                                 <SidebarItem href="/directorio/peritos" icon={UserSquare2} label="Peritos" pathname={pathname} isCollapsed={isCollapsed} />
                                 <SidebarItem href="/directorio/gestores" icon={Users} label="Gestores" pathname={pathname} isCollapsed={isCollapsed} />
@@ -104,7 +104,7 @@ export function SidebarClient({ userRole, pendingCargaCount = 0 }: SidebarClient
             {/* Bottom */}
             <div className={`p-4 mt-auto border-t border-sidebar-border bg-bg-secondary/50 ${isCollapsed ? 'px-2' : ''}`}>
                 <div className="space-y-1 mb-4">
-                    {userRole === "admin" && (
+                    {userRoles.includes("admin") && (
                         <SidebarItem href="/configuracion" icon={Settings} label="Configuración" pathname={pathname} isCollapsed={isCollapsed} />
                     )}
                 </div>
@@ -117,7 +117,7 @@ export function SidebarClient({ userRole, pendingCargaCount = 0 }: SidebarClient
                         </div>
                         <div className="flex flex-col overflow-hidden">
                             <span className="text-sm font-medium text-text-primary truncate font-outfit">Usuario</span>
-                            <span className="text-[10px] text-text-muted uppercase tracking-wider truncate">{userRole}</span>
+                            <span className="text-[10px] text-text-muted uppercase tracking-wider truncate" title={userRoles.join(", ")}>{userRoles[0] || "Invitado"}</span>
                         </div>
                     </div>
 

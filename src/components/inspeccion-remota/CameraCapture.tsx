@@ -1,12 +1,14 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Camera, X, RotateCcw, Check, SwitchCamera, Loader2, ImagePlus, AlertTriangle, Upload } from "lucide-react";
+import { Camera, X, RotateCcw, Check, SwitchCamera, Loader2, ImagePlus, CheckCircle2 } from "lucide-react";
 
 interface Props {
     tipo: string;
     label: string;
     onCapture: (blob: Blob, preview: string) => void;
+    allowMultiple?: boolean;
+    onCaptureMultiple?: (blobs: { blob: Blob; preview: string }[]) => void;
     onCancel: () => void;
 }
 
@@ -44,26 +46,34 @@ const INSTRUCTIONS: Record<string, { title: string; desc: string; tip: string }>
     },
     danio_detalle: {
         title: "Detalle del Daño",
-        desc: "Foto cercana del daño",
-        tip: "Con buena iluminación, desde distintos ángulos"
+        desc: "Tomá fotos de todos los daños identificados",
+        tip: "Intentá mantener el dispositivo firme y con buena luz"
     },
 };
 
-export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
+export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, onCaptureMultiple, onCancel }: Props) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Separamos los inputs para evitar bugs de DOM/atributos (Galería vs app nativa de Cámara)
+    const fileInputRefCamera = useRef<HTMLInputElement>(null);
+    const fileInputRefGallery = useRef<HTMLInputElement>(null);
+
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [captured, setCaptured] = useState<string | null>(null);
     const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+
+    // Reel para captura múltiple continua
+    const [capturedReel, setCapturedReel] = useState<{ blob: Blob, preview: string }[]>([]);
+
     const [loading, setLoading] = useState(true);
     const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
     const [cameraAvailable, setCameraAvailable] = useState(false);
     const [mode, setMode] = useState<"checking" | "camera" | "file">("checking");
+    const [flash, setFlash] = useState(false);
 
     const info = INSTRUCTIONS[tipo] || INSTRUCTIONS["danio_detalle"];
 
-    // Check camera availability and start
     const startCamera = useCallback(async (facing: "environment" | "user") => {
         const isSecure = typeof window !== "undefined" && (window.isSecureContext || window.location.hostname === "localhost");
         const hasMediaDevices = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
@@ -79,10 +89,21 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
         try {
             if (stream) stream.getTracks().forEach(t => t.stop());
 
-            const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
-                audio: false,
-            });
+            let mediaStream;
+            try {
+                // Try strictly specifying exact first to force the specific camera (EVITA que abra la frontal en celulares)
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { exact: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    audio: false,
+                });
+            } catch {
+                // Si la PC no tiene "environment" exacto, fallback flexible
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    audio: false,
+                });
+            }
+
             setStream(mediaStream);
             setCameraAvailable(true);
             setMode("camera");
@@ -106,6 +127,11 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
         startCamera(next);
     };
 
+    const triggerFlash = () => {
+        setFlash(true);
+        setTimeout(() => setFlash(false), 150);
+    };
+
     const capture = () => {
         if (!videoRef.current || !canvasRef.current) return;
         const video = videoRef.current;
@@ -114,24 +140,55 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
         canvas.height = video.videoHeight;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
+
         ctx.drawImage(video, 0, 0);
+
         canvas.toBlob((blob) => {
-            if (blob) { setCaptured(URL.createObjectURL(blob)); setCapturedBlob(blob); }
+            if (blob) {
+                const preview = URL.createObjectURL(blob);
+                if (allowMultiple) {
+                    triggerFlash();
+                    setCapturedReel(prev => [...prev, { blob, preview }]);
+                } else {
+                    setCaptured(preview);
+                    setCapturedBlob(blob);
+                }
+            }
         }, "image/jpeg", 0.85);
     };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setCaptured(URL.createObjectURL(file));
-        setCapturedBlob(file);
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        if (allowMultiple) {
+            const newPhotos = files.map(file => ({
+                blob: file,
+                preview: URL.createObjectURL(file)
+            }));
+            setCapturedReel(prev => [...prev, ...newPhotos]);
+        } else {
+            setCaptured(URL.createObjectURL(files[0]));
+            setCapturedBlob(files[0]);
+        }
+
+        // Clear input to allow re-selection
+        e.target.value = "";
     };
 
-    const retake = () => { if (captured) URL.revokeObjectURL(captured); setCaptured(null); setCapturedBlob(null); if (fileInputRef.current) fileInputRef.current.value = ""; };
+    const retake = () => { if (captured) URL.revokeObjectURL(captured); setCaptured(null); setCapturedBlob(null); };
+
+    const removeMultiple = (index: number) => {
+        setCapturedReel(prev => prev.filter((_, i) => i !== index));
+    };
+
     const accept = () => { if (capturedBlob && captured) { stream?.getTracks().forEach(t => t.stop()); onCapture(capturedBlob, captured); } };
+
+    const acceptMultiple = () => { if (capturedReel.length > 0 && onCaptureMultiple) { stream?.getTracks().forEach(t => t.stop()); onCaptureMultiple(capturedReel); } };
+
     const handleCancel = () => { stream?.getTracks().forEach(t => t.stop()); onCancel(); };
 
-    // ━━━ FILE UPLOAD MODE (Premium) ━━━
+    // ━━━ FILE UPLOAD MODE (Premium Fallback) ━━━
     if (mode === "file" || mode === "checking") {
         return (
             <div className="fixed inset-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
@@ -147,9 +204,9 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 flex flex-col items-center justify-center p-6">
-                    {captured ? (
-                        /* Preview selected image */
+                <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
+                    {/* Caso 1: Tiene Single Capture Listo */}
+                    {!allowMultiple && captured ? (
                         <div className="w-full max-w-sm space-y-6">
                             <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl aspect-[4/3]">
                                 <img src={captured} alt="preview" className="w-full h-full object-cover" />
@@ -170,49 +227,66 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
                             </div>
                         </div>
                     ) : (
-                        /* Upload prompt */
-                        <div className="w-full max-w-sm text-center space-y-6">
-                            {/* Instruction card */}
-                            <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 space-y-3">
-                                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center">
-                                    <Camera className="w-7 h-7 text-blue-400" />
-                                </div>
-                                <h3 className="text-white font-semibold text-lg">{info.title}</h3>
-                                <p className="text-white/50 text-sm leading-relaxed">{info.desc}</p>
-                                <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl px-4 py-2.5">
-                                    <p className="text-blue-300/70 text-xs">
-                                        💡 {info.tip}
-                                    </p>
-                                </div>
-                            </div>
+                        /* Caso 2: Selector o Múltiple listo */
+                        <div className="w-full max-w-sm space-y-6">
 
-                            {/* Upload buttons */}
+                            {allowMultiple && capturedReel.length > 0 && (
+                                <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                                    <h4 className="text-white text-sm mb-3 font-semibold">Fotos en curso ({capturedReel.length})</h4>
+                                    <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                        {capturedReel.map((p, i) => (
+                                            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-white/20">
+                                                <img src={p.preview} className="w-full h-full object-cover" alt="miniatura" />
+                                                <button onClick={() => removeMultiple(i)} className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white/80 hover:text-white">
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {!allowMultiple || capturedReel.length === 0 ? (
+                                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 space-y-3 text-center">
+                                    <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center">
+                                        <Camera className="w-7 h-7 text-blue-400" />
+                                    </div>
+                                    <h3 className="text-white font-semibold text-lg">{info.title}</h3>
+                                    <p className="text-white/50 text-sm leading-relaxed">{info.desc}</p>
+                                    <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl px-4 py-2.5">
+                                        <p className="text-blue-300/70 text-xs">💡 {info.tip}</p>
+                                    </div>
+                                </div>
+                            ) : null}
+
                             <div className="space-y-3">
                                 <button
-                                    onClick={() => fileInputRef.current?.click()}
+                                    onClick={() => fileInputRefCamera.current?.click()}
                                     className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white font-semibold py-4 px-6 rounded-xl text-base transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] flex items-center justify-center gap-2.5"
                                 >
-                                    <Camera className="w-5 h-5" /> Tomar Foto
+                                    <Camera className="w-5 h-5" /> Tomar Foto{allowMultiple ? 's' : ''}
                                 </button>
 
                                 <button
-                                    onClick={() => {
-                                        if (fileInputRef.current) {
-                                            fileInputRef.current.removeAttribute("capture");
-                                            fileInputRef.current.click();
-                                            // Restore capture attribute after click
-                                            setTimeout(() => fileInputRef.current?.setAttribute("capture", "environment"), 100);
-                                        }
-                                    }}
+                                    onClick={() => fileInputRefGallery.current?.click()}
                                     className="w-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-white/70 hover:text-white font-medium py-3.5 px-6 rounded-xl text-sm transition-all flex items-center justify-center gap-2"
                                 >
                                     <ImagePlus className="w-4 h-4" /> Elegir de la Galería
                                 </button>
+
+                                {allowMultiple && capturedReel.length > 0 && (
+                                    <button
+                                        onClick={acceptMultiple}
+                                        className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold py-4 px-6 rounded-xl text-base shadow-lg shadow-emerald-500/20"
+                                    >
+                                        <CheckCircle2 className="w-5 h-5 inline mr-2" />
+                                        Confirmar Lote ({capturedReel.length})
+                                    </button>
+                                )}
                             </div>
 
-                            {/* Camera retry hint */}
                             {!cameraAvailable && (
-                                <p className="text-white/20 text-[11px]">
+                                <p className="text-white/20 text-[11px] text-center">
                                     La cámara en vivo requiere HTTPS · Las fotos se pueden tomar con la app de cámara
                                 </p>
                             )}
@@ -220,14 +294,9 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
                     )}
                 </div>
 
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                />
+                {/* DOM Inputs - Strictly Separated */}
+                <input ref={fileInputRefCamera} type="file" accept="image/*" capture="environment" onChange={handleFileSelect} className="hidden" />
+                <input ref={fileInputRefGallery} type="file" accept="image/*" multiple={allowMultiple} onChange={handleFileSelect} className="hidden" />
             </div>
         );
     }
@@ -235,23 +304,40 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
     // ━━━ LIVE CAMERA MODE ━━━
     return (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
+            {/* Flash Effect */}
+            {flash && <div className="absolute inset-0 bg-white z-50 pointer-events-none opacity-100 transition-opacity duration-[150ms]" style={{ opacity: flash ? 0.8 : 0 }} />}
+
             {/* Header */}
-            <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
+            <div className="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
                 <button onClick={handleCancel} className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-white/10 transition-colors">
                     <X className="w-5 h-5 text-white" />
                 </button>
                 <div className="text-center">
                     <p className="text-white font-semibold text-sm drop-shadow-lg">{info.title}</p>
-                    <p className="text-white/60 text-xs drop-shadow">{info.tip}</p>
+                    <p className="text-white/60 text-[10px] drop-shadow">{info.tip}</p>
                 </div>
                 <button onClick={switchCamera} className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-white/10 transition-colors">
                     <SwitchCamera className="w-5 h-5 text-white" />
                 </button>
             </div>
 
-            {/* Video */}
-            <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-                {captured ? (
+            {/* Reel for Continuous Capture */}
+            {allowMultiple && capturedReel.length > 0 && (
+                <div className="absolute top-[70px] inset-x-0 z-30 flex gap-2 w-full px-4 pt-2 pb-3 overflow-x-auto custom-scrollbar scroll-smooth">
+                    {capturedReel.map((p, i) => (
+                        <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 border-2 border-white/50 shadow-xl bg-black animate-in fade-in zoom-in-0 duration-200">
+                            <img src={p.preview} alt={`thumb`} className="w-full h-full object-cover" />
+                            <button onClick={() => removeMultiple(i)} className="absolute top-0 right-0 p-1 bg-black/50 text-white rounded-bl-lg hover:bg-black/80">
+                                <X className="w-3 h-3" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Video / Preview */}
+            <div className={`flex-1 relative flex items-center justify-center overflow-hidden ${(allowMultiple && capturedReel.length > 0) ? 'mt-8' : ''}`}>
+                {!allowMultiple && captured ? (
                     <img src={captured} alt="captured" className="w-full h-full object-contain" />
                 ) : (
                     <>
@@ -266,15 +352,13 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
                             onLoadedMetadata={() => setLoading(false)}
                             className="w-full h-full object-cover"
                         />
-                        {/* Subtle edge vignette for premium feel */}
-                        <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(0,0,0,0.4)]" />
                     </>
                 )}
             </div>
 
-            {/* Controls */}
-            <div className="absolute bottom-0 inset-x-0 z-20 pb-8 pt-6 px-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-                {captured ? (
+            {/* Bottom Controls */}
+            <div className="absolute bottom-0 inset-x-0 z-40 pb-8 pt-6 px-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-end justify-center">
+                {!allowMultiple && captured ? (
                     <div className="flex justify-center gap-10">
                         <button onClick={retake} className="flex flex-col items-center gap-1.5 text-white/60 hover:text-white transition-colors">
                             <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-sm">
@@ -290,27 +374,35 @@ export function CameraCapture({ tipo, label, onCapture, onCancel }: Props) {
                         </button>
                     </div>
                 ) : (
-                    <div className="flex justify-center items-end gap-8">
+                    <div className="flex justify-center items-center gap-8 relative w-full h-[72px]">
                         <button
                             onClick={() => { setMode("file"); stream?.getTracks().forEach(t => t.stop()); }}
-                            className="flex flex-col items-center gap-1 text-white/40 hover:text-white/70 transition-colors mb-1"
+                            className="absolute left-0 flex flex-col items-center gap-1 text-white/40 hover:text-white/70 transition-colors"
                         >
-                            <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                                <ImagePlus className="w-4 h-4" />
+                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center">
+                                <ImagePlus className="w-5 h-5" />
                             </div>
-                            <span className="text-[9px]">Galería</span>
                         </button>
 
                         <button
                             onClick={capture}
                             disabled={loading}
-                            className="group rounded-full border-[3px] border-white/90 bg-transparent hover:border-white active:scale-90 transition-all flex items-center justify-center disabled:opacity-30"
+                            className={`group rounded-full border-[3px] border-white/90 bg-transparent hover:border-white active:scale-95 transition-all flex items-center justify-center disabled:opacity-30 ${allowMultiple ? 'animate-pulse border-amber-400' : ''}`}
                             style={{ width: 72, height: 72 }}
+                            title="Sacar Foto"
                         >
-                            <div className="w-[58px] h-[58px] rounded-full bg-white group-active:bg-white/80 transition-colors" />
+                            <div className={`w-[58px] h-[58px] rounded-full transition-colors ${allowMultiple ? 'bg-amber-400 group-active:bg-amber-500' : 'bg-white group-active:bg-white/80'}`} />
                         </button>
 
-                        <div className="w-10 mb-1" /> {/* spacer for alignment */}
+                        {allowMultiple && capturedReel.length > 0 && (
+                            <button
+                                onClick={acceptMultiple}
+                                className="absolute right-0 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white pl-4 pr-5 py-3.5 rounded-full shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                            >
+                                <Check className="w-5 h-5" />
+                                <span className="font-bold whitespace-nowrap">Listo ({capturedReel.length})</span>
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

@@ -157,21 +157,21 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                         </p>
                     </div>
 
-                    {/* Logo Sancor Gris */}
-                    <img
-                        src="/logo-al-servicio-de-SS-negro.png"
-                        alt="Al servicio de Sancor Seguros"
-                        className="max-w-[160px] opacity-70 mb-6"
-                    />
-
                     {/* Ícono de Cámara Principal */}
                     <div className="w-20 h-20 bg-gradient-to-br from-[#D6006E]/20 to-transparent rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-[#D6006E]/10">
                         <Camera className="w-10 h-10 text-[#D6006E]" />
                     </div>
 
-                    <h2 className="text-2xl font-bold text-[#F5F0F7] mb-6">
+                    <h2 className="text-2xl font-bold text-[#F5F0F7]">
                         Inspección Remota
                     </h2>
+
+                    {/* Logo Sancor Magenta */}
+                    <img
+                        src="/logo-al-servicio-de-SS.png"
+                        alt="Al servicio de Sancor Seguros"
+                        className="w-[200px] mt-4 mb-6 opacity-100"
+                    />
 
                     {/* Card de Datos del Siniestro */}
                     <div className="bg-[#16131B] border border-[#D6006E]/15 rounded-xl p-5 mb-8 w-full text-left">

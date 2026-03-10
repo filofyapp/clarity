@@ -107,7 +107,6 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
             setStream(mediaStream);
             setCameraAvailable(true);
             setMode("camera");
-            if (videoRef.current) videoRef.current.srcObject = mediaStream;
         } catch {
             setCameraAvailable(false);
             setMode("file");
@@ -120,6 +119,13 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
         return () => { stream?.getTracks().forEach(t => t.stop()); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Effect to attach stream carefully after video element is mounted
+    useEffect(() => {
+        if (mode === "camera" && videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [mode, stream]);
 
     const switchCamera = () => {
         const next = facingMode === "environment" ? "user" : "environment";

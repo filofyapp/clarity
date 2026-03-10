@@ -8,21 +8,25 @@ interface Props {
 }
 
 const ZONAS_MAP: Record<string, string> = {
-    frente: "Paragolpes Delantero",
+    paragolpes_del: "Paragolpes Delantero",
+    optica_del_izq: "Óptica Izq.",
     capot: "Capot",
+    optica_del_der: "Óptica Der.",
     guardabarros_del_izq: "Guardabarros Del. Izq.",
+    parabrisas: "Parabrisas",
     guardabarros_del_der: "Guardabarros Del. Der.",
     puerta_del_izq: "Puerta Del. Izq.",
+    techo: "Techo",
     puerta_del_der: "Puerta Del. Der.",
     puerta_tra_izq: "Puerta Tra. Izq.",
     puerta_tra_der: "Puerta Tra. Der.",
     guardabarros_tra_izq: "Guardabarros Tra. Izq.",
-    guardabarros_tra_der: "Guardabarros Tra. Der.",
-    techo: "Techo",
-    parabrisas: "Parabrisas",
     luneta: "Luneta",
-    baul: "Baúl / Portón",
-    trasero: "Paragolpes Trasero",
+    guardabarros_tra_der: "Guardabarros Tra. Der.",
+    optica_tra_izq: "Óptica Izq.",
+    baul: "Baúl",
+    optica_tra_der: "Óptica Der.",
+    paragolpes_tra: "Paragolpes Trasero",
 };
 
 export function SelectorZonaDanio({ zonasSeleccionadas, onZonasChange }: Props) {
@@ -37,74 +41,92 @@ export function SelectorZonaDanio({ zonasSeleccionadas, onZonasChange }: Props) 
 
     const isSelected = (id: string) => zonasSeleccionadas.includes(id);
 
-    // Helper for interactive paths
-    const getPathClassName = (id: string) => {
-        const base = "transition-all duration-200 cursor-pointer";
+    const getBtnClass = (id: string) => {
+        const base = "flex items-center justify-center text-center text-xs font-semibold rounded-xl min-h-[60px] p-2 transition-all duration-200 active:scale-[0.98] border";
         if (isSelected(id)) {
-            return `${base} fill-[#D6006E]/25 stroke-[#D6006E] stroke-[2px] vector-scale-up`;
+            return `${base} bg-[#D6006E]/20 text-white border-[#D6006E] shadow-[0_0_15px_rgba(214,0,110,0.15)]`;
         }
-        return `${base} fill-transparent stroke-[#D6006E]/15 hover:fill-[#D6006E]/10 hover:stroke-[#D6006E]/40 active:scale-[0.98]`;
+        return `${base} bg-[#16131B] text-[#9B8FA6] border-white/5 hover:bg-white/5 hover:border-white/10 hover:text-[#F5F0F7]`;
     };
 
     return (
-        <div className="flex flex-col items-center w-full">
+        <div className="flex flex-col items-center w-full max-w-sm mx-auto">
 
-            {/* Indicador Frente */}
-            <div className="text-[10px] uppercase tracking-widest text-[#6B5F78] mb-4">
-                FRENTE
+            {/* INSTRUCCIONES FRONTALES NO NECESARIAS AQUI, YA LAS TIENE EL WIZARD */}
+
+            <div className="relative w-full z-10 px-2 space-y-6">
+
+                {/* --- FRENTE --- */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-center gap-3">
+                        <div className="h-px bg-white/10 flex-1"></div>
+                        <span className="text-[10px] text-[#6B5F78] uppercase tracking-[0.2em] font-bold">Frente</span>
+                        <div className="h-px bg-white/10 flex-1"></div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_1.8fr_1fr] gap-2">
+                        <button onClick={() => toggleZona('paragolpes_del')} className={`col-span-3 ${getBtnClass('paragolpes_del')}`}>
+                            Paragolpes<br />Delantero
+                        </button>
+
+                        <button onClick={() => toggleZona('optica_del_izq')} className={getBtnClass('optica_del_izq')}>Óptica<br />Izq.</button>
+                        <button onClick={() => toggleZona('capot')} className={getBtnClass('capot')}>Capot</button>
+                        <button onClick={() => toggleZona('optica_del_der')} className={getBtnClass('optica_del_der')}>Óptica<br />Der.</button>
+
+                        <button onClick={() => toggleZona('guardabarros_del_izq')} className={getBtnClass('guardabarros_del_izq')}>Guarda-<br />barros<br />Del. Izq.</button>
+                        <button onClick={() => toggleZona('parabrisas')} className={getBtnClass('parabrisas')}>Parabrisas</button>
+                        <button onClick={() => toggleZona('guardabarros_del_der')} className={getBtnClass('guardabarros_del_der')}>Guarda-<br />barros<br />Del. Der.</button>
+                    </div>
+                </div>
+
+                {/* --- LATERAL --- */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-center gap-3">
+                        <div className="h-px bg-white/10 flex-1"></div>
+                        <span className="text-[10px] text-[#6B5F78] uppercase tracking-[0.2em] font-bold">Lateral</span>
+                        <div className="h-px bg-white/10 flex-1"></div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_1.8fr_1fr] gap-2">
+                        <button onClick={() => toggleZona('puerta_del_izq')} className={getBtnClass('puerta_del_izq')}>Puerta<br />Del. Izq.</button>
+                        <button onClick={() => toggleZona('techo')} className={getBtnClass('techo')}>Techo</button>
+                        <button onClick={() => toggleZona('puerta_del_der')} className={getBtnClass('puerta_del_der')}>Puerta<br />Del. Der.</button>
+
+                        <button onClick={() => toggleZona('puerta_tra_izq')} className={getBtnClass('puerta_tra_izq')}>Puerta<br />Tra. Izq.</button>
+                        <div className="flex items-center justify-center text-[#6B5F78]/30">
+                            {/* Silueta abstracta opcional de centro de auto para rellenar vacío */}
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" /></svg>
+                        </div>
+                        <button onClick={() => toggleZona('puerta_tra_der')} className={getBtnClass('puerta_tra_der')}>Puerta<br />Tra. Der.</button>
+                    </div>
+                </div>
+
+                {/* --- TRASERA --- */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-center gap-3">
+                        <div className="h-px bg-white/10 flex-1"></div>
+                        <span className="text-[10px] text-[#6B5F78] uppercase tracking-[0.2em] font-bold">Trasera</span>
+                        <div className="h-px bg-white/10 flex-1"></div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_1.8fr_1fr] gap-2">
+                        <button onClick={() => toggleZona('guardabarros_tra_izq')} className={getBtnClass('guardabarros_tra_izq')}>Guarda-<br />barros<br />Tra. Izq.</button>
+                        <button onClick={() => toggleZona('luneta')} className={getBtnClass('luneta')}>Luneta</button>
+                        <button onClick={() => toggleZona('guardabarros_tra_der')} className={getBtnClass('guardabarros_tra_der')}>Guarda-<br />barros<br />Tra. Der.</button>
+
+                        <button onClick={() => toggleZona('optica_tra_izq')} className={getBtnClass('optica_tra_izq')}>Óptica<br />Izq.</button>
+                        <button onClick={() => toggleZona('baul')} className={getBtnClass('baul')}>Baúl</button>
+                        <button onClick={() => toggleZona('optica_tra_der')} className={getBtnClass('optica_tra_der')}>Óptica<br />Der.</button>
+
+                        <button onClick={() => toggleZona('paragolpes_tra')} className={`col-span-3 ${getBtnClass('paragolpes_tra')}`}>
+                            Paragolpes<br />Trasero
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            {/* SVG Top-Down Car */}
-            <div className="relative w-full max-w-[200px] mb-4">
-                <svg viewBox="0 0 100 240" className="w-full h-full drop-shadow-2xl overflow-visible">
-
-                    {/* Shadow / Base stroke invisible buffer to capture clicks smoothly */}
-                    <rect x="0" y="0" width="100" height="240" fill="transparent" pointerEvents="none" />
-
-                    {/* FRENTE */}
-                    <path id="frente" d="M15,25 Q50,15 85,25 L85,35 L15,35 Z" className={getPathClassName("frente")} onClick={() => toggleZona("frente")} />
-
-                    {/* CAPOT */}
-                    <path id="capot" d="M20,35 L80,35 L75,70 L25,70 Z" className={getPathClassName("capot")} onClick={() => toggleZona("capot")} />
-
-                    {/* PARABRISAS */}
-                    <path id="parabrisas" d="M22,70 L78,70 L70,85 L30,85 Z" className={getPathClassName("parabrisas")} onClick={() => toggleZona("parabrisas")} />
-
-                    {/* TECHO */}
-                    <path id="techo" d="M30,85 L70,85 L70,150 L30,150 Z" className={getPathClassName("techo")} onClick={() => toggleZona("techo")} />
-
-                    {/* LUNETA */}
-                    <path id="luneta" d="M30,150 L70,150 L75,165 L25,165 Z" className={getPathClassName("luneta")} onClick={() => toggleZona("luneta")} />
-
-                    {/* BAUL */}
-                    <path id="baul" d="M25,165 L75,165 L80,205 L20,205 Z" className={getPathClassName("baul")} onClick={() => toggleZona("baul")} />
-
-                    {/* TRASERO (Paragolpes) */}
-                    <path id="trasero" d="M15,205 L85,205 L85,215 Q50,225 15,215 Z" className={getPathClassName("trasero")} onClick={() => toggleZona("trasero")} />
-
-
-                    {/* LADO IZQUIERDO */}
-                    <path id="guardabarros_del_izq" d="M15,25 L20,35 L25,70 L15,70 C10,50 12,35 15,25 Z" className={getPathClassName("guardabarros_del_izq")} onClick={() => toggleZona("guardabarros_del_izq")} />
-                    <path id="puerta_del_izq" d="M15,70 L25,70 L30,85 L30,120 L10,120 C10,100 12,85 15,70 Z" className={getPathClassName("puerta_del_izq")} onClick={() => toggleZona("puerta_del_izq")} />
-                    <path id="puerta_tra_izq" d="M10,120 L30,120 L30,150 L25,165 L10,165 Z" className={getPathClassName("puerta_tra_izq")} onClick={() => toggleZona("puerta_tra_izq")} />
-                    <path id="guardabarros_tra_izq" d="M10,165 L25,165 L20,205 L15,215 C12,205 10,185 10,165 Z" className={getPathClassName("guardabarros_tra_izq")} onClick={() => toggleZona("guardabarros_tra_izq")} />
-
-                    {/* LADO DERECHO */}
-                    <path id="guardabarros_del_der" d="M85,25 C88,35 90,50 85,70 L75,70 L80,35 L85,25 Z" className={getPathClassName("guardabarros_del_der")} onClick={() => toggleZona("guardabarros_del_der")} />
-                    <path id="puerta_del_der" d="M85,70 C88,85 90,100 90,120 L70,120 L70,85 L75,70 L85,70 Z" className={getPathClassName("puerta_del_der")} onClick={() => toggleZona("puerta_del_der")} />
-                    <path id="puerta_tra_der" d="M90,120 L90,165 L75,165 L70,150 L70,120 Z" className={getPathClassName("puerta_tra_der")} onClick={() => toggleZona("puerta_tra_der")} />
-                    <path id="guardabarros_tra_der" d="M90,165 C90,185 88,205 85,215 L80,205 L75,165 L90,165 Z" className={getPathClassName("guardabarros_tra_der")} onClick={() => toggleZona("guardabarros_tra_der")} />
-
-                </svg>
-            </div>
-
-            {/* Indicador Trasera */}
-            <div className="text-[10px] uppercase tracking-widest text-[#6B5F78] mt-2 mb-8">
-                TRASERA
-            </div>
-
-            {/* Listado de Zonas (Chips) */}
-            <div className="w-full bg-[#16131B]/50 rounded-xl border border-white/5 p-4 min-h-[100px]">
+            {/* Listado de Zonas (Chips) Resumen Inferior */}
+            <div className="w-full bg-[#16131B]/50 rounded-xl border border-white/5 p-4 min-h-[100px] mt-8">
                 <p className="text-[#6B5F78] text-[10px] uppercase tracking-wide mb-3 font-semibold">
                     {zonasSeleccionadas.length} ZONA{zonasSeleccionadas.length !== 1 ? 'S' : ''} SELECCIONADA{zonasSeleccionadas.length !== 1 ? 'S' : ''}
                 </p>
@@ -129,17 +151,6 @@ export function SelectorZonaDanio({ zonasSeleccionadas, onZonasChange }: Props) 
                 )}
             </div>
 
-            <style jsx>{`
-                .vector-scale-up {
-                    transform-origin: center;
-                    animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-                }
-                @keyframes pop {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.02); }
-                    100% { transform: scale(1); }
-                }
-            `}</style>
         </div>
     );
 }

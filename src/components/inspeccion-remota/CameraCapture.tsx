@@ -191,14 +191,14 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
     // ━━━ FILE UPLOAD MODE (Premium Fallback) ━━━
     if (mode === "file" || mode === "checking") {
         return (
-            <div className="fixed inset-0 z-50 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col">
+            <div className="fixed inset-0 z-50 bg-[#0C0A0F] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-                    <button onClick={handleCancel} className="p-2 -ml-2 rounded-xl text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-[#16131B]">
+                    <button onClick={handleCancel} className="p-2 -ml-2 rounded-xl text-[#9B8FA6] hover:text-[#F5F0F7] hover:bg-white/5 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                     <div className="text-center">
-                        <p className="text-white/90 font-semibold text-sm">{info.title}</p>
+                        <p className="text-[#F5F0F7] font-semibold text-sm">{info.title}</p>
                     </div>
                     <div className="w-9" />
                 </div>
@@ -247,14 +247,14 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
                             )}
 
                             {!allowMultiple || capturedReel.length === 0 ? (
-                                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 space-y-3 text-center">
-                                    <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center">
-                                        <Camera className="w-7 h-7 text-blue-400" />
+                                <div className="bg-[#16131B]/50 border border-[#D6006E]/15 rounded-2xl p-6 space-y-3 text-center">
+                                    <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-[#D6006E]/20 to-transparent border border-[#D6006E]/20 flex items-center justify-center">
+                                        <Camera className="w-7 h-7 text-[#D6006E]" />
                                     </div>
-                                    <h3 className="text-white font-semibold text-lg">{info.title}</h3>
-                                    <p className="text-white/50 text-sm leading-relaxed">{info.desc}</p>
-                                    <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl px-4 py-2.5">
-                                        <p className="text-blue-300/70 text-xs">💡 {info.tip}</p>
+                                    <h3 className="text-[#F5F0F7] font-semibold text-lg">{info.title}</h3>
+                                    <p className="text-[#9B8FA6] text-sm leading-relaxed">{info.desc}</p>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
+                                        <p className="text-[#9B8FA6] text-xs">💡 {info.tip}</p>
                                     </div>
                                 </div>
                             ) : null}
@@ -262,7 +262,7 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
                             <div className="space-y-3">
                                 <button
                                     onClick={() => fileInputRefCamera.current?.click()}
-                                    className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white font-semibold py-4 px-6 rounded-xl text-base transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] flex items-center justify-center gap-2.5"
+                                    className="w-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] hover:brightness-110 text-white font-semibold py-4 px-6 rounded-xl text-base transition-all shadow-[0_4px_20px_rgba(214,0,110,0.3)] active:scale-[0.98] flex items-center justify-center gap-2.5"
                                 >
                                     <Camera className="w-5 h-5" /> Tomar Foto{allowMultiple ? 's' : ''}
                                 </button>
@@ -277,7 +277,7 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
                                 {allowMultiple && capturedReel.length > 0 && (
                                     <button
                                         onClick={acceptMultiple}
-                                        className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold py-4 px-6 rounded-xl text-base shadow-lg shadow-emerald-500/20"
+                                        className="w-full mt-4 bg-[#2DD4A0] text-[#0C0A0F] font-bold py-4 px-6 rounded-xl text-base shadow-[0_4px_20px_rgba(45,212,160,0.2)]"
                                     >
                                         <CheckCircle2 className="w-5 h-5 inline mr-2" />
                                         Confirmar Lote ({capturedReel.length})
@@ -303,21 +303,21 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
 
     // ━━━ LIVE CAMERA MODE ━━━
     return (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        <div className="fixed inset-0 z-50 bg-[#0C0A0F] flex flex-col">
             {/* Flash Effect */}
             {flash && <div className="absolute inset-0 bg-white z-50 pointer-events-none opacity-100 transition-opacity duration-[150ms]" style={{ opacity: flash ? 0.8 : 0 }} />}
 
-            {/* Header */}
-            <div className="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
-                <button onClick={handleCancel} className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                    <X className="w-5 h-5 text-white" />
+            {/* Header overlaying camera */}
+            <div className="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-[#0C0A0F]/80 to-transparent">
+                <button onClick={handleCancel} className="p-2 rounded-full bg-[#16131B]/40 backdrop-blur-sm hover:bg-[#16131B]/80 transition-colors">
+                    <X className="w-5 h-5 text-[#F5F0F7]" />
                 </button>
-                <div className="text-center">
-                    <p className="text-white font-semibold text-sm drop-shadow-lg">{info.title}</p>
-                    <p className="text-white/60 text-[10px] drop-shadow">{info.tip}</p>
+                <div className="text-center pt-2">
+                    <p className="text-[#F5F0F7] font-semibold text-sm drop-shadow-md">{info.title}</p>
+                    <p className="text-[#9B8FA6] text-[10px] drop-shadow-md">{info.tip}</p>
                 </div>
-                <button onClick={switchCamera} className="p-2 rounded-full bg-black/30 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                    <SwitchCamera className="w-5 h-5 text-white" />
+                <button onClick={switchCamera} className="p-2 rounded-full bg-[#16131B]/40 backdrop-blur-sm hover:bg-[#16131B]/80 transition-colors">
+                    <SwitchCamera className="w-5 h-5 text-[#F5F0F7]" />
                 </button>
             </div>
 
@@ -357,52 +357,57 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
             </div>
 
             {/* Bottom Controls */}
-            <div className="absolute bottom-0 inset-x-0 z-40 pb-8 pt-6 px-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-end justify-center">
+            <div className="absolute bottom-0 inset-x-0 z-40 pb-12 pt-8 px-6 bg-gradient-to-t from-[#0C0A0F] via-[#0C0A0F]/80 to-transparent flex flex-col items-center justify-end">
                 {!allowMultiple && captured ? (
-                    <div className="flex justify-center gap-10">
-                        <button onClick={retake} className="flex flex-col items-center gap-1.5 text-white/60 hover:text-white transition-colors">
-                            <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-sm">
+                    <div className="flex justify-center gap-10 w-full mb-4">
+                        <button onClick={retake} className="flex flex-col items-center gap-2 text-[#9B8FA6] hover:text-[#F5F0F7] transition-colors">
+                            <div className="w-14 h-14 rounded-full bg-[#16131B] border border-white/10 flex items-center justify-center">
                                 <RotateCcw className="w-5 h-5" />
                             </div>
-                            <span className="text-[11px] font-medium">Repetir</span>
+                            <span className="text-[12px] font-medium">Repetir</span>
                         </button>
-                        <button onClick={accept} className="flex flex-col items-center gap-1.5 text-emerald-400 hover:text-emerald-300 transition-colors">
-                            <div className="w-14 h-14 rounded-full bg-emerald-500/10 border-2 border-emerald-500/50 flex items-center justify-center backdrop-blur-sm">
+                        <button onClick={accept} className="flex flex-col items-center gap-2 text-[#2DD4A0] hover:brightness-110 transition-colors">
+                            <div className="w-14 h-14 rounded-full bg-[#2DD4A0]/10 border-2 border-[#2DD4A0] flex items-center justify-center">
                                 <Check className="w-6 h-6" />
                             </div>
-                            <span className="text-[11px] font-medium">Aceptar</span>
+                            <span className="text-[12px] font-medium">Usar esta foto</span>
                         </button>
                     </div>
                 ) : (
-                    <div className="flex justify-center items-center gap-8 relative w-full h-[72px]">
-                        <button
-                            onClick={() => { setMode("file"); stream?.getTracks().forEach(t => t.stop()); }}
-                            className="absolute left-0 flex flex-col items-center gap-1 text-white/40 hover:text-white/70 transition-colors"
-                        >
-                            <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center">
-                                <ImagePlus className="w-5 h-5" />
-                            </div>
-                        </button>
-
-                        <button
-                            onClick={capture}
-                            disabled={loading}
-                            className={`group rounded-full border-[3px] border-white/90 bg-transparent hover:border-white active:scale-95 transition-all flex items-center justify-center disabled:opacity-30 ${allowMultiple ? 'animate-pulse border-amber-400' : ''}`}
-                            style={{ width: 72, height: 72 }}
-                            title="Sacar Foto"
-                        >
-                            <div className={`w-[58px] h-[58px] rounded-full transition-colors ${allowMultiple ? 'bg-amber-400 group-active:bg-amber-500' : 'bg-white group-active:bg-white/80'}`} />
-                        </button>
-
-                        {allowMultiple && capturedReel.length > 0 && (
+                    <div className="flex flex-col items-center gap-3 w-full relative">
+                        {/* Native Sancor Transparent Button requested by user */}
+                        <div className="flex justify-center items-center gap-8 relative w-full mb-2">
                             <button
-                                onClick={acceptMultiple}
-                                className="absolute right-0 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white pl-4 pr-5 py-3.5 rounded-full shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                                onClick={() => { setMode("file"); stream?.getTracks().forEach(t => t.stop()); }}
+                                className="absolute left-0 flex flex-col items-center gap-1 text-[#9B8FA6] hover:text-[#F5F0F7] transition-colors"
                             >
-                                <Check className="w-5 h-5" />
-                                <span className="font-bold whitespace-nowrap">Listo ({capturedReel.length})</span>
+                                <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-[#16131B]/50">
+                                    <ImagePlus className="w-5 h-5" />
+                                </div>
                             </button>
-                        )}
+
+                            <button
+                                onClick={capture}
+                                disabled={loading}
+                                className={`group rounded-full border-[4px] border-[#F5F0F7] bg-transparent active:bg-white/20 transition-all flex items-center justify-center disabled:opacity-30 ${allowMultiple ? 'animate-pulse' : ''}`}
+                                style={{ width: 68, height: 68 }}
+                                title="Sacar Foto"
+                            >
+                                {/* Inner circle removed for total transparency as requested, relying on the flash feedback */}
+                                {allowMultiple && <div className="w-[50px] h-[50px] rounded-full bg-[#D6006E]/30" />}
+                            </button>
+
+                            {allowMultiple && capturedReel.length > 0 && (
+                                <button
+                                    onClick={acceptMultiple}
+                                    className="absolute right-0 flex items-center justify-center gap-2 bg-[#2DD4A0] text-[#0C0A0F] pl-4 pr-5 py-3.5 rounded-full shadow-[0_4px_20px_rgba(45,212,160,0.3)] active:scale-95 transition-all font-bold"
+                                >
+                                    <Check className="w-5 h-5" />
+                                    <span>Listo ({capturedReel.length})</span>
+                                </button>
+                            )}
+                        </div>
+                        <span className="text-xs text-[#9B8FA6] font-medium uppercase tracking-wider">{allowMultiple ? 'Daño Continuo' : 'Tomar foto'}</span>
                     </div>
                 )}
             </div>

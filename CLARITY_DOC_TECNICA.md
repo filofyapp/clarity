@@ -553,7 +553,18 @@ POR QUE: (1) Las notificaciones y comentarios del chat requerían recargar la p�
 COMO: 1) Creación de `018_fase15_realtime_chat_notif.sql` para inyectar `notificaciones`, `comentarios_tarea` y `fotos_inspeccion` en la policy de `supabase_realtime`. 2) Re-estructuración del `useEffect` en `ComentariosTarea.tsx` con un canal dedicado `chat_tarea_[id]`. 3) Fix `userRoles.includes("carga")` en `SidebarClient.tsx`. 4) Reescritura completa de `CameraCapture.tsx` con prop `allowMultiple`, reel miniatura en la parte inferior, y partición estricta de `<input type="file">` HTML5 para matar la mezcla de galería app-vs-web en Android.
 ARCHIVOS AFECTADOS: `CameraCapture.tsx`, `WizardCaptura.tsx`, `ComentariosTarea.tsx`, `SidebarClient.tsx`, `Sidebar.tsx`, `018..._realtime_chat_notif.sql`.
 EFECTOS COLATERALES: Inspección por daños soporta toma continua como "carrete", el chat es 100% instántaneo sin F5.
+EFECTOS COLATERALES: Inspección por daños soporta toma continua como "carrete", el chat es 100% instántaneo sin F5.
 TESTEADO: `npx tsc --noEmit` 0 errores.
+
+---
+
+FECHA: 10/03/2026
+QUE SE CAMBIO: Integración total del Branding "Sancor Seguros" y Rediseño Gráfico de la aplicación Cliente (Inspección Remota).
+POR QUE: Se necesitaba transmitir seguridad corporativa al asegurado final, eliminando diseños genéricos en favor del look "Premium Magenta" y la psicología de validación (Íconos de Escudos, Logotipos Verificados). Asimismo, la vieja interfaz de Daños y de Cámara resultaban ortopédicas y carentes de feedback UX.
+COMO: 1) Refactorizado `WizardCaptura.tsx` integrando el logo corporativo de Sancor Gris (#logo-al-servicio-de-SS), escudos de confianza, y gradientes Magenta nativas. 2) Reescrito desde cero el motor del `SelectorZonaDanio.tsx` transformándolo en un renderizado Top-Down vectorial interactivo sin componentes ajenos, manejado 100% por paths de SVG con opacidad dinâmica y micro-animaciones CSS `.vector-scale-up`. 3) Modernizada la retícula y botonera de `CameraCapture.tsx` transparentando el "Obturador" del sistema de la cámara y empleando el verde menta (#2DD4A0) para los Call to Action finales (checkmarks, alertas de success y envíos confirmados). 4) Unificación total de la paleta Dark-Purala para la ruta pública (Background #0C0A0F, Surfaces #16131B, Textos Primarios #F5F0F7 y Soft #9B8FA6).
+ARCHIVOS AFECTADOS: `WizardCaptura.tsx`, `CameraCapture.tsx`, `SelectorZonaDanio.tsx`, `ip/[token]/layout.tsx`.
+EFECTOS COLATERALES: Funcionalidades nativas preservadas e intactas (WebRTC/Inputs Files) ahora dotadas de estilo 100% Nativo Sancor. 
+TESTEADO: Todos los flujos de "Pasos" mapeados con hot-reloading exitoso. Transpilación validada.
 
 ---
 

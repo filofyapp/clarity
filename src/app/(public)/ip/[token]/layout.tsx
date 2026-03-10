@@ -11,27 +11,18 @@ export default function InspeccionRemotaLayout({
     children: React.ReactNode;
 }) {
     return (
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen text-white antialiased">
+        <div className="bg-[#0C0A0F] min-h-screen text-white antialiased">
             {/* Clean layout - no sidebar, no navbar, mobile-first */}
             <div className="min-h-screen flex flex-col">
-                {/* Minimal header */}
-                <header className="flex items-center justify-center py-4 px-6 border-b border-white/10 bg-black/20 backdrop-blur-sm">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-lg flex items-center justify-center font-bold text-sm text-white shadow-lg shadow-blue-500/20">
-                            C
-                        </div>
-                        <span className="font-semibold text-lg tracking-tight text-white/90">CLARITY</span>
-                    </div>
-                </header>
 
                 {/* Main content */}
-                <main className="flex-1 flex flex-col">
+                <main className="flex-1 flex flex-col pt-6">
                     {children}
                 </main>
 
                 {/* Footer */}
-                <footer className="py-3 text-center text-xs text-white/30 border-t border-white/5">
-                    Sistema de Inspección Pericial © AOM Siniestros
+                <footer className="py-6 text-center text-[11px] text-[#6B5F78]">
+                    Powered by CLARITY · Estudio AOM Siniestros
                 </footer>
             </div>
         </div>

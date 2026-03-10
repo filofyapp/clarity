@@ -5,7 +5,8 @@ import { CameraCapture } from "./CameraCapture";
 import { SelectorZonaDanio } from "./SelectorZonaDanio";
 import {
     Camera, CheckCircle2, ChevronRight, ChevronLeft,
-    Car, Loader2, PartyPopper, AlertCircle, Image as ImageIcon
+    Car, Loader2, PartyPopper, AlertCircle, Image as ImageIcon,
+    ShieldCheck, FileText, RectangleHorizontal
 } from "lucide-react";
 
 // ═══ Step definitions ═══
@@ -145,39 +146,83 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
             {/* ─── BIENVENIDA ─── */}
             {step === "bienvenida" && (
                 <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-blue-500/20">
-                        <Camera className="w-10 h-10 text-white" />
+
+                    {/* Header */}
+                    <div className="mb-8">
+                        <h1 className="text-xl font-bold text-[#F5F0F7] tracking-[0.2em] mb-0.5">
+                            CLARITY
+                        </h1>
+                        <p className="text-xs text-[#9B8FA6] tracking-[0.15em] uppercase">
+                            Tecnología de Inspección Inteligente
+                        </p>
                     </div>
-                    <h1 className="text-2xl font-bold text-white mb-3">
+
+                    {/* Logo Sancor Gris */}
+                    <img
+                        src="/images/logo-al-servicio-de-SS-negro.png"
+                        alt="Al servicio de Sancor Seguros"
+                        className="max-w-[160px] opacity-70 mb-6"
+                    />
+
+                    {/* Ícono de Cámara Principal */}
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#D6006E]/20 to-transparent rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-[#D6006E]/10">
+                        <Camera className="w-10 h-10 text-[#D6006E]" />
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-[#F5F0F7] mb-6">
                         Inspección Remota
-                    </h1>
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 w-full">
-                        <p className="text-sm text-white/50 mb-1">Siniestro</p>
-                        <p className="text-lg font-mono font-bold text-white">{siniestro}</p>
+                    </h2>
+
+                    {/* Card de Datos del Siniestro */}
+                    <div className="bg-[#16131B] border border-[#D6006E]/15 rounded-xl p-5 mb-8 w-full text-left">
+                        <div className="flex items-center gap-3 mb-4">
+                            <FileText className="w-5 h-5 text-white/30" />
+                            <div>
+                                <p className="text-xs text-[#6B5F78] mb-0.5">Siniestro</p>
+                                <p className="text-base font-mono font-bold text-[#F5F0F7]">{siniestro}</p>
+                            </div>
+                        </div>
                         {vehiculo && (
-                            <>
-                                <p className="text-sm text-white/50 mt-3 mb-1">Vehículo</p>
-                                <p className="text-base font-medium text-white/90">{vehiculo}</p>
-                            </>
+                            <div className="flex items-center gap-3 mb-4">
+                                <Car className="w-5 h-5 text-white/30" />
+                                <div>
+                                    <p className="text-xs text-[#6B5F78] mb-0.5">Vehículo</p>
+                                    <p className="text-[15px] font-medium text-[#F5F0F7]">{vehiculo}</p>
+                                </div>
+                            </div>
                         )}
                         {dominio && (
-                            <>
-                                <p className="text-sm text-white/50 mt-3 mb-1">Dominio</p>
-                                <p className="text-base font-mono font-bold text-white/90 uppercase">{dominio}</p>
-                            </>
+                            <div className="flex items-center gap-3">
+                                <RectangleHorizontal className="w-5 h-5 text-white/30" />
+                                <div>
+                                    <p className="text-xs text-[#6B5F78] mb-0.5">Dominio</p>
+                                    <p className="text-base font-mono font-bold text-[#F5F0F7] uppercase">{dominio}</p>
+                                </div>
+                            </div>
                         )}
                     </div>
-                    <p className="text-white/60 text-sm mb-8 leading-relaxed">
-                        Te vamos a guiar paso a paso para que tomes las fotos necesarias para la inspección.
-                        <br /><br />
-                        <span className="text-white/40">Necesitarás la cámara de tu teléfono y buena iluminación.</span>
+
+                    {/* Instrucciones y Validacion Psicologica */}
+                    <p className="text-[#9B8FA6] text-sm mb-6 leading-relaxed">
+                        Te vamos a guiar paso a paso para que tomes las fotos necesarias. Solo necesitás tu cámara y buena iluminación.
                     </p>
+
+                    <div className="bg-[#D6006E]/[0.06] border-l-[3px] border-[#D6006E] rounded-lg p-3.5 mb-8 flex text-left gap-3 w-full">
+                        <ShieldCheck className="w-[18px] h-[18px] text-[#D6006E] shrink-0 mt-0.5" />
+                        <p className="text-xs sm:text-sm text-[#C4B8CF] leading-relaxed">
+                            La inspección remota tiene la misma validez y precisión que una inspección presencial. Tus fotos son analizadas por peritos profesionales matriculados.
+                        </p>
+                    </div>
+
                     <button
                         onClick={() => setStep("reglamentarias")}
-                        className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] hover:brightness-110 text-white font-semibold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(214,0,110,0.3)] active:scale-[0.98] flex items-center justify-center gap-2"
                     >
                         Comenzar <ChevronRight className="w-5 h-5" />
                     </button>
+
+                    {/* Padding bottom for scroll padding logic on small devices */}
+                    <div className="h-6" />
                 </div>
             )}
 
@@ -186,13 +231,13 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                 <div className="flex-1 flex flex-col p-6 animate-in fade-in duration-300">
                     {/* Progress bar */}
                     <div className="mb-6">
-                        <div className="flex justify-between text-xs text-white/50 mb-2">
+                        <div className="flex justify-between text-xs text-[#9B8FA6] font-medium tracking-wide mb-2">
                             <span>Paso {pasoReglamentario + 1} de {PASOS_REGLAMENTARIOS.length}</span>
                             <span>Fotos reglamentarias</span>
                         </div>
-                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-[#16131B] border border-[#D6006E]/10 rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500"
+                                className="h-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] rounded-full transition-all duration-500"
                                 style={{ width: `${((pasoReglamentario) / PASOS_REGLAMENTARIOS.length) * 100}%` }}
                             />
                         </div>
@@ -224,7 +269,7 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
                         <button
                             onClick={() => setCameraActive(true)}
-                            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                            className="w-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] hover:brightness-110 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(214,0,110,0.3)] active:scale-[0.98] flex items-center justify-center gap-2"
                         >
                             <Camera className="w-5 h-5" /> Abrir Cámara
                         </button>
@@ -254,9 +299,9 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
             {/* ─── SELECTOR ZONA DE DAÑO ─── */}
             {step === "zona_danio" && !capturingDamage && (
                 <div className="flex-1 flex flex-col p-6 animate-in fade-in duration-300">
-                    <h2 className="text-xl font-bold text-white mb-2 text-center">Zona de Daños</h2>
-                    <p className="text-white/60 text-sm mb-6 text-center">
-                        Tocá las zonas del vehículo donde se encuentran los daños del siniestro.
+                    <h2 className="text-xl font-bold text-[#F5F0F7] mb-2 text-center">Seleccioná las zonas con daños</h2>
+                    <p className="text-[#9B8FA6] text-sm mb-6 text-center">
+                        Tocá cada parte del vehículo que tiene daño visible
                     </p>
 
                     <SelectorZonaDanio
@@ -267,10 +312,10 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                     {/* Damage photos thumbnails */}
                     {fotosDanios.length > 0 && (
                         <div className="mt-4">
-                            <p className="text-xs text-white/50 mb-2">{fotosDanios.length} foto(s) de daños</p>
+                            <p className="text-xs text-[#6B5F78] uppercase tracking-wide mb-3 font-semibold">{fotosDanios.length} foto(s) de daños en curso</p>
                             <div className="flex gap-2 flex-wrap">
                                 {fotosDanios.map((f, i) => (
-                                    <div key={i} className="w-14 h-14 rounded-lg overflow-hidden border border-white/20">
+                                    <div key={i} className="w-14 h-14 rounded-lg overflow-hidden border border-[#D6006E]/30 relative">
                                         <img src={f.preview} alt="daño" className="w-full h-full object-cover" />
                                     </div>
                                 ))}
@@ -282,19 +327,18 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                         <button
                             onClick={() => { setCapturingDamage(true); setCameraActive(true); }}
                             disabled={zonasDanio.length === 0}
-                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-4 px-8 rounded-xl text-lg transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                            className="w-full bg-[#16131B] hover:bg-[#D6006E]/20 text-[#D6006E] border-2 border-[#D6006E]/30 font-semibold py-4 px-8 rounded-xl text-lg transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             <Camera className="w-5 h-5" /> Fotografiar Daños
                         </button>
 
-                        {fotosDanios.length >= 2 && (
-                            <button
-                                onClick={() => setStep("resumen")}
-                                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-all shadow-lg shadow-green-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
-                            >
-                                <CheckCircle2 className="w-5 h-5" /> Tengo todas las fotos → Continuar
-                            </button>
-                        )}
+                        <button
+                            onClick={() => setStep("resumen")}
+                            disabled={zonasDanio.length === 0}
+                            className="w-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] hover:brightness-110 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(214,0,110,0.3)] active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                            Continuar · {zonasDanio.length * 2} fotos necesarias <ChevronRight className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>
             )}
@@ -314,21 +358,21 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
             {/* ─── RESUMEN ─── */}
             {step === "resumen" && (
                 <div className="flex-1 flex flex-col p-6 animate-in fade-in duration-300">
-                    <h2 className="text-xl font-bold text-white mb-2 text-center">Resumen de Fotos</h2>
-                    <p className="text-white/60 text-sm mb-6 text-center">
+                    <h2 className="text-xl font-bold text-[#F5F0F7] mb-2 text-center">Resumen de Fotos</h2>
+                    <p className="text-[#9B8FA6] text-sm mb-6 text-center">
                         Verificá que todas las fotos estén correctas antes de enviar.
                     </p>
 
                     {/* Regulatory photos */}
                     <div className="mb-4">
-                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
+                        <p className="text-xs font-semibold text-[#6B5F78] uppercase tracking-wider mb-2">
                             Fotos Reglamentarias ({fotosReglamentarias.length})
                         </p>
                         <div className="grid grid-cols-3 gap-2">
                             {fotosReglamentarias.map((f, i) => (
-                                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-white/10">
+                                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-white/5">
                                     <img src={f.preview} alt={f.tipo} className="w-full h-full object-cover" />
-                                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#0C0A0F]/90 to-transparent p-1.5">
                                         <p className="text-[10px] text-white/80 capitalize">{f.tipo.replace("_", " ")}</p>
                                     </div>
                                 </div>
@@ -338,12 +382,12 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
                     {/* Damage photos */}
                     <div className="mb-6">
-                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">
+                        <p className="text-xs font-semibold text-[#6B5F78] uppercase tracking-wider mb-2">
                             Fotos de Daños ({fotosDanios.length})
                         </p>
                         <div className="grid grid-cols-3 gap-2">
                             {fotosDanios.map((f, i) => (
-                                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-white/10">
+                                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[#D6006E]/30">
                                     <img src={f.preview} alt="daño" className="w-full h-full object-cover" />
                                 </div>
                             ))}
@@ -351,7 +395,7 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                     </div>
 
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4 flex items-center gap-2 text-red-400 text-sm">
+                        <div className="bg-[#EF4444]/10 border border-[#EF4444]/20 rounded-lg p-3 mb-4 flex items-center gap-2 text-[#EF4444] text-sm">
                             <AlertCircle className="w-4 h-4 shrink-0" /> {error}
                         </div>
                     )}
@@ -359,29 +403,29 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                     <div className="mt-auto space-y-3">
                         {uploading ? (
                             <div className="space-y-3">
-                                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-3 bg-[#16131B] rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300"
+                                        className="h-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] rounded-full transition-all duration-300"
                                         style={{ width: `${uploadProgress}%` }}
                                     />
                                 </div>
-                                <p className="text-center text-white/60 text-sm flex items-center justify-center gap-2">
-                                    <Loader2 className="w-4 h-4 animate-spin" /> Subiendo fotos... {uploadProgress}%
+                                <p className="text-center text-[#9B8FA6] text-sm flex items-center justify-center gap-2">
+                                    <Loader2 className="w-4 h-4 text-[#D6006E] animate-spin" /> Subiendo fotos... {uploadProgress}%
                                 </p>
                             </div>
                         ) : (
                             <>
                                 <button
                                     onClick={handleFinalize}
-                                    className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-4 px-8 rounded-xl text-lg transition-all shadow-lg shadow-green-500/20 active:scale-[0.98] flex items-center justify-center gap-2"
+                                    className="w-full bg-[#2DD4A0] hover:brightness-110 text-[#0C0A0F] font-bold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(45,212,160,0.2)] active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle2 className="w-5 h-5" /> Enviar {totalFotos} fotos
                                 </button>
                                 <button
                                     onClick={() => setStep("zona_danio")}
-                                    className="w-full text-white/40 text-sm py-2 hover:text-white/70 flex items-center justify-center gap-1 transition-colors"
+                                    className="w-full text-[#9B8FA6] text-sm py-2 hover:text-[#F5F0F7] flex items-center justify-center gap-1 transition-colors"
                                 >
-                                    <ChevronLeft className="w-4 h-4" /> Volver a agregar fotos
+                                    <ChevronLeft className="w-4 h-4" /> Volver a editar daños
                                 </button>
                             </>
                         )}
@@ -391,21 +435,37 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
             {/* ─── COMPLETADO ─── */}
             {step === "completado" && (
-                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
-                    <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-400 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-green-500/20">
-                        <PartyPopper className="w-10 h-10 text-white" />
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 scale-in-95">
+                    <div className="w-20 h-20 bg-[#2DD4A0]/20 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-[#2DD4A0]/10 scale-0 animate-[scale-in_500ms_ease-out_forwards]">
+                        <CheckCircle2 className="w-10 h-10 text-[#2DD4A0]" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white mb-3">
-                        ¡Fotos Enviadas!
+                    <h1 className="text-2xl font-bold text-[#F5F0F7] mb-3">
+                        ¡Inspección enviada!
                     </h1>
-                    <p className="text-white/60 text-sm leading-relaxed max-w-xs">
-                        Las {totalFotos} fotografías fueron cargadas exitosamente.
-                        El perito asignado será notificado para proceder con la inspección.
+                    <p className="text-[#9B8FA6] text-sm leading-relaxed max-w-xs mb-8">
+                        Las fotos fueron recibidas correctamente. Un perito profesional las revisará en breve.
                     </p>
-                    <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-4 w-full">
-                        <p className="text-xs text-white/40 mb-1">Siniestro</p>
-                        <p className="font-mono font-bold text-white">{siniestro}</p>
-                        <p className="text-xs text-white/40 mt-2">Ya podés cerrar esta ventana.</p>
+
+                    <div className="bg-[#16131B] border border-[#D6006E]/15 rounded-xl p-5 mb-8 w-full">
+                        <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/5">
+                            <span className="text-[#6B5F78] text-xs">Siniestro</span>
+                            <span className="text-[#F5F0F7] font-mono font-bold text-sm">{siniestro}</span>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 w-full text-[#2DD4A0] bg-[#2DD4A0]/10 py-2 rounded-lg text-sm font-semibold">
+                            <Camera className="w-4 h-4" /> {totalFotos} fotos enviadas
+                        </div>
+                    </div>
+
+                    <p className="text-[#6B5F78] text-xs max-w-xs">
+                        Podés cerrar esta ventana. Si necesitamos fotos adicionales, te contactaremos.
+                    </p>
+
+                    <div className="mt-12 flex justify-center">
+                        <img
+                            src="/images/logo-al-servicio-de-SS-negro.png"
+                            alt="Al servicio de Sancor Seguros"
+                            className="max-w-[140px] opacity-50"
+                        />
                     </div>
                 </div>
             )}

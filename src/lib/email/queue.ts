@@ -73,10 +73,10 @@ export async function encolarNotificacion(casoId: string, estadoAnterior: string
     }
 
     // 6. Enqueue! 
-    // We add 3 minutes to now()
+    // We add 0 minutes to now() for testing purposes
     const now = new Date();
-    // Default 3 mins. We can read from a config table later, but prompt specified "hardcode/default 3" for now.
-    now.setMinutes(now.getMinutes() + 3);
+    // Default originally 3 mins. Changed to 0 for testing.
+    now.setMinutes(now.getMinutes() + 0);
 
     const { error: insertError } = await supabase
         .from('mail_queue')

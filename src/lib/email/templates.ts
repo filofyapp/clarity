@@ -67,7 +67,7 @@ export async function renderTemplate(casoId: string, templateCodigo: string): Pr
 
     if (existingToken) {
         // Assume app runs on localhost:3000 in dev, or real domain. For now relative or env based
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://panel.aomsiniestros.com";
         trackingLink = `${baseUrl}/seguimiento/${existingToken.token}`;
     } else {
         // Create token
@@ -78,7 +78,7 @@ export async function renderTemplate(casoId: string, templateCodigo: string): Pr
             .single();
 
         if (newToken) {
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://panel.aomsiniestros.com";
             trackingLink = `${baseUrl}/seguimiento/${newToken.token}`;
         }
     }

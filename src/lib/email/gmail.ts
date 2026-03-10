@@ -45,6 +45,14 @@ function encodeBase64URL(str: string): string {
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+/**
+ * Encodes a header value (like Subject or From Name) using MIME Encoded-Word syntax (RFC 1342)
+ * so that special UTF-8 characters display correctly in the email client.
+ */
+function encodeMimeHeader(text: string): string {
+    return `=?utf-8?B?${Buffer.from(text, 'utf-8').toString('base64')}?=`;
+}
+
 interface SendEmailParams {
     toEmail: string;
     toName?: string;
@@ -65,11 +73,15 @@ export async function sendEmail({ toEmail, toName, subject, htmlBody, threadId, 
 
     // Build the raw email RFC 2822 string
     // Headers are highly sensitive to CRLF vs LF. Let's use \r\n
-    const to = toName ? `"${toName}" <${toEmail}>` : toEmail;
 
-    let rawStr = `From: "${fromName}" <${fromEmail}>\r\n`;
+    // Some email clients choke on utf-8 in the "From" name or "To" name if not MIME-encoded
+    const safeFromName = encodeMimeHeader(fromName);
+    const safeToName = toName ? encodeMimeHeader(toName) : "";
+    const to = safeToName ? `"${safeToName}" <${toEmail}>` : toEmail;
+
+    let rawStr = `From: "${safeFromName}" <${fromEmail}>\r\n`;
     rawStr += `To: ${to}\r\n`;
-    rawStr += `Subject: ${subject}\r\n`;
+    rawStr += `Subject: ${encodeMimeHeader(subject)}\r\n`;
     rawStr += `MIME-Version: 1.0\r\n`;
     rawStr += `Content-Type: text/html; charset=utf-8\r\n`;
 

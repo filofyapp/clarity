@@ -613,6 +613,13 @@ TESTEADO: `npm run build` Ok sin errores TS.
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
+### BUG-014: Asunto de Emails con caracteres extraños y Link de tracking apuntando a localhost (RESUELTO)
+- PROBLEMA: Al recibir el correo, el Asunto (Subject) mostraba caracteres UTF-8 rotos (ej: Siniestro Ã‚Â· OOZ) y el botón "Ver estado del caso" apuntaba a `localhost:3000` en lugar de `panel.aomsiniestros.com`.
+- CAUSA: 1) Los headers RFC 2822 de email (como el Subject y From) requieren usar la codificación especial `MIME Encoded-Word (RFC 1342)` para soportar UTF-8, de lo contrario Gmail/Outlook los malinterpretan. 2) La variable de entorno para el tracking link usaba un fallback a localhost directamente en el código base, omitiendo probar la variable `NEXT_PUBLIC_SITE_URL` que Vercel / VPS de prod a menudo inyectan.
+- SOLUCION: Se creó la función utilitaria `encodeMimeHeader` en `gmail.ts` que inyecta `(?utf-8?B?...)` sobre el asunto. Se añadió el fallback `process.env.NEXT_PUBLIC_SITE_URL || "https://panel.aomsiniestros.com"` en `templates.ts`.
+- FECHA: 10/03/2026
+- NO REPETIR: Siempre usar Base64 MIME Encoded-Word para enviar emails RFC manuales a la API de Gmail (en los campos `Subject` o nombres legibles de `From`/`To`).
+
 ### BUG-013: Mails automáticos no se encolaban al pasar a "Contactado" (RESUELTO)
 - PROBLEMA: El cambio de estado de Pendiente Coordinación a Contactado (o IP Coordinada) no enviaba el email pre-configurado, aunque estuviera mapeado en `queue.ts`.
 - CAUSA: La transición sí encolaba los correos en `mail_queue`, pero como el sistema es asíncrono, se depende de un CRON JOB `/api/cron/procesar-mails` para despacharlos en diferido. No era un fallo de código, sino de que la tarea cronométrica no estaba siendo invocada en el entorno local (y el retraso introducido de 3 minutos daba la ilusión de rotura en testing rápido).

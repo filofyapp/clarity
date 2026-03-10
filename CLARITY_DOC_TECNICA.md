@@ -623,6 +623,13 @@ TESTEADO: `npm run build` Ok sin errores TS. NextJS Virtualizer mantiene compati
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
+### BUG-016: Buscador de Casos fallando por espacios en blanco (RESUELTO)
+- PROBLEMA: Al buscar un siniestro o dominio en la tabla principal, si el usuario ingresaba un espacio al principio o al final (por accidente o al pegar texto copiado), la tabla se quedaba vacía sin encontrar resultados.
+- CAUSA: La función de filtrado en memoria (`CasosTable.tsx`) comparaba el input literal (`searchQuery.toLowerCase()`) contra las propiedades del caso sin limpiarle previamente los caracteres invisibles inútiles.
+- SOLUCION: Se introdujo un método de limpieza `const lowerQuery = searchQuery.trim().toLowerCase();` justo antes del mapeo de los casos cargados.
+- FECHA: 10/03/2026
+- NO REPETIR: Siempre utilizar `.trim()` al manipular cadenas de texto provenientes de un `<input>` de búsqueda humana.
+
 ### BUG-015: Enlace de Seguimiento tirando Error 404 (RESUELTO)
 - PROBLEMA: Al cliquear el enlace de seguimiento (`/seguimiento/[token]`), el navegador reportaba un NotFound o Error 404 nativo de Next.js.
 - CAUSA: 1) En Next.js 15+ (Turbopack), el objeto `params` en las rutas dinámicas como `[token]` pasó a ser una Promesa asíncrona por defecto. Al intentar leer el token destruyendolo síncronamente u omitiendo el tipado de Promise, el Router fallaba silenciosamente y descartaba la vista, redirigiendo a la pantalla negra `404 This page could not be found`. 2) El middleware de autenticación también tenía la ruta bloqueada accidentalmente.

@@ -181,7 +181,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     const procesados = useMemo(() => {
         let result = [...casos];
         if (searchQuery.trim() !== "") {
-            const lowerQuery = searchQuery.toLowerCase();
+            const lowerQuery = searchQuery.trim().toLowerCase();
             result = result.filter(c => c.numero_siniestro?.toLowerCase().includes(lowerQuery) || c.dominio?.toLowerCase().includes(lowerQuery) || (c.marca && c.marca.toLowerCase().includes(lowerQuery)) || (c.modelo && c.modelo.toLowerCase().includes(lowerQuery)));
         }
         if (filterEstados.length > 0) result = result.filter(c => filterEstados.includes(c.estado));

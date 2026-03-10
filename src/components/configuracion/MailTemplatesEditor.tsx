@@ -122,8 +122,8 @@ export default function MailTemplatesEditor({ templates: initialTemplates }: { t
                         key={t.id}
                         onClick={() => setSelectedId(t.id)}
                         className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedId === t.id
-                                ? 'bg-[#D6006E]/5 border-[#D6006E] shadow-sm'
-                                : 'bg-white hover:bg-neutral-50 border-neutral-200'
+                            ? 'bg-[#D6006E]/5 border-[#D6006E] shadow-sm'
+                            : 'bg-white hover:bg-neutral-50 border-neutral-200'
                             }`}
                     >
                         <div className="flex justify-between items-start">
@@ -171,7 +171,7 @@ export default function MailTemplatesEditor({ templates: initialTemplates }: { t
                                 type="text"
                                 value={activeTemplate.asunto}
                                 onChange={(e) => handleUpdateActive("asunto", e.target.value)}
-                                className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#D6006E]/20 focus:border-[#D6006E] outline-none"
+                                className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-[#D6006E]/20 focus:border-[#D6006E] outline-none bg-white text-neutral-900"
                             />
                             <div className="flex flex-wrap gap-2">
                                 {availableVars.map(v => (
@@ -196,7 +196,7 @@ export default function MailTemplatesEditor({ templates: initialTemplates }: { t
                                 value={activeTemplate.cuerpo}
                                 onChange={(e) => handleUpdateActive("cuerpo", e.target.value)}
                                 rows={8}
-                                className="w-full border rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-[#D6006E]/20 focus:border-[#D6006E] outline-none"
+                                className="w-full border rounded-lg p-3 text-sm font-mono focus:ring-2 focus:ring-[#D6006E]/20 focus:border-[#D6006E] outline-none bg-white text-neutral-900"
                             />
                             <div className="flex flex-wrap gap-2">
                                 {availableVars.map(v => (
@@ -221,6 +221,7 @@ export default function MailTemplatesEditor({ templates: initialTemplates }: { t
                                 <div className="w-full max-w-[580px] bg-white rounded-[12px] shadow-sm overflow-hidden text-sm">
                                     <div className="bg-[#0C0A0F] text-center p-6 text-white pb-6 pt-8">
                                         <h1 className="m-0 text-xl font-bold tracking-[4px]">CLARITY</h1>
+                                        <p className="m-0 mt-1 text-[10px] text-white/60 uppercase tracking-widest">Sistema Interno de AOM Siniestros</p>
                                     </div>
                                     <div className="px-8 pt-8 text-[#1A1525]">
                                         <p className="text-[#D6006E] font-bold text-xs uppercase tracking-wide mb-1">{activeTemplate.nombre}</p>

@@ -159,7 +159,7 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
                     {/* Logo Sancor Gris */}
                     <img
-                        src="/images/logo-al-servicio-de-SS-negro.png"
+                        src="/logo-al-servicio-de-SS-negro.png"
                         alt="Al servicio de Sancor Seguros"
                         className="max-w-[160px] opacity-70 mb-6"
                     />

@@ -61,46 +61,39 @@ export function SelectorZonaDanio({ zonasSeleccionadas, onZonasChange }: Props) 
                     {/* Shadow / Base stroke invisible buffer to capture clicks smoothly */}
                     <rect x="0" y="0" width="100" height="240" fill="transparent" pointerEvents="none" />
 
-                    {/* Frente - Paragolpes */}
-                    <path id="frente" d="M20,10 Q50,-5 80,10 L85,25 L15,25 Z" className={getPathClassName("frente")} onClick={() => toggleZona("frente")} />
+                    {/* FRENTE */}
+                    <path id="frente" d="M15,25 Q50,15 85,25 L85,35 L15,35 Z" className={getPathClassName("frente")} onClick={() => toggleZona("frente")} />
 
-                    {/* Capot */}
-                    <path id="capot" d="M25,25 L75,25 L80,60 L20,60 Z" className={getPathClassName("capot")} onClick={() => toggleZona("capot")} />
+                    {/* CAPOT */}
+                    <path id="capot" d="M20,35 L80,35 L75,70 L25,70 Z" className={getPathClassName("capot")} onClick={() => toggleZona("capot")} />
 
-                    {/* Parabrisas */}
-                    <path id="parabrisas" d="M18,60 L82,60 Q80,85 75,90 L25,90 Q20,85 18,60 Z" className={getPathClassName("parabrisas")} onClick={() => toggleZona("parabrisas")} />
+                    {/* PARABRISAS */}
+                    <path id="parabrisas" d="M22,70 L78,70 L70,85 L30,85 Z" className={getPathClassName("parabrisas")} onClick={() => toggleZona("parabrisas")} />
 
-                    {/* Techo */}
-                    <path id="techo" d="M25,90 L75,90 L75,160 L25,160 Z" className={getPathClassName("techo")} onClick={() => toggleZona("techo")} />
+                    {/* TECHO */}
+                    <path id="techo" d="M30,85 L70,85 L70,150 L30,150 Z" className={getPathClassName("techo")} onClick={() => toggleZona("techo")} />
 
-                    {/* Luneta */}
-                    <path id="luneta" d="M25,160 L75,160 L80,185 L20,185 Z" className={getPathClassName("luneta")} onClick={() => toggleZona("luneta")} />
+                    {/* LUNETA */}
+                    <path id="luneta" d="M30,150 L70,150 L75,165 L25,165 Z" className={getPathClassName("luneta")} onClick={() => toggleZona("luneta")} />
 
-                    {/* Baul */}
-                    <path id="baul" d="M20,185 L80,185 L85,220 L15,220 Z" className={getPathClassName("baul")} onClick={() => toggleZona("baul")} />
+                    {/* BAUL */}
+                    <path id="baul" d="M25,165 L75,165 L80,205 L20,205 Z" className={getPathClassName("baul")} onClick={() => toggleZona("baul")} />
 
-                    {/* Trasero - Paragolpes */}
-                    <path id="trasero" d="M15,220 L85,220 Q50,240 15,220 Z" className={getPathClassName("trasero")} onClick={() => toggleZona("trasero")} />
+                    {/* TRASERO (Paragolpes) */}
+                    <path id="trasero" d="M15,205 L85,205 L85,215 Q50,225 15,215 Z" className={getPathClassName("trasero")} onClick={() => toggleZona("trasero")} />
 
-                    {/* Laterales Izquierdos */}
-                    {/* Guardabarros Del Izq */}
-                    <path id="guardabarros_del_izq" d="M15,25 L25,25 L20,60 L10,60 Q8,45 15,25 Z" className={getPathClassName("guardabarros_del_izq")} onClick={() => toggleZona("guardabarros_del_izq")} />
-                    {/* Puerta Del Izq */}
-                    <path id="puerta_del_izq" d="M10,60 L25,85 L25,125 L7,125 Z" className={getPathClassName("puerta_del_izq")} onClick={() => toggleZona("puerta_del_izq")} />
-                    {/* Puerta Tra Izq */}
-                    <path id="puerta_tra_izq" d="M7,125 L25,125 L25,160 L10,160 Z" className={getPathClassName("puerta_tra_izq")} onClick={() => toggleZona("puerta_tra_izq")} />
-                    {/* Guardabarros Tra Izq */}
-                    <path id="guardabarros_tra_izq" d="M10,160 L20,185 L15,220 Q5,200 10,160 Z" className={getPathClassName("guardabarros_tra_izq")} onClick={() => toggleZona("guardabarros_tra_izq")} />
 
-                    {/* Laterales Derechos */}
-                    {/* Guardabarros Del Der */}
-                    <path id="guardabarros_del_der" d="M85,25 L75,25 L80,60 L90,60 Q92,45 85,25 Z" className={getPathClassName("guardabarros_del_der")} onClick={() => toggleZona("guardabarros_del_der")} />
-                    {/* Puerta Del Der */}
-                    <path id="puerta_del_der" d="M90,60 L75,85 L75,125 L93,125 Z" className={getPathClassName("puerta_del_der")} onClick={() => toggleZona("puerta_del_der")} />
-                    {/* Puerta Tra Der */}
-                    <path id="puerta_tra_der" d="M93,125 L75,125 L75,160 L90,160 Z" className={getPathClassName("puerta_tra_der")} onClick={() => toggleZona("puerta_tra_der")} />
-                    {/* Guardabarros Tra Der */}
-                    <path id="guardabarros_tra_der" d="M90,160 L80,185 L85,220 Q95,200 90,160 Z" className={getPathClassName("guardabarros_tra_der")} onClick={() => toggleZona("guardabarros_tra_der")} />
+                    {/* LADO IZQUIERDO */}
+                    <path id="guardabarros_del_izq" d="M15,25 L20,35 L25,70 L15,70 C10,50 12,35 15,25 Z" className={getPathClassName("guardabarros_del_izq")} onClick={() => toggleZona("guardabarros_del_izq")} />
+                    <path id="puerta_del_izq" d="M15,70 L25,70 L30,85 L30,120 L10,120 C10,100 12,85 15,70 Z" className={getPathClassName("puerta_del_izq")} onClick={() => toggleZona("puerta_del_izq")} />
+                    <path id="puerta_tra_izq" d="M10,120 L30,120 L30,150 L25,165 L10,165 Z" className={getPathClassName("puerta_tra_izq")} onClick={() => toggleZona("puerta_tra_izq")} />
+                    <path id="guardabarros_tra_izq" d="M10,165 L25,165 L20,205 L15,215 C12,205 10,185 10,165 Z" className={getPathClassName("guardabarros_tra_izq")} onClick={() => toggleZona("guardabarros_tra_izq")} />
+
+                    {/* LADO DERECHO */}
+                    <path id="guardabarros_del_der" d="M85,25 C88,35 90,50 85,70 L75,70 L80,35 L85,25 Z" className={getPathClassName("guardabarros_del_der")} onClick={() => toggleZona("guardabarros_del_der")} />
+                    <path id="puerta_del_der" d="M85,70 C88,85 90,100 90,120 L70,120 L70,85 L75,70 L85,70 Z" className={getPathClassName("puerta_del_der")} onClick={() => toggleZona("puerta_del_der")} />
+                    <path id="puerta_tra_der" d="M90,120 L90,165 L75,165 L70,150 L70,120 Z" className={getPathClassName("puerta_tra_der")} onClick={() => toggleZona("puerta_tra_der")} />
+                    <path id="guardabarros_tra_der" d="M90,165 C90,185 88,205 85,215 L80,205 L75,165 L90,165 Z" className={getPathClassName("guardabarros_tra_der")} onClick={() => toggleZona("guardabarros_tra_der")} />
 
                 </svg>
             </div>

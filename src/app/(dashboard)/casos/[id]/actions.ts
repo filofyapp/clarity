@@ -155,3 +155,50 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
     revalidatePath("/carga");
     return { success: true };
 }
+
+/**
+ * Actualiza los datos de coordinación de un caso (ubicación, fecha y hora).
+ */
+export async function actualizarDatosCoordinacion(
+    casoId: string,
+    datos: { direccion_inspeccion: string, localidad: string, fecha_inspeccion_programada: string | null }
+) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "No autorizado." };
+
+    const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+    if (!usuario) return { error: "Usuario no encontrado." };
+
+    // Verificar permisos: admin y carga pueden editar 
+    if (usuario.rol !== "admin" && usuario.rol !== "carga") {
+        return { error: "No tiene permisos para modificar la coordinación." };
+    }
+
+    // Actualizar datos
+    const { error: updateError } = await supabase
+        .from("casos")
+        .update({
+            direccion_inspeccion: datos.direccion_inspeccion,
+            localidad: datos.localidad,
+            fecha_inspeccion_programada: datos.fecha_inspeccion_programada,
+            updated_at: new Date().toISOString()
+        })
+        .eq("id", casoId);
+
+    if (updateError) return { error: updateError.message };
+
+    // Registrar en el historial
+    await supabase.from("historial_estados").insert({
+        caso_id: casoId,
+        usuario_id: user.id,
+        estado_anterior: "Mismo Estado",
+        estado_nuevo: "Mismo Estado",
+        motivo: "Se actualizaron la fecha/hora y lugar de inspección pactados con el asegurado.",
+    });
+
+    revalidatePath(`/casos/${casoId}`);
+    revalidatePath("/casos");
+    revalidatePath("/dashboard");
+    return { success: true };
+}

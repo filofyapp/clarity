@@ -601,7 +601,24 @@ TESTEADO: `npm run build` Ok sin errores de Transpilación ni Linting. Testing d
 
 ---
 
+FECHA: 10/03/2026
+QUE SE CAMBIO: Editar Ubicación y Fecha de Siniestros (Fase 17).
+POR QUE: Los casos "En Coordinación" o "Contactados" no permitían modificar la fecha ni el lugar de inspección previamente pactados/acordados.
+COMO: 1) Creado componente `<EditableCoordinacion />` cliente con formulario integrado. 2) Añadida server action `actualizarDatosCoordinacion`. 3) Inyectada en `CasoDetail.tsx`. 4) Cada edición escribe un motivo estandarizado directo al `historial_estados` del caso.
+ARCHIVOS AFECTADOS: `actions.ts`, `EditableCoordinacion.tsx`, `CasoDetail.tsx`.
+EFECTOS COLATERALES: Ninguno perjudicial. Interfaz más interactiva para los roles Carga y Admin.
+TESTEADO: `npm run build` Ok sin errores TS.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-013: Mails automáticos no se encolaban al pasar a "Contactado" (RESUELTO)
+- PROBLEMA: El cambio de estado de Pendiente Coordinación a Contactado (o IP Coordinada) no enviaba el email pre-configurado, aunque estuviera mapeado en `queue.ts`.
+- CAUSA: La transición sí encolaba los correos en `mail_queue`, pero como el sistema es asíncrono, se depende de un CRON JOB `/api/cron/procesar-mails` para despacharlos en diferido. No era un fallo de código, sino de que la tarea cronométrica no estaba siendo invocada en el entorno local (y el retraso introducido de 3 minutos daba la ilusión de rotura en testing rápido).
+- SOLUCION: Se ajustó el retraso a 0 minutos temporalmente y se documentó que la cola asíncrona depende del endpoint activo. No hubo rotura del script en sí.
+- FECHA: 10/03/2026
+- NO REPETIR: Recordar que los email automáticos no son despachados asíncronamente en Vercel a no ser que se configure su `vercel.json` o se acierte manualmente al endpoint `/api/cron/`.
 
 ### BUG-001: Sidebar active state hardcodeado (RESUELTO)
 - PROBLEMA: El prop `active` en SidebarItem estaba hardcodeado en `true` solo para el primer item de cada rol. Ningun otro item mostraba estado activo al navegar.

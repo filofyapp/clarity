@@ -17,6 +17,7 @@ import { Car, MapPin, ClipboardList, Users, ClipboardType, FileText } from "luci
 import { EditableLinkOrion } from "./EditableLinkOrion";
 import { GenerarLinkInspeccion } from "./GenerarLinkInspeccion";
 import { GestorRepliesBanner } from "./GestorRepliesBanner";
+import EditableCoordinacion from "./EditableCoordinacion";
 
 export async function CasoDetail({ id }: { id: string }) {
     const supabase = await createClient();
@@ -170,10 +171,14 @@ export async function CasoDetail({ id }: { id: string }) {
                                     <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Dominio</p>
                                     <p className="font-semibold text-text-primary text-base uppercase tracking-wider">{caso.dominio}</p>
                                 </div>
-                                <div className="md:col-span-2 pt-4 border-t border-border/30">
-                                    <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Ubicación para Inspección</p>
-                                    <p className="font-medium text-text-primary">{caso.direccion_inspeccion}{caso.localidad ? `, ${caso.localidad}` : ""}</p>
-                                </div>
+                                <EditableCoordinacion
+                                    casoId={caso.id}
+                                    estadoActual={caso.estado}
+                                    direccionInicial={caso.direccion_inspeccion || ""}
+                                    localidadInicial={caso.localidad || ""}
+                                    fechaProgramadaInicial={caso.fecha_inspeccion_programada}
+                                    rol={rol}
+                                />
                             </div>
                         </CardContent>
                     </Card>

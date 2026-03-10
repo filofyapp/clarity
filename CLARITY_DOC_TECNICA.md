@@ -611,7 +611,25 @@ TESTEADO: `npm run build` Ok sin errores TS.
 
 ---
 
+FECHA: 10/03/2026
+QUE SE CAMBIO: Filtros Persistentes en Tabla de Casos (Fase 18).
+POR QUE: Al navegar hacia el Detalle de un Caso y clickear en "Atrás", Next.js recargaba el componente haciendo que todos los filtros de estado/búsqueda/peritos vigentes se borraran, lo que frustra la usabilidad. Se pidió que la persistencia sea exclusiva por cuenta/computadora.
+COMO: Se programó el Hook `useLocalStorageState.ts` que intercepta las escrituras de estados (useState) y las clona/recupera de `window.localStorage`. Se conectó a todos los `useState` de la cabecera en `CasosTable.tsx`. Se inyectó además un botón de `Limpiar Filtros` bajo demanda.
+ARCHIVOS AFECTADOS: `CasosTable.tsx`, `useLocalStorageState.ts`.
+EFECTOS COLATERALES: Ninguno perjudicial. Alta Resiliencia al recargar F5.
+TESTEADO: `npm run build` Ok sin errores TS. NextJS Virtualizer mantiene compatibilidad con LocalStorage.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-015: Enlace de Seguimiento tirando Error 404 (RESUELTO)
+- PROBLEMA: Al cliquear el enlace de seguimiento (`/seguimiento/[token]`), el navegador reportaba un NotFound o Error 404.
+- CAUSA: 1) El middleware de autenticación (`src/lib/supabase/middleware.ts`) tenía bloqueado el acceso no-autenticado a `/seguimiento/`. 2) Además, como se trata de código nuevo que corría fuera del localhost local, el VPS probablemente aún no contaba con la compilación (`npm run build`) de los archivos creados en el parche anterior.
+- SOLUCION: Se agregó `const isPublicSeguimiento = request.nextUrl.pathname.startsWith('/seguimiento/')` a la whitelist del Auth Middleware. Ahora depende del administrador purgar el cache y recompilar en su VPS.
+- FECHA: 10/03/2026
+- NO REPETIR: Siempre que se crea una nueva ruta pública en el ecosistema, debe abrirse la "aduana" (el archivo `middleware.ts`) para evitar que rebote los accesos de clientes no logeados.
+
 
 ### BUG-014: Asunto de Emails con caracteres extraños y Link de tracking apuntando a localhost (RESUELTO)
 - PROBLEMA: Al recibir el correo, el Asunto (Subject) mostraba caracteres UTF-8 rotos (ej: Siniestro Ã‚Â· OOZ) y el botón "Ver estado del caso" apuntaba a `localhost:3000` en lugar de `panel.aomsiniestros.com`.

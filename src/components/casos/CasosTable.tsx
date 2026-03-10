@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition, useRef, useEffect } from "react";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { format, differenceInDays, isSameWeek, isSameMonth, isToday } from "date-fns";
 import { es } from "date-fns/locale";
@@ -71,18 +72,31 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         localStorage.setItem("clarity_casos_layout", mode);
     };
 
-    // Filters
-    const [searchQuery, setSearchQuery] = useState("");
-    const [filterEstados, setFilterEstados] = useState<string[]>([]);
-    const [filterTiposIP, setFilterTiposIP] = useState<string[]>([]);
-    const [filterPeritosCalle, setFilterPeritosCalle] = useState<string[]>([]);
-    const [filterPeritosCarga, setFilterPeritosCarga] = useState<string[]>([]);
-    const [filterGestores, setFilterGestores] = useState<string[]>([]);
-    const [filterProgramada, setFilterProgramada] = useState<string | null>(null);
-    const [filterDateRange, setFilterDateRange] = useState<"hoy" | "semana" | "mes" | null>(null);
+    // Filters - Persistent across navigation
+    const [searchQuery, setSearchQuery] = useLocalStorageState(`${userRol}_clarity_filter_search`, "");
+    const [filterEstados, setFilterEstados] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_estados`, []);
+    const [filterTiposIP, setFilterTiposIP] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_tipos`, []);
+    const [filterPeritosCalle, setFilterPeritosCalle] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_calle`, []);
+    const [filterPeritosCarga, setFilterPeritosCarga] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_carga`, []);
+    const [filterGestores, setFilterGestores] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_gest`, []);
+    const [filterProgramada, setFilterProgramada] = useLocalStorageState<string | null>(`${userRol}_clarity_filter_prog`, null);
+    const [filterDateRange, setFilterDateRange] = useLocalStorageState<"hoy" | "semana" | "mes" | null>(`${userRol}_clarity_filter_date`, null);
+
+    const hasActiveFilters = searchQuery !== "" || filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterProgramada !== null || filterDateRange !== null;
+
+    const clearFilters = () => {
+        setSearchQuery("");
+        setFilterEstados([]);
+        setFilterTiposIP([]);
+        setFilterPeritosCalle([]);
+        setFilterPeritosCarga([]);
+        setFilterGestores([]);
+        setFilterProgramada(null);
+        setFilterDateRange(null);
+    };
 
     // Sort
-    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    const [sortConfig, setSortConfig] = useLocalStorageState<{ key: string; direction: 'asc' | 'desc' }>(`${userRol}_clarity_sort_config`, {
         key: 'fecha_derivacion',
         direction: 'desc'
     });
@@ -250,11 +264,33 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         <button onClick={() => toggleLayout("list")} className={`p-1.5 rounded ${layoutMode === "list" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista Densa (Spreadsheet)">
                             <LayoutList className="w-4 h-4" />
                         </button>
-                        <button onClick={() => toggleLayout("grid")} className={`p-1.5 rounded ${layoutMode === "grid" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista de Grilla">
+                        <button onClick={() => toggleLayout("grid")} className={`p-1.5 rounded ${layoutMode === "grid" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista de Tarjetas">
                             <LayoutGrid className="w-4 h-4" />
                         </button>
                     </div>
 
+                    <div className="relative w-full max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                        <Input
+                            placeholder="Buscar N°, Dominio, Vehículo..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 h-9 bg-bg-primary border-border focus:border-brand-primary/50 text-sm"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 invisible-scrollbar">
+                    {hasActiveFilters && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={clearFilters}
+                            className="h-8 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10 flex-shrink-0 mr-2"
+                        >
+                            Limpiar Filtros
+                        </Button>
+                    )}
                     {/* Summary Bar */}
                     <div className="flex-1 flex flex-wrap items-center gap-1.5 overflow-x-auto no-scrollbar mask-edges min-w-0 pointer-events-auto shrink">
                         <BadgeCounter label="Total" count={casos.length} onClick={() => setFilterEstados([])} active={filterEstados.length === 0} />

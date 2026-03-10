@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { encolarNotificacion } from "@/lib/email/queue";
 
 interface CasoInput {
     numero_siniestro: string;
@@ -94,6 +95,14 @@ export async function crearCaso(input: CasoInput) {
         estado_anterior: null,
         estado_nuevo: estado,
         motivo
+    });
+
+    // Validar encolamiento de notificación para gestores. 
+    // Aunque la regla actual evalúa transiciones (origen->destino), si queremos q `null->ip_coordinada` también envíe algun mail
+    // Hay q definirlo. Pero según el plan `contactado->ip_coordinada` es lo que manda. 
+    // Por las dudas, lo pasamos y el queue resolverá si aplica.
+    await encolarNotificacion(caso.id, null, estado).catch(err => {
+        console.error("Error al intentar encolar notificación en crearCaso:", err);
     });
 
     revalidatePath("/casos");

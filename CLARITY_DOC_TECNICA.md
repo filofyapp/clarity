@@ -591,6 +591,16 @@ TESTEADO: Todos los flujos de "Pasos" mapeados con hot-reloading exitoso. Transp
 
 ---
 
+FECHA: 10/03/2026
+QUE SE CAMBIO: Fase 16 - Notificaciones Automáticas Sancor, Tracking Link Público y Detector de "Gestor Replies".
+POR QUE: Sancor requiere un aviso automático en cada paso del proceso (Contacto, Coord, Visita, Cierre) respetando sus flujos, hilos de conversación, casillas, etc. En paralelo precisan proveer al asegurado de un enlace para ver "su trámite".
+COMO: (1) Se creó migración `019_fase16_...sql` para las tablas `mail_queue` (buffers 3-minutos antivampiro), `mail_templates` (Editor visual), `respuestas_gestor`, y `seguimiento_tokens`. (2) Hooks en `acciones.ts` (`crearCaso`, `cambiarEstadoCaso`) que evalúan e inyectan templates encolados, interrumpiendo redundancias. (3) Creación de Cron endpoints `/api/cron/` procesando mediante REST API calls a `gmail.googleapis.com` simulando el envío via Threading asíncrono. (4) Rediseñado Settings de "Notificaciones" en UI para soportar variables (`{{siniestro}}`, etc.). (5) Nueva ruta `/seguimiento/[token]` pública, read-only y mobile-first con Timeline interactivo. (6) Banner UI de Respuestas de Gestores incrustado encima de la data del Vehículo en el Detalle del Siniestro y Tabla principal.
+ARCHIVOS AFECTADOS: `mail_queue.ts`, `gmail.ts`, `templates.ts`, varios actions, `GestorRepliesBanner.tsx`, `MailTemplatesEditor.tsx`, `019_fase16_notificaciones_email.sql`.
+EFECTOS COLATERALES: Ninguno perjudicial. Permite alta configurabilidad pero depende de configuraciones OAuth externas de Google (Secret/Refresh keys provistas por ENV).
+TESTEADO: `npm run build` Ok sin errores de Transpilación ni Linting. Testing de lógica base y cron handlers.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
 ### BUG-001: Sidebar active state hardcodeado (RESUELTO)

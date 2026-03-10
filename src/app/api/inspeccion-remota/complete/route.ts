@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
+import { encolarNotificacion } from "@/lib/email/queue";
 
 export async function POST(req: NextRequest) {
     try {
@@ -55,6 +56,11 @@ export async function POST(req: NextRequest) {
             estado_anterior: estadoAnterior,
             estado_nuevo: "pendiente_carga",
             motivo: `📸 Inspección remota completada: ${link.fotos_subidas} fotos cargadas vía link`,
+        });
+
+        // Enqueue email notification if applicable
+        await encolarNotificacion(link.caso_id, estadoAnterior, "pendiente_carga").catch(err => {
+            console.error("Error al intentar encolar notificación en inspeccion-remota/complete:", err);
         });
 
         // Create nota for the activity feed

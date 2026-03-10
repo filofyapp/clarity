@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car, MapPin, ClipboardList, Users, ClipboardType, FileText } from "lucide-react";
 import { EditableLinkOrion } from "./EditableLinkOrion";
 import { GenerarLinkInspeccion } from "./GenerarLinkInspeccion";
+import { GestorRepliesBanner } from "./GestorRepliesBanner";
 
 export async function CasoDetail({ id }: { id: string }) {
     const supabase = await createClient();
@@ -143,6 +144,14 @@ export async function CasoDetail({ id }: { id: string }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
+
+                    {/* Banner de Respuestas del Gestor */}
+                    <GestorRepliesBanner
+                        casoId={caso.id}
+                        inicialTieneRespuesta={caso.tiene_respuesta_gestor}
+                        gmailThreadId={caso.gmail_thread_id}
+                    />
+
                     {/* Tarjeta Unificada: Vehículo e Inspección */}
                     <Card>
                         <CardHeader className="pb-3 border-b border-border/50">

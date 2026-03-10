@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { encolarNotificacion } from "@/lib/email/queue";
 
 /**
  * Botón "Inspección realizada" — Perito de calle marca que fue al lugar.
@@ -48,6 +49,11 @@ export async function marcarInspeccionRealizada(casoId: string) {
         estado_anterior: "ip_coordinada",
         estado_nuevo: "pendiente_carga",
         motivo: "Inspección realizada por perito de calle",
+    });
+
+    // Validar encolamiento de notificación para gestores
+    await encolarNotificacion(casoId, "ip_coordinada", "pendiente_carga").catch(err => {
+        console.error("Error al intentar encolar notificación en marcarInspeccionRealizada:", err);
     });
 
     revalidatePath("/mi-agenda");
@@ -135,6 +141,12 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
         estado_anterior: caso.estado,
         estado_nuevo: nuevoEstado,
         motivo: motivo || `Cambio manual de estado`,
+    });
+
+    // Validar encolamiento de notificación para gestores
+    // Usamos await (opcional) o fire-and-forget, pero await asegura consistencia
+    await encolarNotificacion(casoId, caso.estado, nuevoEstado).catch(err => {
+        console.error("Error al intentar encolar notificación en cambiarEstadoCaso:", err);
     });
 
     revalidatePath(`/casos/${casoId}`);

@@ -22,7 +22,7 @@ import { EstadoBadge, estadoStylesRow } from "./EstadoBadge";
 import { TipoIPBadge } from "./TipoIPBadge";
 import {
     ChevronRight, ArrowUpDown, Filter, Edit2, Search, SearchIcon,
-    LayoutList, LayoutGrid, Copy, Trash2
+    LayoutList, LayoutGrid, Copy, Trash2, Mail
 } from "lucide-react";
 import { toast } from "sonner";
 import { cambiarEstadoCaso } from "@/app/(dashboard)/casos/[id]/actions";
@@ -436,13 +436,20 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             {formatDateVal(caso.fecha_derivacion)}
                                         </div>
 
-                                        <div className="w-[120px] shrink-0 px-2 py-1 flex items-center group/cell">
+                                        <div className="w-[120px] shrink-0 px-2 py-1 flex items-center group/cell relative">
                                             {editingField?.id === caso.id && editingField?.field === "numero_siniestro" ? (
                                                 <Input autoFocus className="h-7 text-[12px] px-1.5 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
                                             ) : (
                                                 <>
-                                                    <Link href={`/casos/${caso.id}`} className="truncate flex-1 font-mono font-bold text-text-primary hover:text-text-primary hover:underline hover:brightness-125 transition-all text-[14px]">{caso.numero_siniestro}</Link>
-                                                    <button onClick={() => setEditingField({ id: caso.id, field: "numero_siniestro", value: caso.numero_siniestro || "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary">
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        <Link href={`/casos/${caso.id}`} className="truncate font-mono font-bold text-text-primary hover:text-text-primary hover:underline hover:brightness-125 transition-all text-[14px]">{caso.numero_siniestro}</Link>
+                                                        {caso.tiene_respuesta_gestor && (
+                                                            <span title="Respuesta del gestor sin leer">
+                                                                <Mail size={14} className="text-[#D6006E] shrink-0" />
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <button onClick={() => setEditingField({ id: caso.id, field: "numero_siniestro", value: caso.numero_siniestro || "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary absolute right-1 bg-bg-primary rounded">
                                                         <Edit2 className="w-3.5 h-3.5" />
                                                     </button>
                                                 </>
@@ -744,7 +751,14 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                 <Link href={`/casos/${caso.id}`} key={caso.id} className="p-3 border border-border shadow-sm rounded-lg bg-bg-secondary hover:border-brand-primary/50 transition-colors flex flex-col gap-3 group">
                                     <div className="flex justify-between items-start gap-2">
                                         <div className="flex flex-col min-w-0">
-                                            <span className="font-mono font-bold text-sm text-text-primary truncate">{caso.numero_siniestro}</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="font-mono font-bold text-sm text-text-primary truncate">{caso.numero_siniestro}</span>
+                                                {caso.tiene_respuesta_gestor && (
+                                                    <span title="Respuesta del gestor sin leer">
+                                                        <Mail size={14} className="text-[#D6006E] shrink-0" />
+                                                    </span>
+                                                )}
+                                            </div>
                                             <span className="text-[10px] text-text-muted truncate">Ingreso: {formatDateVal(caso.fecha_derivacion)}</span>
                                         </div>
                                         <EstadoBadge estado={caso.estado} compacto />

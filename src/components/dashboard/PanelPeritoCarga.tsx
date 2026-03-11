@@ -19,7 +19,10 @@ export async function PanelPeritoCarga({ userId }: Props) {
 
     const casos = misCasos || [];
     const pendientes = casos.filter(c => c.estado === "pendiente_carga");
-    const enProceso = casos.filter(c => c.estado === "licitando_repuestos" || c.estado === "en_consulta_cia" || c.estado === "pendiente_presupuesto");
+    const pendientePpto = casos.filter(c => c.estado === "pendiente_presupuesto");
+    const licitando = casos.filter(c => c.estado === "licitando_repuestos");
+    const enConsulta = casos.filter(c => c.estado === "en_consulta_cia");
+    const enProceso = [...pendientePpto, ...licitando, ...enConsulta];
     const cerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
 
     const now = new Date();
@@ -61,7 +64,7 @@ export async function PanelPeritoCarga({ userId }: Props) {
 
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={AlertTriangle} label="Pdte. Carga" value={pendientes.length.toString()} color="text-danger" />
+                <KpiCard icon={Briefcase} label="Total Asignados" value={casos.length.toString()} color="text-brand-primary" />
                 <KpiCard icon={Clock} label="En Proceso" value={enProceso.length.toString()} color="text-color-warning" />
                 <KpiCard icon={CheckCircle2} label="Cerrados" value={cerrados.length.toString()} color="text-color-success" />
 
@@ -85,6 +88,20 @@ export async function PanelPeritoCarga({ userId }: Props) {
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
+
+            {/* Desglose por estado */}
+            <div className="bg-bg-secondary border border-border rounded-xl p-4">
+                <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2 text-sm">
+                    <FileText className="w-4 h-4 text-brand-primary" /> Distribución por Estado
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <EstadoChip label="Pdte. Carga" count={pendientes.length} color="bg-danger/10 text-danger border-danger/20" />
+                    <EstadoChip label="Pdte. Presupuesto" count={pendientePpto.length} color="bg-color-warning/10 text-color-warning border-color-warning/20" />
+                    <EstadoChip label="Licitando" count={licitando.length} color="bg-brand-primary/10 text-brand-primary border-brand-primary/20" />
+                    <EstadoChip label="En Consulta" count={enConsulta.length} color="bg-color-critical/10 text-color-critical border-color-critical/20" />
+                    <EstadoChip label="Cerrados / Fact." count={cerrados.length} color="bg-color-success/10 text-color-success border-color-success/20" />
                 </div>
             </div>
 
@@ -190,6 +207,15 @@ function KpiCard({ icon: Icon, label, value, color = "text-text-primary" }: { ic
                 <Icon className="w-3.5 h-3.5" /> {label}
             </div>
             <p className={`text-2xl font-bold ${color}`}>{value}</p>
+        </div>
+    );
+}
+
+function EstadoChip({ label, count, color }: { label: string; count: number; color: string }) {
+    return (
+        <div className={`flex items-center justify-between border rounded-lg px-3 py-2.5 ${color}`}>
+            <span className="text-xs font-medium">{label}</span>
+            <span className="text-lg font-bold">{count}</span>
         </div>
     );
 }

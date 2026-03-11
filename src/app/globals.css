@@ -98,52 +98,52 @@
   /* slate-50 */
   --bg-secondary: #ffffff;
   /* pure white for cards */
-  --bg-tertiary: #f1f5f9;
-  /* slate-100 for inputs */
+  --bg-tertiary: #eef2f7;
+  /* slightly darker slate for inputs - better distinction */
   --bg-elevated: #ffffff;
-  --bg-surface: #e2e8f0;
-  /* slate-200 for hovers */
+  --bg-surface: #dfe6ee;
+  /* slate-200+ for hovers - more visible */
 
-  /* Borders / Dividers (Subtle Dark) */
-  --border-subtle: rgba(0, 0, 0, 0.05);
-  --border-default: rgba(0, 0, 0, 0.1);
-  --border-hover: rgba(0, 0, 0, 0.15);
+  /* Borders / Dividers - STRONGER for light mode readability */
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-default: rgba(0, 0, 0, 0.15);
+  --border-hover: rgba(0, 0, 0, 0.22);
   --border-focus: rgba(124, 58, 237, 0.5);
 
-  /* Shadows for Light Mode */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  /* Shadows for Light Mode - more noticeable */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 6px rgba(0, 0, 0, 0.06);
   --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15);
 
   /* Text - High Contrast */
   --text-primary: #0f172a;
   /* slate-900 */
-  --text-secondary: #334155;
-  /* slate-700 - darker for better reading under sun */
-  --text-muted: #64748b;
-  /* slate-500 */
+  --text-secondary: #1e293b;
+  /* slate-800 - DARKER for better reading */
+  --text-muted: #475569;
+  /* slate-600 - DARKER than before (was 500) */
   --text-on-brand: #ffffff;
 
   /* Functional Colors - HIGH CONTRAST (Sun-readable) */
-  --color-success: #16A34A;
-  /* bold green */
-  --color-success-soft: rgba(22, 163, 74, 0.15);
-  --color-warning: #EA580C;
-  /* bold orange */
-  --color-warning-soft: rgba(234, 88, 12, 0.15);
-  --color-danger: #E11D48;
-  /* bold rose-red */
-  --color-danger-soft: rgba(225, 29, 72, 0.15);
-  --color-critical: #D946EF;
-  /* bold magenta */
-  --color-critical-soft: rgba(217, 70, 239, 0.15);
-  --color-info: #0284C7;
-  /* bold sky blue */
-  --color-info-soft: rgba(2, 132, 199, 0.15);
-  --color-neutral: #475569;
-  /* slate 600 */
-  --color-neutral-soft: rgba(71, 85, 105, 0.15);
+  --color-success: #15803d;
+  /* green-700 - deeper for white bg */
+  --color-success-soft: rgba(22, 163, 74, 0.12);
+  --color-warning: #c2410c;
+  /* orange-700 - deeper for white bg */
+  --color-warning-soft: rgba(234, 88, 12, 0.12);
+  --color-danger: #be123c;
+  /* rose-700 */
+  --color-danger-soft: rgba(225, 29, 72, 0.12);
+  --color-critical: #a21caf;
+  /* fuchsia-700 */
+  --color-critical-soft: rgba(217, 70, 239, 0.12);
+  --color-info: #0369a1;
+  /* sky-700 */
+  --color-info-soft: rgba(2, 132, 199, 0.12);
+  --color-neutral: #334155;
+  /* slate 700 - darker */
+  --color-neutral-soft: rgba(71, 85, 105, 0.12);
 
   /* Case State Colors (Families) - Adapting to Light mode contrast */
   --estado-ip-coordinada: var(--color-info);

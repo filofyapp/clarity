@@ -843,4 +843,20 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
-Documento vivo. Ultima actualizacion: Marzo 2026 - v4 (alineado con Supabase real)
+Documento vivo. Ultima actualizacion: Marzo 2026 - v5
+
+FECHA: 11/03/2026
+QUE SE CAMBIO: Dashboard Perito Carga — desglose por estado, nuevo favicon, modo claro mejorado, cron auth, UI cleanup
+POR QUE: (1) Dashboard de carga mostraba "Pdte. Carga" duplicado y no discriminaba estados individuales. (2) Favicon era stock "CL" poco estético. (3) Modo claro tenía textos y colores ilegibles. (4) Endpoints de cron devolvían 307 por middleware de sesión. (5) Header mostraba nombre redundante con sidebar.
+COMO: (1) Reemplazado KPI duplicado por "Total Asignados", agregada sección "Distribución por Estado" con EstadoChip (Pdte. Carga, Pdte. Presupuesto, Licitando, En Consulta, Cerrados). (2) Favicon cambiado a SVG: fondo blanco, "C" negra. (3) Variables CSS :root mejoradas: text-secondary a slate-800, text-muted a slate-600, colores funcionales a *-700, borders más fuertes. (4) Middleware excluye /api/cron/, cada endpoint valida CRON_SECRET via Bearer token. (5) Nombre de usuario eliminado del header, sidebar ya lo muestra. Logo actualizado a texto CLARITY + POWERED BY AOM SINIESTROS. Theme toggle cambiado a switch.
+ARCHIVOS AFECTADOS: PanelPeritoCarga.tsx, PanelPeritoCalle.tsx, globals.css, icon.svg, middleware.ts, procesar-mails/route.ts, leer-respuestas/route.ts, Topbar.tsx, SidebarClient.tsx, login/page.tsx, theme-toggle.tsx, layout.tsx, facturacion/page.tsx
+EFECTOS COLATERALES: Modo claro ahora tiene colores más profundos (green-700, orange-700, etc.) lo cual puede cambiar ligeramente tonos en badges y estados para usuarios de modo claro.
+TESTEADO: TypeScript --noEmit OK, next build OK.
+
+FECHA: 11/03/2026
+QUE SE CAMBIO: Reestructuración visual de la tabla de Casos — filtros unificados, siniestro protagonista, estados críticos saturados
+POR QUE: La tabla de Casos tenía filtros duplicados e ineficientes (pills de estado + dropdown de estado), todas las columnas competían visualmente sin jerarquía, y el número de siniestro no se distinguía del resto. Estados urgentes no se diferenciaban de los normales.
+COMO: (1) Filtros consolidados en 3 filas: barra de búsqueda + layout toggle, quick-click estados con conteo, dropdowns avanzados compactos. Quitado dropdown duplicado "Estado". (2) Columna Servicio oculta para ganar espacio. (3) Siniestro en 15px font-black monospace con ancho 140px. (4) Estados críticos (en_consulta_cia, pendiente_carga, pendiente_presupuesto, ip_reclamada_perito) con badges saturados + font-bold + borde lateral inset de color en la fila. Estados normales con opacidad reducida y fondos de fila neutros. (5) BadgeCounter recibe prop critical para resaltar botones de estados urgentes con fondo rojizo. (6) Anchos de columna body alineados a header.
+ARCHIVOS AFECTADOS: CasosTable.tsx, EstadoBadge.tsx
+EFECTOS COLATERALES: Las filas ya no tienen fondos de color intenso para todos los estados (solo los 4 críticos). Los badges de estados normales son más sutiles. La barra de quick-click ahora diferencia visualmente los estados urgentes.
+TESTEADO: TypeScript --noEmit OK.

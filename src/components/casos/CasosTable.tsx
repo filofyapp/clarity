@@ -283,85 +283,71 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     return (
         <div className="flex flex-col h-full w-full bg-bg-primary overflow-hidden">
             {/* TOP BAR / FILTERS */}
-            <div className="flex flex-col gap-3 p-4 border-b border-border bg-bg-secondary/50">
-                {/* View Toggles & Global Search */}
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 bg-bg-tertiary p-1 rounded-md border border-border">
-                        <button onClick={() => toggleLayout("list")} className={`p-1.5 rounded ${layoutMode === "list" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista Densa (Spreadsheet)">
-                            <LayoutList className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => toggleLayout("grid")} className={`p-1.5 rounded ${layoutMode === "grid" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista de Tarjetas">
-                            <LayoutGrid className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 invisible-scrollbar">
-                    {hasActiveFilters && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={clearFilters}
-                            className="h-8 border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10 flex-shrink-0 mr-2"
-                        >
-                            Limpiar Filtros
-                        </Button>
-                    )}
-                    {/* Summary Bar */}
-                    <div className="flex-1 flex flex-wrap items-center gap-1.5 overflow-x-auto no-scrollbar mask-edges min-w-0 pointer-events-auto shrink">
-                        <BadgeCounter label="Total" count={casos.length} onClick={() => setFilterEstados([])} active={filterEstados.length === 0} />
-                        <div className="h-4 w-[1px] bg-border mx-1" />
-                        {Object.entries(ESTADOS_DISPONIBLES).map(([key, label]) => {
-                            const count = summaryStats[key] || 0;
-                            return (
-                                <BadgeCounter
-                                    key={key}
-                                    label={label}
-                                    count={count}
-                                    dimmed={count === 0}
-                                    active={filterEstados.includes(key)}
-                                    onClick={() => {
-                                        setFilterEstados(prev => prev.includes(key) ? prev.filter(k => k !== key) : [key]);
-                                    }}
-                                />
-                            );
-                        })}
-                    </div>
-
-                    <div className="relative w-full sm:w-64 shrink-0">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-muted" />
+            <div className="flex flex-col gap-2 p-3 border-b border-border bg-bg-secondary/50">
+                {/* Row 1: Search + View Toggle + Active filter count */}
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-2.5 top-2 h-4 w-4 text-text-muted" />
                         <Input
                             type="search"
-                            placeholder="Buscar patente o siniestro..."
-                            className="pl-9 bg-bg-primary border-border focus-visible:ring-brand-primary h-9 w-full text-xs shadow-none"
+                            placeholder="Buscar siniestro, patente, marca..."
+                            className="pl-9 bg-bg-primary border-border focus-visible:ring-brand-primary h-8 w-full text-xs shadow-none"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
+
+                    <div className="flex items-center gap-1.5 bg-bg-tertiary p-0.5 rounded-md border border-border">
+                        <button onClick={() => toggleLayout("list")} className={`p-1.5 rounded ${layoutMode === "list" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista Tabla">
+                            <LayoutList className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => toggleLayout("grid")} className={`p-1.5 rounded ${layoutMode === "grid" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista Tarjetas">
+                            <LayoutGrid className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
+                    {hasActiveFilters && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearFilters}
+                            className="h-7 text-[11px] text-color-danger hover:bg-color-danger-soft/10 px-2"
+                        >
+                            ✕ Limpiar filtros
+                        </Button>
+                    )}
                 </div>
 
-                {/* Advanced Filters Row */}
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-text-muted mr-1"><Filter className="w-3.5 h-3.5 inline mr-1" /> Filtros:</span>
+                {/* Row 2: Quick Estado Clicks + Count */}
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                    <BadgeCounter label="Todos" count={casos.length} onClick={() => setFilterEstados([])} active={filterEstados.length === 0} />
+                    <div className="h-4 w-[1px] bg-border mx-0.5" />
+                    {Object.entries(ESTADOS_DISPONIBLES).map(([key, label]) => {
+                        const count = summaryStats[key] || 0;
+                        const isCritical = ["en_consulta_cia", "pendiente_carga", "pendiente_presupuesto", "ip_reclamada_perito"].includes(key);
+                        return (
+                            <BadgeCounter
+                                key={key}
+                                label={label}
+                                count={count}
+                                dimmed={count === 0}
+                                active={filterEstados.includes(key)}
+                                critical={isCritical}
+                                onClick={() => {
+                                    setFilterEstados(prev => prev.includes(key) ? prev.filter(k => k !== key) : [key]);
+                                }}
+                            />
+                        );
+                    })}
+                </div>
+
+                {/* Row 3: Advanced dropdown filters (compact) */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mr-1"><Filter className="w-3 h-3 inline mr-0.5" />Filtros</span>
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 text-[11px] border-dashed px-2 bg-bg-primary">
-                                Estado {filterEstados.length > 0 && `(${filterEstados.length})`}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-[200px] bg-bg-elevated border border-border z-50">
-                            {Object.entries(ESTADOS_DISPONIBLES).map(([k, v]) => (
-                                <DropdownMenuCheckboxItem key={k} className="text-xs" checked={filterEstados.includes(k)} onCheckedChange={(c) => setFilterEstados(p => c ? [...p, k] : p.filter(e => e !== k))}>
-                                    {v}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 text-[11px] border-dashed px-2 bg-bg-primary">
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
                                 Tipo IP {filterTiposIP.length > 0 && `(${filterTiposIP.length})`}
                             </Button>
                         </DropdownMenuTrigger>
@@ -376,7 +362,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 text-[11px] border-dashed px-2 bg-bg-primary">
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
                                 P. Calle {filterPeritosCalle.length > 0 && `(${filterPeritosCalle.length})`}
                             </Button>
                         </DropdownMenuTrigger>
@@ -391,7 +377,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 text-[11px] border-dashed px-2 bg-bg-primary">
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
                                 P. Carga {filterPeritosCarga.length > 0 && `(${filterPeritosCarga.length})`}
                             </Button>
                         </DropdownMenuTrigger>
@@ -406,7 +392,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 text-[11px] border-dashed px-2 bg-bg-primary">
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
                                 Gestor {filterGestores.length > 0 && `(${filterGestores.length})`}
                             </Button>
                         </DropdownMenuTrigger>
@@ -421,7 +407,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 text-[11px] border-dashed px-2 bg-bg-primary">
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
                                 Fechas {filterDateRange && `(${filterDateRange})`}
                             </Button>
                         </DropdownMenuTrigger>
@@ -433,7 +419,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <div className="flex items-center gap-2 bg-bg-primary border border-dashed border-border rounded-md px-2 h-7">
+                    <div className="flex items-center gap-1.5 bg-bg-primary border border-dashed border-border rounded-md px-2 h-6">
                         <select
                             className="bg-transparent text-[10px] text-text-muted outline-none cursor-pointer pr-1 border-none focus:ring-0 appearance-none"
                             value={filterDateType}
@@ -444,28 +430,19 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                             <option value="fecha_carga_sistema">Carga</option>
                             <option value="fecha_cierre">Cierre</option>
                         </select>
-                        <div className="h-3.5 w-[1px] bg-border mx-1" />
-                        <span className="text-[10px] text-text-muted hidden sm:inline">Exacta:</span>
+                        <div className="h-3 w-[1px] bg-border" />
                         <input
                             type="date"
-                            className="bg-transparent text-[11px] text-text-secondary outline-none w-[100px] cursor-pointer"
+                            className="bg-transparent text-[10px] text-text-secondary outline-none w-[90px] cursor-pointer"
                             value={filterDateExact || ""}
                             onChange={(e) => setFilterDateExact(e.target.value || null)}
                         />
                         {filterDateExact && (
-                            <button onClick={() => setFilterDateExact(null)} className="text-text-muted hover:text-color-danger">
+                            <button onClick={() => setFilterDateExact(null)} className="text-text-muted hover:text-color-danger text-xs">
                                 ×
                             </button>
                         )}
                     </div>
-
-                    {(filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterDateRange || filterProgramada || filterDateExact) && (
-                        <Button variant="ghost" size="sm" className="h-7 text-[11px] text-color-danger hover:bg-color-danger-soft/10 px-2 ml-auto" onClick={() => {
-                            setFilterEstados([]); setFilterTiposIP([]); setFilterPeritosCalle([]); setFilterPeritosCarga([]); setFilterGestores([]); setFilterDateRange(null); setFilterProgramada(null); setFilterDateExact(null); setFilterDateType("fecha_derivacion");
-                        }}>
-                            Limpiar
-                        </Button>
-                    )}
                 </div>
             </div>
 
@@ -474,28 +451,27 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                 <div className="flex-1 overflow-auto bg-bg-primary relative" ref={parentRef}>
                     <div className="min-w-max w-full flex flex-col pointer-events-auto">
                         {/* THEAD */}
-                        <div className="flex sticky top-0 z-20 bg-bg-secondary shadow-[0_1px_0_var(--tw-shadow-color)] shadow-border font-medium text-[12px] text-text-secondary uppercase select-none backdrop-blur-md">
+                        <div className="flex sticky top-0 z-20 bg-bg-secondary shadow-[0_1px_0_var(--tw-shadow-color)] shadow-border font-medium text-[11px] text-text-muted uppercase select-none backdrop-blur-md tracking-wider">
                             <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort(filterDateType)}>
                                 {filterDateType === 'fecha_derivacion' ? 'Ingreso' : filterDateType === 'fecha_inspeccion_programada' ? 'IP Prog.' : filterDateType === 'fecha_carga_sistema' ? 'Carga' : 'Cierre'} <ArrowUpDown className="w-3 h-3" />
                             </div>
-                            <div className="w-[120px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('numero_siniestro')}>Siniestro <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('numero_servicio')}>Servicio <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[140px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1 text-text-primary font-bold" onClick={() => handleSort('numero_siniestro')}>Siniestro <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[170px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('estado')}>Estado <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[60px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('updated_at')}>Días <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[150px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('tipo_inspeccion')}>Tipo IP <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[280px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('dominio')}>Vehículo <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[100px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('dominio')}>Patente <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[140px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_calle')}>P. Calle <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[50px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('updated_at')}>Días <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[140px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('tipo_inspeccion')}>Tipo IP <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[260px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('dominio')}>Vehículo <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('dominio')}>Patente <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_calle')}>P. Calle <ArrowUpDown className="w-3 h-3" /></div>
 
                             {!hiddenColumns.includes("perito_carga") && (
-                                <div className="w-[140px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_carga')}>P. Carga <ArrowUpDown className="w-3 h-3" /></div>
+                                <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_carga')}>P. Carga <ArrowUpDown className="w-3 h-3" /></div>
                             )}
 
-                            <div className="w-[140px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('gestor')}>Gestor <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_inspeccion_programada')}>Fecha IP <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_carga_sistema')}>F. Carga <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[100px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_cierre')}>F. Cierre <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[110px] shrink-0 px-2 py-2.5 flex items-center justify-center gap-1 font-bold tracking-wider text-brand-primary"></div>
+                            <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('gestor')}>Gestor <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_inspeccion_programada')}>F. IP <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_carga_sistema')}>F. Carga <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_cierre')}>F. Cierre <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[100px] shrink-0 px-2 py-2.5"></div>
                         </div>
                         {/* TBODY VIRTUALIZED */}
                         <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }} className="w-full">
@@ -521,13 +497,13 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             {formatDateVal(caso[filterDateType as keyof typeof caso] as string | null)}
                                         </div>
 
-                                        <div className="w-[120px] shrink-0 px-2 py-1 flex items-center group/cell relative">
+                                        <div className="w-[140px] shrink-0 px-2 py-1 flex items-center group/cell relative">
                                             {editingField?.id === caso.id && editingField?.field === "numero_siniestro" ? (
-                                                <Input autoFocus className="h-7 text-[12px] px-1.5 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
+                                                <Input autoFocus className="h-7 text-[13px] px-1.5 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
                                             ) : (
                                                 <>
                                                     <div className="flex items-center gap-1.5 min-w-0">
-                                                        <Link href={`/casos/${caso.id}`} className={`truncate font-mono font-bold hover:underline hover:brightness-125 transition-all text-[14px] ${textPrimary}`}>{caso.numero_siniestro}</Link>
+                                                        <Link href={`/casos/${caso.id}`} className={`truncate font-mono font-black hover:underline hover:brightness-125 transition-all text-[15px] tracking-tight ${textPrimary}`}>{caso.numero_siniestro}</Link>
                                                         {caso.tiene_respuesta_gestor && (
                                                             <span title="Respuesta del gestor sin leer">
                                                                 <Mail size={14} className="text-[#D6006E] shrink-0" />
@@ -540,22 +516,6 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                         )}
                                                     </div>
                                                     <button onClick={() => setEditingField({ id: caso.id, field: "numero_siniestro", value: caso.numero_siniestro || "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary absolute right-1 bg-bg-primary rounded">
-                                                        <Edit2 className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-
-                                        {/* Editable Servicio */}
-                                        <div className="w-[90px] shrink-0 px-2 py-1 flex items-center group/cell text-[12px]">
-                                            {editingField?.id === caso.id && editingField?.field === "numero_servicio" ? (
-                                                <Input autoFocus className="h-7 text-[12px] px-1.5 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
-                                            ) : (
-                                                <>
-                                                    <span className={`truncate flex-1 text-[13px] whitespace-nowrap ${textSecondary}`}>
-                                                        {caso.numero_servicio || "-"}
-                                                    </span>
-                                                    <button onClick={() => setEditingField({ id: caso.id, field: "numero_servicio", value: caso.numero_servicio || "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary">
                                                         <Edit2 className="w-3.5 h-3.5" />
                                                     </button>
                                                 </>
@@ -583,11 +543,11 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             )}
                                         </div>
 
-                                        <div className={`w-[60px] shrink-0 px-2 py-1 text-[12px] text-center ${daysColor}`}>
+                                        <div className={`w-[50px] shrink-0 px-2 py-1 text-[12px] text-center ${daysColor}`}>
                                             {days}d
                                         </div>
 
-                                        <div className="w-[150px] shrink-0 px-2 py-1">
+                                        <div className="w-[140px] shrink-0 px-2 py-1">
                                             {userRol === "admin" || userRol === "carga" ? (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -609,7 +569,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {/* Editable Vehículo */}
-                                        <div className="w-[280px] shrink-0 px-2 py-1 flex items-center group/cell relative">
+                                        <div className="w-[260px] shrink-0 px-2 py-1 flex items-center group/cell relative">
                                             {editingField?.id === caso.id && editingField?.field === "marca" ? (
                                                 <div className="flex w-full gap-1">
                                                     <Input autoFocus placeholder="Marca" className="h-7 text-[12px] px-1.5 w-1/2 bg-bg-elevated border-brand-primary" value={editingField.value.split("|")[0] || ""} onChange={e => setEditingField({ ...editingField, value: `${e.target.value}|${editingField.value.split("|")[1] || ""}` })} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
@@ -648,7 +608,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {/* Editable Patente */}
-                                        <div className="w-[100px] shrink-0 px-2 py-1 flex items-center group/cell">
+                                        <div className="w-[90px] shrink-0 px-2 py-1 flex items-center group/cell">
                                             {editingField?.id === caso.id && editingField?.field === "dominio" ? (
                                                 <Input autoFocus className="h-7 text-[12px] px-1.5 w-full uppercase font-mono bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
                                             ) : (
@@ -662,7 +622,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {/* Perito Dropdowns */}
-                                        <div className="w-[140px] shrink-0 px-2 py-1" title={caso.perito_calle?.nombre + " " + caso.perito_calle?.apellido}>
+                                        <div className="w-[130px] shrink-0 px-2 py-1" title={caso.perito_calle?.nombre + " " + caso.perito_calle?.apellido}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <div className="flex items-center gap-1.5 cursor-pointer max-w-full hover:bg-bg-tertiary p-1 rounded transition-colors group/pcalle">
@@ -681,7 +641,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {!hiddenColumns.includes("perito_carga") && (
-                                            <div className="w-[140px] shrink-0 px-2 py-1" title={caso.perito_carga?.nombre + " " + caso.perito_carga?.apellido}>
+                                            <div className="w-[130px] shrink-0 px-2 py-1" title={caso.perito_carga?.nombre + " " + caso.perito_carga?.apellido}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <div className="flex items-center gap-1.5 cursor-pointer max-w-full hover:bg-bg-tertiary p-1 rounded transition-colors group/pcarga">
@@ -701,7 +661,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         )}
 
                                         {/* Gestor: Click → copy email, Pencil → edit dropdown */}
-                                        <div className="w-[140px] shrink-0 px-2 py-1 flex items-center group/cell" title={caso.gestor?.email || caso.gestor?.nombre}>
+                                        <div className="w-[130px] shrink-0 px-2 py-1 flex items-center group/cell" title={caso.gestor?.email || caso.gestor?.nombre}>
                                             <span
                                                 className={`truncate flex-1 text-[13px] cursor-pointer hover:text-brand-primary hover:underline transition-colors ${textSecondary}`}
                                                 onClick={() => handleCopyGestor(caso.gestor)}
@@ -726,7 +686,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {/* Editable Fecha IP */}
-                                        <div className="w-[90px] shrink-0 px-2 py-1 flex items-center group/cell">
+                                        <div className="w-[80px] shrink-0 px-2 py-1 flex items-center group/cell">
                                             {editingField?.id === caso.id && editingField?.field === "fecha_inspeccion_programada" ? (
                                                 <Input type="date" autoFocus className="h-7 text-[10px] px-1 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => {
                                                     // When selecting a date, 'e.target.value' is YYYY-MM-DD.
@@ -755,12 +715,12 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             )}
                                         </div>
 
-                                        <div className={`w-[90px] shrink-0 px-2 py-1 text-[12px] whitespace-nowrap ${textMuted}`}>
+                                        <div className={`w-[80px] shrink-0 px-2 py-1 text-[12px] whitespace-nowrap ${textMuted}`}>
                                             {formatDateVal(caso.fecha_carga_sistema)}
                                         </div>
 
                                         {/* Editable Fecha Cierre */}
-                                        <div className="w-[100px] shrink-0 px-2 py-1 flex items-center group/cell">
+                                        <div className="w-[80px] shrink-0 px-2 py-1 flex items-center group/cell">
                                             {editingField?.id === caso.id && editingField?.field === "fecha_cierre" ? (
                                                 <Input type="date" autoFocus className="h-7 text-[10px] px-1 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => {
                                                     setEditingField({ ...editingField, value: e.target.value });
@@ -904,18 +864,20 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     );
 }
 
-function BadgeCounter({ label, count, active, onClick, dimmed }: { label: string, count: number, active?: boolean, onClick?: () => void, dimmed?: boolean }) {
+function BadgeCounter({ label, count, active, onClick, dimmed, critical }: { label: string, count: number, active?: boolean, onClick?: () => void, dimmed?: boolean, critical?: boolean }) {
     return (
         <button
             onClick={onClick}
             className={`
                 flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-all whitespace-nowrap
-                ${active ? 'bg-brand-primary/20 border-brand-primary/50 text-brand-primary font-bold pr-3' : 'bg-bg-tertiary border-border text-text-secondary hover:bg-bg-elevated'}
+                ${active ? 'bg-brand-primary/20 border-brand-primary/50 text-brand-primary font-bold pr-3'
+                    : critical && count > 0 ? 'bg-color-danger-soft border-color-danger/20 text-text-primary hover:bg-color-danger/20 font-semibold'
+                        : 'bg-bg-tertiary border-border text-text-secondary hover:bg-bg-elevated'}
                 ${dimmed && !active ? 'opacity-40 hover:opacity-100' : ''}
             `}
         >
             <span className="truncate">{label}</span>
-            <span className={`px-1 rounded-full bg-bg-primary text-[9px] tabular-nums ${(active && count > 0) ? "text-brand-primary font-bold shadow-sm" : ""}`}>{count}</span>
+            <span className={`px-1 rounded-full bg-bg-primary text-[9px] tabular-nums ${(active && count > 0) ? "text-brand-primary font-bold shadow-sm" : critical && count > 0 ? "text-color-danger font-bold" : ""}`}>{count}</span>
         </button>
     );
 }

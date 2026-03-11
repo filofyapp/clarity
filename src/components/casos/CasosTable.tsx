@@ -105,6 +105,14 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         direction: 'desc'
     });
 
+    // Excel-like UX: Keep track of cases that were changed inline so they don't disappear from filters immediately
+    const [retainedCaseIds, setRetainedCaseIds] = useState<string[]>([]);
+
+    // Al cambiar cualquier filtro explícitamente, vaciamos la retención
+    useEffect(() => {
+        setRetainedCaseIds([]);
+    }, [searchQuery, filterEstados, filterTiposIP, filterPeritosCalle, filterPeritosCarga, filterGestores, filterProgramada, filterDateRange, filterDateExact, filterDateType]);
+
     // Rapid Obvs & Inline Edits
     const [editingNota, setEditingNota] = useState<string | null>(null);
     const [draftNota, setDraftNota] = useState("");
@@ -119,6 +127,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
     // Helpers for inline actions
     const handleCambiarEstado = (casoId: string, nuevoEstado: string) => {
+        setRetainedCaseIds(prev => [...prev, casoId]);
         startTransition(async () => {
             const result = await cambiarEstadoCaso(casoId, nuevoEstado);
             if (result.error) toast.error(result.error);
@@ -127,6 +136,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     };
 
     const handleUpdateDirect = (casoId: string, field: string, value: string | null) => {
+        setRetainedCaseIds(prev => [...prev, casoId]);
         startTransition(async () => {
             const result = await updateCasoRapido(casoId, field, value);
             if (result.error) toast.error(result.error);
@@ -135,6 +145,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     };
 
     const handleGuardarNota = (casoId: string) => {
+        setRetainedCaseIds(prev => [...prev, casoId]);
         startTransition(async () => {
             const result = await updateCasoRapido(casoId, "notas_admin", draftNota);
             if (result.error) toast.error(result.error);
@@ -144,6 +155,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
     const handleSaveField = () => {
         if (!editingField) return;
+        setRetainedCaseIds(prev => [...prev, editingField.id]);
         startTransition(async () => {
             const result = await updateCasoRapido(editingField.id, editingField.field, editingField.value);
             if (result.error) toast.error(result.error);
@@ -187,11 +199,11 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
             const lowerQuery = searchQuery.trim().toLowerCase();
             result = result.filter(c => c.numero_siniestro?.toLowerCase().includes(lowerQuery) || c.dominio?.toLowerCase().includes(lowerQuery) || (c.marca && c.marca.toLowerCase().includes(lowerQuery)) || (c.modelo && c.modelo.toLowerCase().includes(lowerQuery)));
         }
-        if (filterEstados.length > 0) result = result.filter(c => filterEstados.includes(c.estado));
-        if (filterTiposIP.length > 0) result = result.filter(c => filterTiposIP.includes(c.tipo_inspeccion));
-        if (filterPeritosCalle.length > 0) result = result.filter(c => filterPeritosCalle.includes(c.perito_calle_id));
-        if (filterPeritosCarga.length > 0) result = result.filter(c => filterPeritosCarga.includes(c.perito_carga_id));
-        if (filterGestores.length > 0) result = result.filter(c => filterGestores.includes(c.gestor_id));
+        if (filterEstados.length > 0) result = result.filter(c => filterEstados.includes(c.estado) || retainedCaseIds.includes(c.id));
+        if (filterTiposIP.length > 0) result = result.filter(c => filterTiposIP.includes(c.tipo_inspeccion) || retainedCaseIds.includes(c.id));
+        if (filterPeritosCalle.length > 0) result = result.filter(c => filterPeritosCalle.includes(c.perito_calle_id) || retainedCaseIds.includes(c.id));
+        if (filterPeritosCarga.length > 0) result = result.filter(c => filterPeritosCarga.includes(c.perito_carga_id) || retainedCaseIds.includes(c.id));
+        if (filterGestores.length > 0) result = result.filter(c => filterGestores.includes(c.gestor_id) || retainedCaseIds.includes(c.id));
         if (filterProgramada === "con_fecha") result = result.filter(c => c.fecha_inspeccion_programada);
         if (filterProgramada === "sin_fecha") result = result.filter(c => !c.fecha_inspeccion_programada);
         if (filterDateRange) {

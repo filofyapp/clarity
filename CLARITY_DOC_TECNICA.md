@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 11/03/2026
+QUE SE CAMBIO: Fix de Error RLS en mail_queue y Mejora de UX en CasosTable (Excel-like filtering).
+POR QUE: (1) Al cambiar estado, si el usuario no era 'admin', fallaba el insert automático de notificación por email en `mail_queue` debido al RLS restrictivo. (2) Al cambiar un estado o dato en la tabla de Casos condensada mediante filtro (Ej: Filtro en 'IP Coordinada', le das a 'Pendiente Carga'), la fila desaparecía instantáneamente de la vista, desorientando al perito o administrador.
+COMO: (1) Se importó `createClient` genérico de supabase-js usando `SUPABASE_SERVICE_ROLE_KEY` en `queue.ts` como `supabaseAdmin` para saltar RLS al encolar, ya que `mail_queue` es una entidad interna del backend de comunicaciones. (2) Se creó un state de array `retainedCaseIds` en `CasosTable.tsx`. Se inyecta el ID del caso mutado ahí ante cada inline-edit. Los filtros bypass-ean la exclusión si el ID existe ahí. El array se purga al tocar cualquier componente de filtro de manera explícita (igual que Excel cuando refrescás luego de editar).
+ARCHIVOS AFECTADOS: `queue.ts`, `CasosTable.tsx`
+EFECTOS COLATERALES: Ahora `mail_queue` no depende de que el emisor de la transición sea admin. Para la tabla de casos, un siniestro modificado se mantendrá dibujado aunque ya no pertenezca al estrato del filtro hasta su próxima recarga explícita.
+TESTEADO: API Endpoint test con success. List UI tests re-rendering OK.
+
 FECHA: 03/03/2026
 QUE SE CAMBIO: Documento inicial creado, alineado con Supabase existente
 POR QUE: Inicio formal con documentacion que refleja el stack real (Next.js + Supabase + TS)
@@ -674,6 +682,13 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 ---
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-020: Notificaciones por correo violan RLS de mail_queue para No-Admins (RESUELTO)
+- PROBLEMA: Al cambiar el estado de un siniestro a uno disparador de mail preconfigurado (ej: Contactado), los usuarios sin rol 'admin' recibían un error `new row violates row-level security policy for table "mail queue"` en la consola del server y el mail no se encolaba.
+- CAUSA: La migración `019_fase16` creó `mail_queue` indicando que sólo los admins pueden insertar ahí, olvidándose de que cualquier operario de calle o carga debe poder accionar un disparo de correo automático mediante su gestión regular (cambio de estado vía table).
+- SOLUCION: En lugar de relajar las políticas de la DB haciéndolas públicas, se migró el constructor del cliente de base de datos dentro de `queue.ts` para que opere con la `SUPABASE_SERVICE_ROLE_KEY` como superusuario para aislar ese proceso de back-end autónomo.
+- FECHA: 11/03/2026
+- NO REPETIR: Siempre utilizar Service Key (o bypass equivalents) en funciones Server-Actions que operen silenciosamente sobre tablas instrumentales internas (como colas de emails, historiales de métricas o logs de auditoría) si el RLS primario restringe al usuario ejecutor normal.
 
 ### BUG-019: Filtro de fechas "Hoy" fallando por Timezone de JavaScript (RESUELTO)
 - PROBLEMA: El filtro rápido "Hoy" no mostraba los casos ingresados en la fecha temporal coherente. Al igual que el BUG-018, los casos quedaban ocultos por pertenecer, técnicamente para JS, al día de "ayer".

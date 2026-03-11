@@ -1,8 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { renderTemplate } from "./templates";
 
 export async function encolarNotificacion(casoId: string, estadoAnterior: string | null, estadoNuevo: string) {
     const supabase = await createClient();
+    const supabaseAdmin = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // 1. Check if the transition is one of the 5 allowed triggers.
     // The transitions are identified by the 'codigo' from the defaults.
@@ -59,7 +64,7 @@ export async function encolarNotificacion(casoId: string, estadoAnterior: string
     // 4. Cancel any previous pending identical (or older) mail for this case.
     // Because if the user rapidly switches states back and forth, 
     // we only want to process the latest one.
-    await supabase
+    await supabaseAdmin
         .from('mail_queue')
         .update({ cancelado: true })
         .eq('caso_id', casoId)
@@ -78,7 +83,7 @@ export async function encolarNotificacion(casoId: string, estadoAnterior: string
     // Default originally 3 mins. Changed to 0 for testing.
     now.setMinutes(now.getMinutes() + 0);
 
-    const { error: insertError } = await supabase
+    const { error: insertError } = await supabaseAdmin
         .from('mail_queue')
         .insert({
             caso_id: casoId,

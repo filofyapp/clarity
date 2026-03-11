@@ -73,7 +73,7 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
         if (isInitial) setLoading(true);
         const { data, error } = await supabase
             .from("comentarios_tarea")
-            .select("id, contenido, created_at, usuario_id, usuario:usuarios(nombre, apellido)")
+            .select("id, contenido, created_at, adjuntos, usuario_id, usuario:usuarios(nombre, apellido)")
             .eq("tarea_id", tareaId)
             .order("created_at", { ascending: true });
 

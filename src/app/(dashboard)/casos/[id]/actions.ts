@@ -172,11 +172,12 @@ export async function actualizarDatosCoordinacion(
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "No autorizado." };
 
-    const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+    const { data: usuario } = await supabase.from("usuarios").select("rol, roles").eq("id", user.id).single();
     if (!usuario) return { error: "Usuario no encontrado." };
 
+    const roles = usuario.roles || [usuario.rol];
     // Verificar permisos: admin y carga pueden editar 
-    if (usuario.rol !== "admin" && usuario.rol !== "carga") {
+    if (!roles.includes("admin") && !roles.includes("carga")) {
         return { error: "No tiene permisos para modificar la coordinación." };
     }
 

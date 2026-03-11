@@ -171,6 +171,17 @@ export async function cambiarTipoIPCaso(id: string, nuevoTipo: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "No autorizado." };
 
+    const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("rol, roles")
+        .eq("id", user.id)
+        .single();
+
+    const roles = usuario?.roles || [usuario?.rol];
+    if (!usuario || (!roles.includes("admin") && !roles.includes("carga"))) {
+        return { error: "No autorizado." };
+    }
+
     const { error } = await supabase
         .from("casos")
         .update({ tipo_inspeccion: nuevoTipo })
@@ -208,11 +219,12 @@ export async function updateNotasAdmin(id: string, notas_admin: string | null) {
 
     const { data: usuario } = await supabase
         .from("usuarios")
-        .select("rol")
+        .select("rol, roles")
         .eq("id", user.id)
         .single();
 
-    if (!usuario || (usuario.rol !== "admin" && usuario.rol !== "carga")) {
+    const roles = usuario?.roles || [usuario?.rol];
+    if (!usuario || (!roles.includes("admin") && !roles.includes("carga"))) {
         return { error: "No tiene permisos para editar observaciones." };
     }
 
@@ -235,11 +247,12 @@ export async function updateCasoRapido(id: string, campo: string, valor: string 
 
     const { data: usuario } = await supabase
         .from("usuarios")
-        .select("rol")
+        .select("rol, roles")
         .eq("id", user.id)
         .single();
 
-    if (!usuario || (usuario.rol !== "admin" && usuario.rol !== "carga")) {
+    const roles = usuario?.roles || [usuario?.rol];
+    if (!usuario || (!roles.includes("admin") && !roles.includes("carga"))) {
         return { error: "No tiene permisos para editar." };
     }
 
@@ -265,12 +278,13 @@ export async function eliminarCaso(id: string) {
 
     const { data: usuario } = await supabase
         .from("usuarios")
-        .select("rol")
+        .select("rol, roles")
         .eq("id", user.id)
         .single();
 
+    const roles = usuario?.roles || [usuario?.rol];
     // Sólo Admin o Carga puede eliminar casos
-    if (usuario?.rol !== "admin" && usuario?.rol !== "carga") {
+    if (!roles.includes("admin") && !roles.includes("carga")) {
         return { error: "No tienes permisos para eliminar este siniestro." };
     }
 

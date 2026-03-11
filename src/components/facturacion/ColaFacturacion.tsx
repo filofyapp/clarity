@@ -54,14 +54,34 @@ export function ColaFacturacion({ casos }: ColaFacturacionProps) {
                             {/* Info del caso */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-1">
+                                    {caso.fecha_derivacion && (
+                                        <>
+                                            <span className="text-xs text-text-muted font-medium bg-bg-tertiary px-1.5 py-0.5 rounded">
+                                                {new Date(caso.fecha_derivacion).toLocaleDateString()}
+                                            </span>
+                                            <span className="text-text-muted text-xs">|</span>
+                                        </>
+                                    )}
                                     <span className="font-mono font-bold text-text-primary text-sm">{caso.numero_siniestro}</span>
+                                    {caso.numero_servicio && (
+                                        <>
+                                            <span className="text-text-muted text-xs">|</span>
+                                            <span className="font-mono font-medium text-brand-primary text-xs flex items-center gap-1">Serv: {caso.numero_servicio}</span>
+                                        </>
+                                    )}
                                     <span className="text-text-muted text-xs">|</span>
                                     <span className="text-text-secondary text-xs">{caso.dominio}</span>
                                     <span className="text-text-muted text-xs">|</span>
                                     <span className="text-text-secondary text-xs">{caso.marca} {caso.modelo}</span>
                                 </div>
-                                <div className="text-xs text-text-muted">
-                                    {caso.compania?.nombre} · Calle: {caso.perito_calle?.nombre} {caso.perito_calle?.apellido} · Carga: {caso.perito_carga?.nombre} {caso.perito_carga?.apellido}
+                                <div className="text-xs text-text-muted flex items-center gap-1.5 flex-wrap">
+                                    <span className="bg-bg-tertiary px-1.5 py-0.5 rounded text-[10px] uppercase font-bold text-text-secondary tracking-widest">{caso.tipo_inspeccion?.replace(/_/g, " ")}</span>
+                                    <span>·</span>
+                                    <span>{caso.compania?.nombre}</span>
+                                    <span>·</span>
+                                    <span>Calle: {caso.perito_calle?.nombre} {caso.perito_calle?.apellido}</span>
+                                    <span>·</span>
+                                    <span>Carga: {caso.perito_carga?.nombre} {caso.perito_carga?.apellido}</span>
                                 </div>
                             </div>
 

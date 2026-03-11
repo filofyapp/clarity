@@ -19,14 +19,14 @@ export default async function FacturacionDashboard() {
     const { data: colaFacturar } = await supabase
         .from("casos")
         .select(`
-            id, numero_siniestro, dominio, marca, modelo, tipo_inspeccion,
+            id, numero_siniestro, numero_servicio, dominio, marca, modelo, tipo_inspeccion,
             fecha_cierre, fecha_derivacion,
             perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido),
             perito_carga:usuarios!casos_perito_carga_id_fkey(nombre, apellido),
             compania:companias(nombre)
         `)
         .eq("estado", "ip_cerrada")
-        .order("fecha_cierre", { ascending: true });
+        .order("fecha_derivacion", { ascending: true });
 
     // Historial: últimas facturadas
     const { data: ultimasFacturadas } = await supabase

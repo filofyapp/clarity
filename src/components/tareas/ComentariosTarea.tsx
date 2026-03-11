@@ -134,11 +134,20 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
 
         // --- Optimistic UI Update ---
         const tempId = `temp-${Date.now()}`;
+
+        // Prepare local previews for the optimistic UI so the user sees the images immediately
+        const localPreviews = adjuntosOriginales.map(file => ({
+            nombre: file.name,
+            url: URL.createObjectURL(file), // create local preview
+            tipo: file.type,
+            uploading: true // visual flag for spinning loader
+        }));
+
         const nuevoC = {
             id: tempId,
             contenido: textoOriginal.trim(),
             created_at: new Date().toISOString(),
-            adjuntos: null,
+            adjuntos: localPreviews.length > 0 ? localPreviews : null,
             usuario_id: currentUserId,
             usuario: { nombre: currentUserNombre.split(" ")[0] || "Yo", apellido: currentUserNombre.split(" ").slice(1).join(" ") || "" }
         };
@@ -208,18 +217,41 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
             setNuevoComentario("");
             setArchivosPendientes([]);
 
-            // Create notifications for mentioned users
+            // Fetch the task assignees
+            const { data: tareaInfo } = await supabase.from("tareas").select("asignado_id, creador_id").eq("id", tareaId).single();
+
+            // Create explicit notifications for mentioned users
+            const mentionedUserIds = new Set<string>();
             for (const mentionName of mentions) {
                 const mentionedUser = usuarios.find(u =>
                     `${u.nombre} ${u.apellido}`.toLowerCase() === mentionName.toLowerCase()
                 );
                 if (mentionedUser && mentionedUser.id !== currentUserId) {
+                    mentionedUserIds.add(mentionedUser.id);
                     await supabase.from("notificaciones").insert({
                         usuario_destino_id: mentionedUser.id,
                         tipo: "mencion",
                         tarea_id: tareaId,
-                        mensaje: `${currentUserNombre} te mencionó en una tarea`,
+                        mensaje: `${currentUserNombre} te mencionó en un comentario`,
                     });
+                }
+            }
+
+            // Also notify the assignee and creator if they weren't explicitly mentioned
+            if (tareaInfo) {
+                const autoNotify = new Set([tareaInfo.asignado_id, tareaInfo.creador_id]);
+                autoNotify.delete(currentUserId); // don't notify myself
+                mentionedUserIds.forEach(id => autoNotify.delete(id)); // already notified
+
+                for (const u_id of Array.from(autoNotify)) {
+                    if (u_id) {
+                        await supabase.from("notificaciones").insert({
+                            usuario_destino_id: u_id,
+                            tipo: "tarea_comentario",
+                            tarea_id: tareaId,
+                            mensaje: `${currentUserNombre} comentó en una tarea asignada a vos`,
+                        });
+                    }
                 }
             }
 

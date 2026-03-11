@@ -22,26 +22,65 @@ export function NotificationBell() {
     const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
     const [open, setOpen] = useState(false);
     const [sinLeer, setSinLeer] = useState(0);
+    const [isPulsing, setIsPulsing] = useState(false);
+
+    const playPing = () => {
+        try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(700, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.5);
+        } catch (e) { }
+    };
 
     useEffect(() => {
-        fetchNotificaciones();
+        let channel: any;
 
-        // Suscribirse a realtime para nuevas notificaciones
-        const channel = supabase
-            .channel("notificaciones")
-            .on("postgres_changes", { event: "INSERT", schema: "public", table: "notificaciones" }, (payload) => {
-                setNotificaciones(prev => [payload.new as Notificacion, ...prev]);
-                setSinLeer(prev => prev + 1);
-            })
-            .subscribe();
+        const initNotifications = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) return;
+            const userId = session.user.id;
 
-        return () => { supabase.removeChannel(channel); };
+            await fetchNotificaciones(userId);
+
+            // Suscribirse a realtime para nuevas notificaciones SOLO de este usuario
+            channel = supabase
+                .channel("notificaciones_bell")
+                .on("postgres_changes", {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "notificaciones",
+                    filter: `usuario_destino_id=eq.${userId}`
+                }, (payload) => {
+                    setNotificaciones(prev => [payload.new as Notificacion, ...prev]);
+                    setSinLeer(prev => prev + 1);
+                    playPing();
+                    setIsPulsing(true);
+                    setTimeout(() => setIsPulsing(false), 2000);
+                })
+                .subscribe();
+        };
+
+        initNotifications();
+
+        return () => { if (channel) supabase.removeChannel(channel); };
     }, []);
 
-    const fetchNotificaciones = async () => {
+    const fetchNotificaciones = async (userId: string) => {
         const { data } = await supabase
             .from("notificaciones")
             .select("*")
+            .eq("usuario_destino_id", userId)
             .order("created_at", { ascending: false })
             .limit(20);
 
@@ -83,11 +122,11 @@ export function NotificationBell() {
         <div className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                className="relative p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
+                className={`relative p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors ${isPulsing ? 'animate-bounce text-brand-primary' : ''}`}
             >
-                <Bell className="w-5 h-5" />
+                <Bell className={`w-5 h-5 ${sinLeer > 0 ? "fill-brand-primary/20 text-brand-primary" : ""}`} />
                 {sinLeer > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-danger text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                    <span className="absolute -top-0.5 -right-0.5 bg-danger text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
                         {sinLeer > 9 ? "9+" : sinLeer}
                     </span>
                 )}

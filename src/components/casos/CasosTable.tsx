@@ -451,7 +451,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                 <div className="flex-1 overflow-auto bg-bg-primary relative" ref={parentRef}>
                     <div className="min-w-max w-full flex flex-col pointer-events-auto">
                         {/* THEAD */}
-                        <div className="flex sticky top-0 z-20 bg-bg-secondary shadow-[0_1px_0_var(--tw-shadow-color)] shadow-border font-medium text-[11px] text-text-muted uppercase select-none backdrop-blur-md tracking-wider">
+                        <div className="flex sticky top-0 z-20 bg-bg-secondary shadow-[0_1px_0_var(--tw-shadow-color)] shadow-border font-medium text-[11px] text-text-muted uppercase select-none backdrop-blur-md tracking-wider pl-[3px]">
                             <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort(filterDateType)}>
                                 {filterDateType === 'fecha_derivacion' ? 'Ingreso' : filterDateType === 'fecha_inspeccion_programada' ? 'IP Prog.' : filterDateType === 'fecha_carga_sistema' ? 'Carga' : 'Cierre'} <ArrowUpDown className="w-3 h-3" />
                             </div>
@@ -468,9 +468,9 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                             )}
 
                             <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('gestor')}>Gestor <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_inspeccion_programada')}>F. IP <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_carga_sistema')}>F. Carga <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_cierre')}>F. Cierre <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_inspeccion_programada')}>Fecha IP <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_carga_sistema')}>F. Carga <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_cierre')}>F. Cierre <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[100px] shrink-0 px-2 py-2.5"></div>
                         </div>
                         {/* TBODY VIRTUALIZED */}
@@ -686,7 +686,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {/* Editable Fecha IP */}
-                                        <div className="w-[80px] shrink-0 px-2 py-1 flex items-center group/cell">
+                                        <div className="w-[90px] shrink-0 px-2 py-1 flex items-center group/cell">
                                             {editingField?.id === caso.id && editingField?.field === "fecha_inspeccion_programada" ? (
                                                 <Input type="date" autoFocus className="h-7 text-[10px] px-1 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => {
                                                     // When selecting a date, 'e.target.value' is YYYY-MM-DD.
@@ -715,12 +715,12 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             )}
                                         </div>
 
-                                        <div className={`w-[80px] shrink-0 px-2 py-1 text-[12px] whitespace-nowrap ${textMuted}`}>
+                                        <div className={`w-[90px] shrink-0 px-2 py-1 text-[12px] whitespace-nowrap ${textMuted}`}>
                                             {formatDateVal(caso.fecha_carga_sistema)}
                                         </div>
 
                                         {/* Editable Fecha Cierre */}
-                                        <div className="w-[80px] shrink-0 px-2 py-1 flex items-center group/cell">
+                                        <div className="w-[90px] shrink-0 px-2 py-1 flex items-center group/cell">
                                             {editingField?.id === caso.id && editingField?.field === "fecha_cierre" ? (
                                                 <Input type="date" autoFocus className="h-7 text-[10px] px-1 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => {
                                                     setEditingField({ ...editingField, value: e.target.value });

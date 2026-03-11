@@ -16,15 +16,15 @@ const ESTADO_LABELS: Record<string, string> = {
 };
 
 export const estadoStyles: Record<string, string> = {
-    // Soft / harmonious states
-    ip_coordinada: 'bg-blue-500/10 text-blue-400/80 border-blue-500/15',
-    pendiente_coordinacion: 'bg-orange-500/10 text-orange-400/80 border-orange-500/15',
-    contactado: 'bg-cyan-500/10 text-cyan-400/80 border-cyan-500/15',
-    licitando_repuestos: 'bg-violet-500/10 text-violet-400/80 border-violet-500/15',
-    esperando_respuesta_tercero: 'bg-teal-500/10 text-teal-400/80 border-teal-500/15',
-    ip_cerrada: 'bg-emerald-500/10 text-emerald-400/80 border-emerald-500/15',
+    // Normal states — visible colors, softer than critical
+    ip_coordinada: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+    pendiente_coordinacion: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
+    contactado: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
+    licitando_repuestos: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
+    esperando_respuesta_tercero: 'bg-teal-500/15 text-teal-400 border-teal-500/25',
+    ip_cerrada: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
     facturada: 'bg-[#111] text-gray-500 border-[#222] shadow-sm',
-    inspeccion_anulada: 'bg-gray-500/10 text-gray-400/80 border-gray-500/15',
+    inspeccion_anulada: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
     // CRITICAL / saturated states — these MUST pop
     en_consulta_cia: 'bg-red-600/25 text-red-400 border-red-600/50 font-bold',
     pendiente_carga: 'bg-amber-500/25 text-amber-300 border-amber-500/50 font-bold',
@@ -33,16 +33,16 @@ export const estadoStyles: Record<string, string> = {
 };
 
 export const estadoStylesRow: Record<string, string> = {
-    // Soft row backgrounds
-    ip_coordinada: 'bg-bg-primary hover:bg-blue-500/5',
-    pendiente_coordinacion: 'bg-bg-primary hover:bg-orange-500/5',
-    contactado: 'bg-bg-primary hover:bg-cyan-500/5',
-    licitando_repuestos: 'bg-bg-primary hover:bg-violet-500/5',
-    esperando_respuesta_tercero: 'bg-bg-primary hover:bg-teal-500/5',
-    ip_cerrada: 'bg-bg-primary hover:bg-emerald-500/5',
+    // Normal row backgrounds — subtle tint visible
+    ip_coordinada: 'bg-blue-500/5 hover:bg-blue-500/10',
+    pendiente_coordinacion: 'bg-orange-500/5 hover:bg-orange-500/10',
+    contactado: 'bg-cyan-500/5 hover:bg-cyan-500/10',
+    licitando_repuestos: 'bg-violet-500/5 hover:bg-violet-500/10',
+    esperando_respuesta_tercero: 'bg-teal-500/5 hover:bg-teal-500/10',
+    ip_cerrada: 'bg-emerald-500/5 hover:bg-emerald-500/10',
     facturada: 'bg-[#111] hover:bg-[#1a1a1a] border-[#222]',
-    inspeccion_anulada: 'bg-bg-primary hover:bg-gray-500/5',
-    // CRITICAL row backgrounds — tinted to draw attention
+    inspeccion_anulada: 'bg-gray-500/5 hover:bg-gray-500/10',
+    // CRITICAL row backgrounds — stronger tint + inset border
     en_consulta_cia: 'bg-red-600/10 hover:bg-red-600/15 shadow-[inset_4px_0_0_0_rgba(220,38,38,1)]',
     pendiente_carga: 'bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_4px_0_0_0_rgba(245,158,11,1)]',
     pendiente_presupuesto: 'bg-yellow-500/10 hover:bg-yellow-500/15 shadow-[inset_4px_0_0_0_rgba(234,179,8,1)]',

@@ -455,18 +455,19 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                 {filterDateType === 'fecha_derivacion' ? 'Ingreso' : filterDateType === 'fecha_inspeccion_programada' ? 'IP Prog.' : filterDateType === 'fecha_carga_sistema' ? 'Carga' : 'Cierre'} <ArrowUpDown className="w-3 h-3" />
                             </div>
                             <div className="w-[140px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1 text-text-primary font-bold" onClick={() => handleSort('numero_siniestro')}>Siniestro <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[170px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('estado')}>Estado <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[110px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1 text-brand-primary font-medium" onClick={() => handleSort('numero_servicio')}>Servicio <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[150px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('estado')}>Estado <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[50px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('updated_at')}>Días <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[140px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('tipo_inspeccion')}>Tipo IP <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[260px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('dominio')}>Vehículo <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[120px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('tipo_inspeccion')}>Tipo IP <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[240px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('dominio')}>Vehículo <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('dominio')}>Patente <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_calle')}>P. Calle <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[115px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_calle')}>P. Calle <ArrowUpDown className="w-3 h-3" /></div>
 
                             {!hiddenColumns.includes("perito_carga") && (
-                                <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_carga')}>P. Carga <ArrowUpDown className="w-3 h-3" /></div>
+                                <div className="w-[115px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('perito_carga')}>P. Carga <ArrowUpDown className="w-3 h-3" /></div>
                             )}
 
-                            <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('gestor')}>Gestor <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[110px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('gestor')}>Gestor <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_inspeccion_programada')}>Fecha IP <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_carga_sistema')}>F. Carga <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_cierre')}>F. Cierre <ArrowUpDown className="w-3 h-3" /></div>
@@ -521,7 +522,21 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             )}
                                         </div>
 
-                                        <div className="w-[170px] shrink-0 px-2 py-1">
+                                        {/* Editable Servicio */}
+                                        <div className="w-[110px] shrink-0 px-2 py-1 flex items-center group/cell relative">
+                                            {editingField?.id === caso.id && editingField?.field === "numero_servicio" ? (
+                                                <Input autoFocus className="h-7 text-[12px] px-1.5 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
+                                            ) : (
+                                                <>
+                                                    <span className={`truncate flex-1 text-[13px] font-medium text-brand-primary`}>{caso.numero_servicio || "-"}</span>
+                                                    <button onClick={() => setEditingField({ id: caso.id, field: "numero_servicio", value: caso.numero_servicio || "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary absolute right-1 rounded">
+                                                        <Edit2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        <div className="w-[150px] shrink-0 px-2 py-1">
                                             {permitidos.length > 0 ? (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -546,7 +561,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             {days}d
                                         </div>
 
-                                        <div className="w-[140px] shrink-0 px-2 py-1">
+                                        <div className="w-[120px] shrink-0 px-2 py-1">
                                             {userRol === "admin" || userRol === "carga" ? (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -568,7 +583,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {/* Editable Vehículo */}
-                                        <div className="w-[260px] shrink-0 px-2 py-1 flex items-center group/cell relative">
+                                        <div className="w-[240px] shrink-0 px-2 py-1 flex items-center group/cell relative">
                                             {editingField?.id === caso.id && editingField?.field === "marca" ? (
                                                 <div className="flex w-full gap-1">
                                                     <Input autoFocus placeholder="Marca" className="h-7 text-[12px] px-1.5 w-1/2 bg-bg-elevated border-brand-primary" value={editingField.value.split("|")[0] || ""} onChange={e => setEditingField({ ...editingField, value: `${e.target.value}|${editingField.value.split("|")[1] || ""}` })} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
@@ -621,7 +636,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {/* Perito Dropdowns */}
-                                        <div className="w-[130px] shrink-0 px-2 py-1" title={caso.perito_calle?.nombre + " " + caso.perito_calle?.apellido}>
+                                        <div className="w-[115px] shrink-0 px-2 py-1" title={caso.perito_calle?.nombre + " " + caso.perito_calle?.apellido}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <div className="flex items-center gap-1.5 cursor-pointer max-w-full hover:bg-bg-tertiary p-1 rounded transition-colors group/pcalle">
@@ -640,7 +655,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         </div>
 
                                         {!hiddenColumns.includes("perito_carga") && (
-                                            <div className="w-[130px] shrink-0 px-2 py-1" title={caso.perito_carga?.nombre + " " + caso.perito_carga?.apellido}>
+                                            <div className="w-[115px] shrink-0 px-2 py-1" title={caso.perito_carga?.nombre + " " + caso.perito_carga?.apellido}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <div className="flex items-center gap-1.5 cursor-pointer max-w-full hover:bg-bg-tertiary p-1 rounded transition-colors group/pcarga">
@@ -660,7 +675,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         )}
 
                                         {/* Gestor: Click → copy email, Pencil → edit dropdown */}
-                                        <div className="w-[130px] shrink-0 px-2 py-1 flex items-center group/cell" title={caso.gestor?.email || caso.gestor?.nombre}>
+                                        <div className="w-[110px] shrink-0 px-2 py-1 flex items-center group/cell" title={caso.gestor?.email || caso.gestor?.nombre}>
                                             <span
                                                 className={`truncate flex-1 text-[13px] cursor-pointer hover:text-brand-primary hover:underline transition-colors ${textSecondary}`}
                                                 onClick={() => handleCopyGestor(caso.gestor)}

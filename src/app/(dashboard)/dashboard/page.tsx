@@ -15,11 +15,14 @@ export default async function Dashboard() {
     const usuario = await getUsuarioActual();
 
     // Role-specific panels
-    if (usuario.rol === "calle") {
+    const esCalle = usuario.roles?.includes("calle") || usuario.rol === "calle";
+    const esCarga = usuario.roles?.includes("carga") || usuario.rol === "carga";
+
+    if (esCalle && !esCarga) {
         const { PanelPeritoCalle } = await import("@/components/dashboard/PanelPeritoCalle");
         return <PanelPeritoCalle userId={usuario.id} />;
     }
-    if (usuario.rol === "carga") {
+    if (esCarga) {
         const { PanelPeritoCarga } = await import("@/components/dashboard/PanelPeritoCarga");
         return <PanelPeritoCarga userId={usuario.id} />;
     }

@@ -81,8 +81,9 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     const [filterGestores, setFilterGestores] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_gest`, []);
     const [filterProgramada, setFilterProgramada] = useLocalStorageState<string | null>(`${userRol}_clarity_filter_prog`, null);
     const [filterDateRange, setFilterDateRange] = useLocalStorageState<"hoy" | "semana" | "mes" | null>(`${userRol}_clarity_filter_date`, null);
+    const [filterDateExact, setFilterDateExact] = useLocalStorageState<string | null>(`${userRol}_clarity_filter_date_exact`, null);
 
-    const hasActiveFilters = searchQuery !== "" || filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterProgramada !== null || filterDateRange !== null;
+    const hasActiveFilters = searchQuery !== "" || filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterProgramada !== null || filterDateRange !== null || filterDateExact !== null;
 
     const clearFilters = () => {
         setSearchQuery("");
@@ -93,6 +94,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         setFilterGestores([]);
         setFilterProgramada(null);
         setFilterDateRange(null);
+        setFilterDateExact(null);
     };
 
     // Sort
@@ -193,12 +195,21 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         if (filterProgramada === "sin_fecha") result = result.filter(c => !c.fecha_inspeccion_programada);
         if (filterDateRange) {
             const now = new Date();
+            const parseLocal = (dStr: string) => new Date(dStr.includes("T") ? dStr : `${dStr}T12:00:00`);
             result = result.filter(c => {
-                const date = new Date(c.fecha_derivacion);
+                const date = parseLocal(c.fecha_derivacion);
                 if (filterDateRange === "hoy") return isToday(date);
                 if (filterDateRange === "semana") return isSameWeek(date, now, { weekStartsOn: 1 });
                 if (filterDateRange === "mes") return isSameMonth(date, now);
                 return true;
+            });
+        }
+        if (filterDateExact) {
+            result = result.filter(c => {
+                if (!c.fecha_derivacion) return false;
+                // Comparing 'YYYY-MM-DD' from DateExact input against local 'YYYY-MM-DD' extraction
+                const cDateStr = c.fecha_derivacion.split("T")[0];
+                return cDateStr === filterDateExact;
             });
         }
         result.sort((a, b) => {
@@ -212,7 +223,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
             return 0;
         });
         return result;
-    }, [casos, sortConfig, filterEstados, filterTiposIP, filterPeritosCalle, filterPeritosCarga, filterGestores, searchQuery, filterProgramada, filterDateRange]);
+    }, [casos, sortConfig, filterEstados, filterTiposIP, filterPeritosCalle, filterPeritosCarga, filterGestores, searchQuery, filterProgramada, filterDateRange, filterDateExact]);
 
     // Derived stats for Summary Bar
     const summaryStats = useMemo(() => {
@@ -422,9 +433,24 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {(filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterDateRange || filterProgramada) && (
+                    <div className="flex items-center gap-2 bg-bg-primary border border-dashed border-border rounded-md px-2 h-7">
+                        <span className="text-[10px] text-text-muted">Exacta:</span>
+                        <input
+                            type="date"
+                            className="bg-transparent text-[11px] text-text-secondary outline-none w-[100px] cursor-pointer"
+                            value={filterDateExact || ""}
+                            onChange={(e) => setFilterDateExact(e.target.value || null)}
+                        />
+                        {filterDateExact && (
+                            <button onClick={() => setFilterDateExact(null)} className="text-text-muted hover:text-color-danger">
+                                ×
+                            </button>
+                        )}
+                    </div>
+
+                    {(filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterDateRange || filterProgramada || filterDateExact) && (
                         <Button variant="ghost" size="sm" className="h-7 text-[11px] text-color-danger hover:bg-color-danger-soft/10 px-2 ml-auto" onClick={() => {
-                            setFilterEstados([]); setFilterTiposIP([]); setFilterPeritosCalle([]); setFilterPeritosCarga([]); setFilterGestores([]); setFilterDateRange(null); setFilterProgramada(null);
+                            setFilterEstados([]); setFilterTiposIP([]); setFilterPeritosCalle([]); setFilterPeritosCarga([]); setFilterGestores([]); setFilterDateRange(null); setFilterProgramada(null); setFilterDateExact(null);
                         }}>
                             Limpiar
                         </Button>
@@ -467,13 +493,18 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                 const pCalle = getCorto(caso.perito_calle?.nombre + " " + caso.perito_calle?.apellido);
                                 const pCarga = getCorto(caso.perito_carga?.nombre + " " + caso.perito_carga?.apellido);
 
+                                const isFacturada = caso.estado === "facturada";
+                                const textPrimary = isFacturada ? "text-gray-400" : "text-text-primary";
+                                const textSecondary = isFacturada ? "text-gray-500" : "text-text-secondary";
+                                const textMuted = isFacturada ? "text-gray-600/50" : "text-text-muted";
+
                                 return (
                                     <div
                                         key={caso.id}
-                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor}`}
+                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor} ${isFacturada ? "opacity-75 grayscale" : ""}`}
                                         style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
                                     >
-                                        <div className="w-[80px] shrink-0 px-2 py-1 text-text-muted text-[12px] whitespace-nowrap">
+                                        <div className={`w-[80px] shrink-0 px-2 py-1 text-[12px] whitespace-nowrap ${textMuted}`}>
                                             {formatDateVal(caso.fecha_derivacion)}
                                         </div>
 
@@ -483,7 +514,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             ) : (
                                                 <>
                                                     <div className="flex items-center gap-1.5 min-w-0">
-                                                        <Link href={`/casos/${caso.id}`} className="truncate font-mono font-bold text-text-primary hover:text-text-primary hover:underline hover:brightness-125 transition-all text-[14px]">{caso.numero_siniestro}</Link>
+                                                        <Link href={`/casos/${caso.id}`} className={`truncate font-mono font-bold hover:underline hover:brightness-125 transition-all text-[14px] ${textPrimary}`}>{caso.numero_siniestro}</Link>
                                                         {caso.tiene_respuesta_gestor && (
                                                             <span title="Respuesta del gestor sin leer">
                                                                 <Mail size={14} className="text-[#D6006E] shrink-0" />
@@ -508,7 +539,9 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                 <Input autoFocus className="h-7 text-[12px] px-1.5 w-full bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
                                             ) : (
                                                 <>
-                                                    <span className="truncate flex-1 text-text-secondary">{caso.numero_servicio || "-"}</span>
+                                                    <span className={`truncate flex-1 text-[13px] whitespace-nowrap ${textSecondary}`}>
+                                                        {caso.numero_servicio || "-"}
+                                                    </span>
                                                     <button onClick={() => setEditingField({ id: caso.id, field: "numero_servicio", value: caso.numero_servicio || "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary">
                                                         <Edit2 className="w-3.5 h-3.5" />
                                                     </button>
@@ -607,7 +640,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                 <Input autoFocus className="h-7 text-[12px] px-1.5 w-full uppercase font-mono bg-bg-elevated border-brand-primary" value={editingField.value} onChange={e => setEditingField({ ...editingField, value: e.target.value })} onBlur={handleSaveField} onKeyDown={e => e.key === 'Enter' && handleSaveField()} />
                                             ) : (
                                                 <>
-                                                    <span className="truncate flex-1 font-mono uppercase text-text-primary text-[13px]">{caso.dominio || "-"}</span>
+                                                    <span className={`truncate flex-1 font-mono uppercase text-[13px] ${textPrimary}`}>{caso.dominio || "-"}</span>
                                                     <button onClick={() => setEditingField({ id: caso.id, field: "dominio", value: caso.dominio || "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary">
                                                         <Edit2 className="w-3.5 h-3.5" />
                                                     </button>
@@ -620,7 +653,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <div className="flex items-center gap-1.5 cursor-pointer max-w-full hover:bg-bg-tertiary p-1 rounded transition-colors group/pcalle">
-                                                        <span className="truncate text-text-secondary text-[13px] group-hover/pcalle:text-text-primary">{caso.perito_calle ? `${caso.perito_calle.nombre} ${caso.perito_calle.apellido}` : "Sin asignado"}</span>
+                                                        <span className={`truncate text-[13px] group-hover/pcalle:text-text-primary ${textSecondary}`}>{caso.perito_calle ? `${caso.perito_calle.nombre} ${caso.perito_calle.apellido}` : "Sin asignado"}</span>
                                                     </div>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent className="w-[200px] max-h-[300px] overflow-auto bg-bg-elevated border border-border z-50">
@@ -639,7 +672,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <div className="flex items-center gap-1.5 cursor-pointer max-w-full hover:bg-bg-tertiary p-1 rounded transition-colors group/pcarga">
-                                                            <span className="truncate text-text-secondary text-[13px] group-hover/pcarga:text-text-primary">{caso.perito_carga ? `${caso.perito_carga.nombre} ${caso.perito_carga.apellido}` : "Sin asignado"}</span>
+                                                            <span className={`truncate text-[13px] group-hover/pcarga:text-text-primary ${textSecondary}`}>{caso.perito_carga ? `${caso.perito_carga.nombre} ${caso.perito_carga.apellido}` : "Sin asignado"}</span>
                                                         </div>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent className="w-[200px] max-h-[300px] overflow-auto bg-bg-elevated border border-border z-50">
@@ -657,7 +690,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         {/* Gestor: Click → copy email, Pencil → edit dropdown */}
                                         <div className="w-[140px] shrink-0 px-2 py-1 flex items-center group/cell" title={caso.gestor?.email || caso.gestor?.nombre}>
                                             <span
-                                                className="truncate flex-1 text-text-secondary text-[13px] cursor-pointer hover:text-brand-primary hover:underline transition-colors"
+                                                className={`truncate flex-1 text-[13px] cursor-pointer hover:text-brand-primary hover:underline transition-colors ${textSecondary}`}
                                                 onClick={() => handleCopyGestor(caso.gestor)}
                                             >
                                                 {caso.gestor?.nombre || "Sin Asignar"}
@@ -701,7 +734,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                 }} />
                                             ) : (
                                                 <>
-                                                    <span className="truncate flex-1 text-text-secondary text-[12px] whitespace-nowrap">{formatDateVal(caso.fecha_inspeccion_programada)}</span>
+                                                    <span className={`truncate flex-1 text-[12px] whitespace-nowrap ${textSecondary}`}>{formatDateVal(caso.fecha_inspeccion_programada)}</span>
                                                     <button onClick={() => setEditingField({ id: caso.id, field: "fecha_inspeccion_programada", value: caso.fecha_inspeccion_programada ? caso.fecha_inspeccion_programada.split("T")[0] : "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary">
                                                         <Edit2 className="w-3.5 h-3.5" />
                                                     </button>
@@ -709,7 +742,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             )}
                                         </div>
 
-                                        <div className="w-[90px] shrink-0 px-2 py-1 text-text-muted text-[12px] whitespace-nowrap">
+                                        <div className={`w-[90px] shrink-0 px-2 py-1 text-[12px] whitespace-nowrap ${textMuted}`}>
                                             {formatDateVal(caso.fecha_carga_sistema)}
                                         </div>
 
@@ -733,7 +766,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                 }} />
                                             ) : (
                                                 <>
-                                                    <span className="truncate flex-1 text-text-secondary text-[12px] whitespace-nowrap">{formatDateVal(caso.fecha_cierre)}</span>
+                                                    <span className={`truncate flex-1 text-[12px] whitespace-nowrap ${textSecondary}`}>{formatDateVal(caso.fecha_cierre)}</span>
                                                     <button onClick={() => setEditingField({ id: caso.id, field: "fecha_cierre", value: caso.fecha_cierre ? caso.fecha_cierre.split("T")[0] : "" })} className="opacity-0 group-hover/cell:opacity-100 p-0.5 text-text-muted hover:text-brand-primary">
                                                         <Edit2 className="w-3.5 h-3.5" />
                                                     </button>
@@ -793,12 +826,19 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         {procesados.map(caso => {
                             const { days, color: daysColor } = formatDays(caso.updated_at);
                             const pCalle = getCorto(caso.perito_calle?.nombre + " " + caso.perito_calle?.apellido);
+                            const isFacturada = caso.estado === "facturada";
+                            const bgClass = isFacturada ? "bg-[#111] border-[#222]" : "bg-bg-secondary border-border hover:border-brand-primary/50";
+                            const textPrimary = isFacturada ? "text-gray-400" : "text-text-primary";
+                            const textSecondary = isFacturada ? "text-gray-500" : "text-text-secondary";
+                            const textMuted = isFacturada ? "text-gray-600/60" : "text-text-muted";
+                            const wrapperOpacity = isFacturada ? "opacity-75 grayscale" : "";
+
                             return (
-                                <Link href={`/casos/${caso.id}`} key={caso.id} className="p-3 border border-border shadow-sm rounded-lg bg-bg-secondary hover:border-brand-primary/50 transition-colors flex flex-col gap-3 group">
+                                <Link href={`/casos/${caso.id}`} key={caso.id} className={`p-3 border shadow-sm rounded-lg transition-colors flex flex-col gap-3 group ${bgClass} ${wrapperOpacity}`}>
                                     <div className="flex justify-between items-start gap-2">
                                         <div className="flex flex-col min-w-0">
                                             <div className="flex items-center gap-1.5">
-                                                <span className="font-mono font-bold text-sm text-text-primary truncate">{caso.numero_siniestro}</span>
+                                                <span className={`font-mono font-bold text-sm truncate ${textPrimary}`}>{caso.numero_siniestro}</span>
                                                 {caso.tiene_respuesta_gestor && (
                                                     <span title="Respuesta del gestor sin leer">
                                                         <Mail size={14} className="text-[#D6006E] shrink-0" />
@@ -810,13 +850,13 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                     </span>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] text-text-muted truncate">Ingreso: {formatDateVal(caso.fecha_derivacion)}</span>
+                                            <span className={`text-[10px] truncate ${textMuted}`}>Ingreso: {formatDateVal(caso.fecha_derivacion)}</span>
                                         </div>
                                         <EstadoBadge estado={caso.estado} compacto />
                                     </div>
-                                    <div className="text-xs text-text-secondary">
+                                    <div className={`text-xs ${textSecondary}`}>
                                         <div className="truncate font-medium">{caso.marca} {caso.modelo}</div>
-                                        <div className="truncate font-mono uppercase text-[11px] text-text-muted mt-0.5">{caso.dominio || "Sin Datos"}</div>
+                                        <div className={`truncate font-mono uppercase text-[11px] mt-0.5 ${textMuted}`}>{caso.dominio || "Sin Datos"}</div>
                                     </div>
                                     <div className="flex justify-between items-end mt-auto pt-2 border-t border-border/50">
                                         <div className="flex flex-col gap-1">

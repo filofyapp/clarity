@@ -72,7 +72,7 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "No autorizado." };
 
-    const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+    const { data: usuario } = await supabase.from("usuarios").select("rol, roles").eq("id", user.id).single();
     if (!usuario) return { error: "Usuario no encontrado." };
 
     // Obtener estado actual
@@ -95,9 +95,14 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
     const estadosCalle = ["contactado"]; // Muy limitado
 
     let permitido = false;
-    if (usuario.rol === "admin") permitido = estadosAdmin.includes(nuevoEstado);
-    else if (usuario.rol === "carga") permitido = estadosCarga.includes(nuevoEstado);
-    else if (usuario.rol === "calle") permitido = estadosCalle.includes(nuevoEstado);
+    const roles = usuario.roles || [usuario.rol];
+    const esCalle = roles.includes("calle");
+    const esCarga = roles.includes("carga");
+    const esAdmin = roles.includes("admin");
+
+    if (esAdmin) permitido = true;
+    else if (esCarga) permitido = estadosCarga.includes(nuevoEstado);
+    else if (esCalle) permitido = estadosCalle.includes(nuevoEstado);
 
     if (!permitido) return { error: `No tiene permiso para cambiar al estado '${nuevoEstado}'.` };
 

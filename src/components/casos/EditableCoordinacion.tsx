@@ -39,8 +39,9 @@ export default function EditableCoordinacion({
         startDateObj ? format(startDateObj, "HH:mm") : ""
     );
 
-    const puedeEditar = (rol === "admin" || rol === "carga") &&
-        ["pendiente_coordinacion", "contactado", "ip_coordinada"].includes(estadoActual);
+    const roles = [rol]; // Assuming 'rol' is the primary role, and we're simulating a 'roles' array for consistency with the user's intent.
+    const puedeEditar = (roles.includes("admin") || roles.includes("carga")) &&
+        (estadoActual === "ip_coordinada" || estadoActual === "pendiente_coordinacion" || estadoActual === "contactado");
 
     const handleSave = async () => {
         setIsLoading(true);

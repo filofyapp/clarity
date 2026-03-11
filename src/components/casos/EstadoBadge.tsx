@@ -26,7 +26,7 @@ export const estadoStyles: Record<string, string> = {
     ip_reclamada_perito: 'bg-rose-600/20 text-rose-400 border-rose-600/40',
     esperando_respuesta_tercero: 'bg-teal-500/15 text-teal-400 border-teal-500/25',
     ip_cerrada: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
-    facturada: 'bg-green-500/15 text-green-300 border-green-500/25',
+    facturada: 'bg-[#111] text-gray-500 border-[#222] shadow-sm',
     inspeccion_anulada: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
 };
 
@@ -41,7 +41,7 @@ export const estadoStylesRow: Record<string, string> = {
     ip_reclamada_perito: 'bg-rose-600/25 hover:bg-rose-600/35 border-rose-600/40 dark:bg-rose-600/35 dark:hover:bg-rose-600/45 shadow-[inset_4px_0_0_0_rgba(225,29,72,1)]',
     esperando_respuesta_tercero: 'bg-teal-500/15 hover:bg-teal-500/25 border-teal-500/30 dark:bg-teal-500/25 dark:hover:bg-teal-500/35',
     ip_cerrada: 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30 dark:bg-emerald-500/25 dark:hover:bg-emerald-500/35',
-    facturada: 'bg-green-500/15 hover:bg-green-500/25 border-green-500/30 dark:bg-green-500/25 dark:hover:bg-green-500/35',
+    facturada: 'bg-[#111] hover:bg-[#1a1a1a] border-[#222]',
     inspeccion_anulada: 'bg-gray-500/15 hover:bg-gray-500/25 border-gray-500/30 dark:bg-gray-500/25 dark:hover:bg-gray-500/35',
 };
 

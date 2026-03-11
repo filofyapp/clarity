@@ -631,7 +631,34 @@ TESTEADO: Se procesaron (Upsert) los datos correctamente. Script de base de dato
 
 ---
 
+FECHA: 11/03/2026
+QUE SE CAMBIO: Timezone Fix en date-fns (Filtros Hoy) y Styling Oscuro Facturadas (Fase 20).
+POR QUE: Al filtrar por "Hoy", `date-fns` evaluaba la fecha UTC nativa desfasando el caso al día anterior en Argentina. Además, se pidió restar atención visual a los casos en estado Facturado.
+COMO: 1) Creado parser local y anclado a `T12:00:00` previo a la inyección en `date-fns`. 2) Aplicada opacidad condicional (opacity-75 grayscale) y mutación de paleta dinámica para el estado "facturada".
+ARCHIVOS AFECTADOS: `CasosTable.tsx`, `EstadoBadge.tsx`.
+EFECTOS COLATERALES: Contraste visual fuertemente alterado para casos Facturados.
+TESTEADO: `npm run build` Ok sin errores TS.
+
+---
+
+FECHA: 11/03/2026
+QUE SE CAMBIO: Fix de Multi-Rol y Filtro de Fecha Exacta (Fase 21).
+POR QUE: Los peritos "mutantes" (como Jairo Ferlanti) que abarcaban más de un tipo de trabajo desaparecían de los selectores porque el código exigía validaciones estrictas (`rol === "carga"`). Por otro lado, la vista de Casos carecía de un picker puntual ("fecha X") para navegar la agenda histórica.
+COMO: 1) Ejecuté un script sobre la BDD mudando a los usuarios afectados a `roles: ["calle", "carga"]`. 2) Relajé >6 validadores `===` a lo largo del frontend (ej: `dashboard`, `EditableCoordinacion`, `CasoDetail`) para que verifiquen vía `roles.includes()`. 3) Añadí un `<input type="date">` nativo html5 sincronizado por Local Storage.
+ARCHIVOS AFECTADOS: `CasosTable.tsx`, `actions.ts`, `CasoForm.tsx`, `dashboard/page.tsx`, `EditableCoordinacion.tsx`.
+EFECTOS COLATERALES: Arquitectura flexibilizada. Personal puede abarcar operaciones mixtas de auditoría e inspección en la calle al mismo tiempo.
+TESTEADO: `npm run build` Ok sin errores TS de linter post-flexibilización.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-019: Filtro de fechas "Hoy" fallando por Timezone de JavaScript (RESUELTO)
+- PROBLEMA: El filtro rápido "Hoy" no mostraba los casos ingresados en la fecha temporal coherente. Al igual que el BUG-018, los casos quedaban ocultos por pertenecer, técnicamente para JS, al día de "ayer".
+- CAUSA: Al instanciar `new Date("YYYY-MM-DD")`, se asume horario UTC 00:00. Al comparar usando `isToday` de `date-fns` bajo el huso horario local argentino (-03:00), reculaba 3 horas cayendo a las 21:00 hs del día anterior.
+- SOLUCION: Se introdujo internamente en `CasosTable.tsx` la función `parseLocal` que inyecta programáticamente la hora `T12:00:00` a las fechas crudas de Supabase antes de entregarlas a los validadores `date-fns`.
+- FECHA: 11/03/2026
+- NO REPETIR: Siempre aplicar curación de franja horaria a las strings directas "YYYY-MM-DD" en cliente web al proveer a utilidades de `date-fns`.
 
 ### BUG-018: Fechas de Siniestros desfasadas un día hacia atrás en la UI (RESUELTO)
 - PROBLEMA: Fechas puras "YYYY-MM-DD" como "2026-03-10" se renderizaban visualmente en la tabla como "09/03/2026".

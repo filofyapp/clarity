@@ -12,5 +12,8 @@ export async function Sidebar() {
     .select("*", { count: "exact", head: true })
     .eq("estado", "pendiente_carga");
 
-  return <SidebarClient userRoles={usuario.roles || [usuario.rol]} pendingCargaCount={pendingCargaCount || 0} />;
+  const userName = `${usuario.nombre} ${usuario.apellido || ""}`.trim();
+  const userInitial = usuario.nombre ? usuario.nombre[0].toUpperCase() : "U";
+
+  return <SidebarClient userRoles={usuario.roles || [usuario.rol]} pendingCargaCount={pendingCargaCount || 0} userName={userName} userInitial={userInitial} />;
 }

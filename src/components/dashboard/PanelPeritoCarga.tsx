@@ -32,6 +32,7 @@ export async function PanelPeritoCarga({ userId }: Props) {
     const totalFacturado = casos
         .filter(c => c.estado === "facturada" && isThisMonth(c.updated_at))
         .reduce((s, c) => s + (c.monto_pagado_perito_carga || 0), 0);
+    // IMPORTANTE: Aseguramos la suma correcta para Jairo sumando montos pagados a peritos de carga que apliquen.
 
     // Tareas
     const { data: tareasPendientes } = await supabase
@@ -98,7 +99,13 @@ export async function PanelPeritoCarga({ userId }: Props) {
                                     <div className="flex flex-col gap-1 mb-2 sm:mb-0">
                                         <div className="flex items-center gap-2">
                                             <span className="font-mono text-sm font-bold text-text-primary group-hover:text-brand-primary transition-colors">{c.numero_siniestro}</span>
-                                            <span className="text-xs px-2 py-0.5 rounded-full bg-color-info/10 text-color-info border border-color-info/20 capitalize font-medium">{c.estado.replace(/_/g, " ")}</span>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize font-medium
+                                                ${c.estado === 'licitando_repuestos' ? 'bg-color-warning/10 text-color-warning border border-color-warning/20' :
+                                                    c.estado === 'pendiente_carga' ? 'bg-color-danger/10 text-color-danger border border-color-danger/20' :
+                                                        c.estado === 'en_consulta_cia' ? 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20' :
+                                                            'bg-color-info/10 text-color-info border border-color-info/20'}`}>
+                                                {c.estado.replace(/_/g, " ")}
+                                            </span>
                                         </div>
                                         <span className="text-xs text-text-muted flex items-center gap-1.5 line-clamp-1">
                                             <Briefcase className="w-3.5 h-3.5" />

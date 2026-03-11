@@ -495,7 +495,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_inspeccion_programada')}>Fecha IP <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_carga_sistema')}>F. Carga <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[100px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_cierre')}>F. Cierre <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="w-[110px] shrink-0 px-2 py-2.5 flex items-center justify-center gap-1 font-bold tracking-wider text-brand-primary">Acc.</div>
+                            <div className="w-[110px] shrink-0 px-2 py-2.5 flex items-center justify-center gap-1 font-bold tracking-wider text-brand-primary"></div>
                         </div>
                         {/* TBODY VIRTUALIZED */}
                         <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }} className="w-full">
@@ -787,7 +787,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             )}
                                         </div>
                                         {/* ACCIONES - FLEX PARA ABSORBER ESPACIO */}
-                                        <div className="flex-1 min-w-[120px] shrink-0 px-2 py-1 flex items-center justify-end gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                                        <div className="flex-1 min-w-[120px] shrink-0 px-2 py-1 flex items-center justify-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
                                             <Popover open={editingNota === caso.id} onOpenChange={(o: boolean) => {
                                                 if (o) { setEditingNota(caso.id); setDraftNota(caso.notas_admin || ""); }
                                                 else setEditingNota(null);

@@ -13,9 +13,11 @@ import { useSidebar } from "./SidebarContext";
 interface SidebarClientProps {
     userRoles: string[];
     pendingCargaCount?: number;
+    userName?: string;
+    userInitial?: string;
 }
 
-export function SidebarClient({ userRoles, pendingCargaCount = 0 }: SidebarClientProps) {
+export function SidebarClient({ userRoles, pendingCargaCount = 0, userName = "Usuario", userInitial = "U" }: SidebarClientProps) {
     const pathname = usePathname();
     const { isCollapsed, toggleSidebar } = useSidebar();
 
@@ -68,15 +70,18 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0 }: SidebarClien
                     </div>
                 </div>
 
-                {/* Finanzas — solo admin */}
-                {userRoles.includes("admin") && (
+                {/* Finanzas — admin & carga */}
+                {(userRoles.includes("admin") || userRoles.includes("carga")) && (
                     <div>
                         {!isCollapsed ? (
                             <h4 className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted font-outfit">Finanzas</h4>
                         ) : <div className="h-4" />}
                         <div className="space-y-1">
+                            {/* Carga also needs to see Facturación to check their numbers */}
                             <SidebarItem href="/facturacion" icon={BadgeDollarSign} label="Facturación" pathname={pathname} isCollapsed={isCollapsed} />
-                            <SidebarItem href="/reportes" icon={BarChart3} label="Reportes" pathname={pathname} isCollapsed={isCollapsed} />
+                            {userRoles.includes("admin") && (
+                                <SidebarItem href="/reportes" icon={BarChart3} label="Reportes" pathname={pathname} isCollapsed={isCollapsed} />
+                            )}
                         </div>
                     </div>
                 )}
@@ -115,10 +120,10 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0 }: SidebarClien
                 <div className={`flex items-center ${isCollapsed ? 'justify-center p-1' : 'justify-between p-2'} bg-bg-tertiary rounded-lg border border-border-subtle`}>
                     <div className={`flex items-center gap-2 overflow-hidden ${isCollapsed && 'hidden'}`}>
                         <div className="h-8 w-8 shrink-0 rounded-md bg-brand-primary/20 flex items-center justify-center text-brand-primary font-bold text-xs">
-                            U
+                            {userInitial}
                         </div>
                         <div className="flex flex-col overflow-hidden">
-                            <span className="text-sm font-medium text-text-primary truncate font-outfit">Usuario</span>
+                            <span className="text-sm font-medium text-text-primary truncate font-outfit">{userName}</span>
                             <span className="text-[10px] text-text-muted uppercase tracking-wider truncate" title={userRoles.join(", ")}>{userRoles.join("/")}</span>
                         </div>
                     </div>

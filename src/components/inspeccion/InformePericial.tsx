@@ -56,56 +56,7 @@ export function InformePericial({ casoId, talleres }: InformeProps) {
                     </div>
                 </div>
 
-                {/* Acuerdos Generales */}
-                <div className="space-y-4">
-                    <h4 className="font-semibold text-text-primary text-sm uppercase tracking-wider">Resolución</h4>
-
-                    <div className="flex items-center space-x-2 bg-bg-tertiary p-3 rounded-md border border-border cursor-pointer" onClick={() => setAcuerdaBase(!acuerdaBase)}>
-                        <input
-                            type="checkbox"
-                            id="acuerda"
-                            checked={acuerdaBase}
-                            onChange={(e) => setAcuerdaBase(e.target.checked)}
-                            className="w-5 h-5 rounded border-border bg-transparent text-brand-primary focus:ring-brand-primary"
-                        />
-                        <Label htmlFor="acuerda" className="text-base font-medium text-text-primary cursor-pointer select-none">
-                            ¿Se acuerda reparación con el asegurado / tercero?
-                        </Label>
-                    </div>
-
-                    {acuerdaBase && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                            <Label htmlFor="taller_id" className="text-text-secondary">Taller Seleccionado / Derivado</Label>
-                            <select
-                                id="taller_id"
-                                name="taller_id"
-                                className="flex h-11 w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary appearance-none"
-                            >
-                                <option value="">Selecciona un taller (Opcional)</option>
-                                {talleres.map((t) => (
-                                    <option key={t.id} value={t.id}>{t.nombre}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-                </div>
-
-                {/* Numeros Crudos */}
-                <div className="space-y-4 border-t border-border pt-4">
-                    <h4 className="font-semibold text-text-primary text-sm uppercase tracking-wider">Cálculos</h4>
-                    <div className="space-y-2">
-                        <Label htmlFor="monto_presupuesto" className="text-text-secondary">Monto de Presupuesto Estimado ($ ARS)</Label>
-                        <Input
-                            id="monto_presupuesto"
-                            name="monto_presupuesto"
-                            type="number"
-                            placeholder="Ej. 1500000"
-                            step="0.01"
-                            className="bg-bg-tertiary border-border focus-visible:ring-brand-primary h-11 text-lg font-mono"
-                        />
-                        <p className="text-xs text-text-muted">Ingresa el presupuesto global acordado durante la revisión.</p>
-                    </div>
-                </div>
+                {/* Removido Acuerdos Generales y Números Crudos */}
 
                 {/* Glosas Libres */}
                 <div className="space-y-4 border-t border-border pt-4">

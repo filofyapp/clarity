@@ -187,8 +187,8 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                                 usuarios={usuarios}
                                 tareaEdit={{ ...tarea }}
                                 triggerNode={
-                                    <button className="text-text-muted hover:text-brand-primary p-1 bg-bg-secondary hover:bg-brand-primary/10 rounded-md transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 Z"></path></svg>
+                                    <button className="text-text-muted hover:text-brand-primary p-2 bg-bg-secondary hover:bg-brand-primary/10 rounded-md transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 Z"></path></svg>
                                     </button>
                                 }
                             />
@@ -197,27 +197,27 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             <button
                                 onClick={handleAvanzarEstado}
                                 disabled={isPending}
-                                className="text-text-muted hover:text-color-success p-1.5 bg-bg-secondary hover:bg-color-success/10 rounded-md transition-colors"
+                                className="text-text-muted hover:text-color-success p-2 bg-bg-secondary hover:bg-color-success/10 rounded-md transition-colors"
                                 title={tarea.estado === "pendiente" ? "Tomar Tarea" : "Resolver Tarea"}
                             >
-                                <CheckCircle2 className="w-4 h-4" />
+                                <CheckCircle2 className="w-5 h-5" />
                             </button>
                         )}
                         {(currentUserRol === "admin" || currentUserId === tarea.creador_id) && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                                 disabled={isPending}
-                                className="text-text-muted hover:text-danger p-1.5 bg-bg-secondary hover:bg-danger/10 rounded-md transition-colors ml-1"
+                                className="text-text-muted hover:text-danger p-2 bg-bg-secondary hover:bg-danger/10 rounded-md transition-colors ml-1"
                                 title="Eliminar tarea"
                             >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-5 h-5" />
                             </button>
                         )}
                     </div>
                 </div>
                 {/* 2. Título & Urgencia */}
                 <div className="flex items-start gap-2 pr-2 mt-1">
-                    <h4 className="font-bold text-text-primary text-[14px] leading-snug flex-1">{tarea.titulo}</h4>
+                    <h4 className="font-bold text-text-primary text-[16px] leading-snug flex-1 border-b border-transparent group-hover:border-brand-primary/30 pb-0.5 transition-colors">{tarea.titulo}</h4>
                     <Badge variant="outline" className={`capitalize text-[10px] px-2 py-0 border-none h-5 flex items-center shrink-0 shadow-sm ${getPrioridadColor(tarea.prioridad)}`}>
                         {tarea.prioridad === "alfredo" && "🔥 "}{tarea.prioridad}
                     </Badge>

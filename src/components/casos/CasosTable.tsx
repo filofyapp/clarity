@@ -111,8 +111,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     const [editingField, setEditingField] = useState<{ id: string, field: string, value: string } | null>(null);
 
     const getEstadosPermitidos = () => {
-        if (userRol === "admin") return Object.keys(ESTADOS_DISPONIBLES);
-        if (userRol === "carga") return ["licitando_repuestos", "ip_cerrada", "ip_reclamada_perito", "esperando_respuesta_tercero", "pendiente_presupuesto"];
+        if (userRol === "admin" || userRol === "carga") return Object.keys(ESTADOS_DISPONIBLES);
         if (userRol === "calle") return ["contactado"];
         return [];
     };

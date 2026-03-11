@@ -101,7 +101,7 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
     const esAdmin = roles.includes("admin");
 
     if (esAdmin) permitido = true;
-    else if (esCarga) permitido = estadosCarga.includes(nuevoEstado);
+    else if (esCarga) permitido = true;  // Carga puede modificar como quiera
     else if (esCalle) permitido = estadosCalle.includes(nuevoEstado);
 
     if (!permitido) return { error: `No tiene permiso para cambiar al estado '${nuevoEstado}'.` };

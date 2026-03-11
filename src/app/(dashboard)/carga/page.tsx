@@ -38,7 +38,7 @@ async function ColaCarga() {
 
     return (
         <div className="bg-bg-secondary border border-border rounded-xl mt-6 overflow-hidden hidden md:block animate-in fade-in duration-500">
-            <CasosTable casos={casos} peritos={peritos} gestores={gestores} />
+            <CasosTable casos={casos} peritos={peritos} gestores={gestores} userRol="carga" />
         </div>
     );
 }

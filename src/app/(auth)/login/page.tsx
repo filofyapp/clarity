@@ -28,12 +28,10 @@ export default function LoginPage() {
     return (
         <Card className="border-border bg-card shadow-lg">
             <CardHeader className="space-y-1 text-center">
-                <div className="flex justify-center mb-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-primary text-white shadow-sm">
-                        <span className="font-extrabold text-xl">AO</span>
-                    </div>
+                <div className="flex flex-col items-center justify-center mb-6">
+                    <span className="font-extrabold tracking-[0.2em] text-4xl text-text-primary">CLARITY</span>
+                    <span className="text-[10px] sm:text-xs font-bold tracking-widest text-[#d94a6d] mt-2 uppercase">POWERED BY AOM SINIESTROS</span>
                 </div>
-                <CardTitle className="text-2xl font-bold tracking-tight text-text-primary">CLARITY</CardTitle>
                 <CardDescription className="text-text-muted">
                     Ingresa tus credenciales para acceder al sistema
                 </CardDescription>

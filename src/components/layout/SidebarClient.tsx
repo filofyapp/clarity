@@ -35,12 +35,13 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0, userName = "Us
 
             {/* Logo */}
             <div className="flex h-16 shrink-0 items-center px-6">
-                <Link href="/dashboard" className={`flex items-center gap-2 font-bold text-xl text-brand-primary ${isCollapsed ? 'mx-auto' : ''}`}>
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-primary text-white">
-                        <span className="font-extrabold text-sm">CL</span>
-                    </div>
-                    {!isCollapsed && <span className="truncate">CLARITY</span>}
+                <Link href="/dashboard" className={`flex flex-col items-center justify-center w-full ${isCollapsed ? 'opacity-0 scale-0 absolute' : 'opacity-100 scale-100 transition-all duration-300'}`}>
+                    <span className="font-extrabold tracking-[0.2em] text-xl text-text-primary">CLARITY</span>
+                    <span className="text-[8px] font-bold tracking-widest text-[#d94a6d] mt-1 whitespace-nowrap">POWERED BY AOM SINIESTROS</span>
                 </Link>
+                {isCollapsed && (
+                    <Link href="/dashboard" className="mx-auto flex font-extrabold tracking-[0.2em] text-sm text-text-primary">CLA</Link>
+                )}
             </div>
 
             <div className={`flex flex-1 flex-col overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'} py-4 space-y-8 no-scrollbar`}>

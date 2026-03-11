@@ -82,6 +82,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     const [filterProgramada, setFilterProgramada] = useLocalStorageState<string | null>(`${userRol}_clarity_filter_prog`, null);
     const [filterDateRange, setFilterDateRange] = useLocalStorageState<"hoy" | "semana" | "mes" | null>(`${userRol}_clarity_filter_date`, null);
     const [filterDateExact, setFilterDateExact] = useLocalStorageState<string | null>(`${userRol}_clarity_filter_date_exact`, null);
+    const [filterDateType, setFilterDateType] = useLocalStorageState<string>(`${userRol}_clarity_filter_date_type`, "fecha_derivacion");
 
     const hasActiveFilters = searchQuery !== "" || filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterProgramada !== null || filterDateRange !== null || filterDateExact !== null;
 
@@ -95,6 +96,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         setFilterProgramada(null);
         setFilterDateRange(null);
         setFilterDateExact(null);
+        setFilterDateType("fecha_derivacion");
     };
 
     // Sort
@@ -197,7 +199,9 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
             const now = new Date();
             const parseLocal = (dStr: string) => new Date(dStr.includes("T") ? dStr : `${dStr}T12:00:00`);
             result = result.filter(c => {
-                const date = parseLocal(c.fecha_derivacion);
+                const targetDateStr = c[filterDateType as keyof typeof c] as string | null | undefined;
+                if (!targetDateStr) return false;
+                const date = parseLocal(targetDateStr);
                 if (filterDateRange === "hoy") return isToday(date);
                 if (filterDateRange === "semana") return isSameWeek(date, now, { weekStartsOn: 1 });
                 if (filterDateRange === "mes") return isSameMonth(date, now);
@@ -206,9 +210,10 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         }
         if (filterDateExact) {
             result = result.filter(c => {
-                if (!c.fecha_derivacion) return false;
+                const targetDateStr = c[filterDateType as keyof typeof c] as string | null | undefined;
+                if (!targetDateStr) return false;
                 // Comparing 'YYYY-MM-DD' from DateExact input against local 'YYYY-MM-DD' extraction
-                const cDateStr = c.fecha_derivacion.split("T")[0];
+                const cDateStr = targetDateStr.split("T")[0];
                 return cDateStr === filterDateExact;
             });
         }
@@ -223,7 +228,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
             return 0;
         });
         return result;
-    }, [casos, sortConfig, filterEstados, filterTiposIP, filterPeritosCalle, filterPeritosCarga, filterGestores, searchQuery, filterProgramada, filterDateRange, filterDateExact]);
+    }, [casos, sortConfig, filterEstados, filterTiposIP, filterPeritosCalle, filterPeritosCarga, filterGestores, searchQuery, filterProgramada, filterDateRange, filterDateExact, filterDateType]);
 
     // Derived stats for Summary Bar
     const summaryStats = useMemo(() => {
@@ -434,7 +439,18 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                     </DropdownMenu>
 
                     <div className="flex items-center gap-2 bg-bg-primary border border-dashed border-border rounded-md px-2 h-7">
-                        <span className="text-[10px] text-text-muted">Exacta:</span>
+                        <select
+                            className="bg-transparent text-[10px] text-text-muted outline-none cursor-pointer pr-1 border-none focus:ring-0 appearance-none"
+                            value={filterDateType}
+                            onChange={(e) => setFilterDateType(e.target.value)}
+                        >
+                            <option value="fecha_derivacion">Ingreso</option>
+                            <option value="fecha_inspeccion_programada">Inspección</option>
+                            <option value="fecha_carga_sistema">Carga</option>
+                            <option value="fecha_cierre">Cierre</option>
+                        </select>
+                        <div className="h-3.5 w-[1px] bg-border mx-1" />
+                        <span className="text-[10px] text-text-muted hidden sm:inline">Exacta:</span>
                         <input
                             type="date"
                             className="bg-transparent text-[11px] text-text-secondary outline-none w-[100px] cursor-pointer"
@@ -450,7 +466,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
                     {(filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterDateRange || filterProgramada || filterDateExact) && (
                         <Button variant="ghost" size="sm" className="h-7 text-[11px] text-color-danger hover:bg-color-danger-soft/10 px-2 ml-auto" onClick={() => {
-                            setFilterEstados([]); setFilterTiposIP([]); setFilterPeritosCalle([]); setFilterPeritosCarga([]); setFilterGestores([]); setFilterDateRange(null); setFilterProgramada(null); setFilterDateExact(null);
+                            setFilterEstados([]); setFilterTiposIP([]); setFilterPeritosCalle([]); setFilterPeritosCarga([]); setFilterGestores([]); setFilterDateRange(null); setFilterProgramada(null); setFilterDateExact(null); setFilterDateType("fecha_derivacion");
                         }}>
                             Limpiar
                         </Button>

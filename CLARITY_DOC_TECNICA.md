@@ -651,6 +651,16 @@ TESTEADO: `npm run build` Ok sin errores TS de linter post-flexibilización.
 
 ---
 
+FECHA: 11/03/2026
+QUE SE CAMBIO: Filtro de Fecha Multi-Campo Dinámico (Fase 22).
+POR QUE: Los filtros de fecha ("Hoy", "Semana", "Exacta") aplicaban exclusiva y rígidamente a la fecha de "Ingreso" (`fecha_derivacion`). Negocio requería pivotar estos filtros para buscar por Ingreso, Inspección, Carga o Cierre dinámicamente.
+COMO: 1) Inyecté el estado `filterDateType` en `CasosTable.tsx`. 2) Agregué un `<select>` nativo previo al input exacto para determinar la columna temporal objetivo (Ingreso | Inspección | Carga | Cierre). 3) Modifiqué el `useMemo` de `procesados` para evaluar `c[filterDateType]` en lugar del objeto estático.
+ARCHIVOS AFECTADOS: `CasosTable.tsx`.
+EFECTOS COLATERALES: Ninguno. El botón Limpiar resetea el select a `fecha_derivacion` por default para evitar confusiones de sesión.
+TESTEADO: Compilación Next/Turbopack superada sin errores.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
 
 ### BUG-019: Filtro de fechas "Hoy" fallando por Timezone de JavaScript (RESUELTO)

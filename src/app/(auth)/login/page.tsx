@@ -65,11 +65,6 @@ export default function LoginPage() {
                             required
                             className="bg-bg-tertiary border-border focus-visible:ring-brand-primary h-11"
                         />
-                        <div className="mt-2 text-xs text-text-muted text-center space-y-1 bg-bg-secondary p-3 rounded-md border border-border">
-                            <p className="font-semibold text-text-primary">Credenciales de Pruebas (Local)</p>
-                            <p>Email: <span className="font-mono text-text-primary select-all">admin@clarity.test</span></p>
-                            <p>Clave: <span className="font-mono text-brand-primary select-all">admin123456</span></p>
-                        </div>
                     </div>
                     <Button
                         type="submit"

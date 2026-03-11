@@ -869,7 +869,7 @@ function BadgeCounter({ label, count, active, onClick, dimmed, critical }: { lab
         <button
             onClick={onClick}
             className={`
-                flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-medium transition-all whitespace-nowrap
+                flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-medium transition-all whitespace-nowrap
                 ${active ? 'bg-brand-primary/20 border-brand-primary/50 text-brand-primary font-bold pr-3'
                     : critical && count > 0 ? 'bg-color-danger-soft border-color-danger/20 text-text-primary hover:bg-color-danger/20 font-semibold'
                         : 'bg-bg-tertiary border-border text-text-secondary hover:bg-bg-elevated'}
@@ -877,7 +877,7 @@ function BadgeCounter({ label, count, active, onClick, dimmed, critical }: { lab
             `}
         >
             <span className="truncate">{label}</span>
-            <span className={`px-1 rounded-full bg-bg-primary text-[9px] tabular-nums ${(active && count > 0) ? "text-brand-primary font-bold shadow-sm" : critical && count > 0 ? "text-color-danger font-bold" : ""}`}>{count}</span>
+            <span className={`px-1.5 rounded-full bg-bg-primary text-[10px] tabular-nums ${(active && count > 0) ? "text-brand-primary font-bold shadow-sm" : critical && count > 0 ? "text-color-danger font-bold" : ""}`}>{count}</span>
         </button>
     );
 }

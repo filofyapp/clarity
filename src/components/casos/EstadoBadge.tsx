@@ -16,37 +16,37 @@ const ESTADO_LABELS: Record<string, string> = {
 };
 
 export const estadoStyles: Record<string, string> = {
-    // Normal states — visible colors, softer than critical
-    ip_coordinada: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
-    pendiente_coordinacion: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
-    contactado: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
-    licitando_repuestos: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
-    esperando_respuesta_tercero: 'bg-teal-500/15 text-teal-400 border-teal-500/25',
-    ip_cerrada: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+    // Normal states — visible colors
+    ip_coordinada: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    pendiente_coordinacion: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    contactado: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+    licitando_repuestos: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+    esperando_respuesta_tercero: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
+    ip_cerrada: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     facturada: 'bg-[#111] text-gray-500 border-[#222] shadow-sm',
-    inspeccion_anulada: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
+    inspeccion_anulada: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
     // CRITICAL / saturated states — these MUST pop
-    en_consulta_cia: 'bg-red-600/25 text-red-400 border-red-600/50 font-bold',
-    pendiente_carga: 'bg-amber-500/25 text-amber-300 border-amber-500/50 font-bold',
-    pendiente_presupuesto: 'bg-yellow-500/25 text-yellow-300 border-yellow-500/50 font-bold',
-    ip_reclamada_perito: 'bg-rose-600/25 text-rose-400 border-rose-600/50 font-bold',
+    en_consulta_cia: 'bg-red-600/30 text-red-400 border-red-600/60 font-bold',
+    pendiente_carga: 'bg-amber-500/30 text-amber-300 border-amber-500/60 font-bold',
+    pendiente_presupuesto: 'bg-yellow-500/30 text-yellow-300 border-yellow-500/60 font-bold',
+    ip_reclamada_perito: 'bg-rose-600/30 text-rose-400 border-rose-600/60 font-bold',
 };
 
 export const estadoStylesRow: Record<string, string> = {
     // Normal row backgrounds — subtle tint visible
-    ip_coordinada: 'bg-blue-500/5 hover:bg-blue-500/10',
-    pendiente_coordinacion: 'bg-orange-500/5 hover:bg-orange-500/10',
-    contactado: 'bg-cyan-500/5 hover:bg-cyan-500/10',
-    licitando_repuestos: 'bg-violet-500/5 hover:bg-violet-500/10',
-    esperando_respuesta_tercero: 'bg-teal-500/5 hover:bg-teal-500/10',
-    ip_cerrada: 'bg-emerald-500/5 hover:bg-emerald-500/10',
+    ip_coordinada: 'bg-blue-500/8 hover:bg-blue-500/15',
+    pendiente_coordinacion: 'bg-orange-500/8 hover:bg-orange-500/15',
+    contactado: 'bg-cyan-500/8 hover:bg-cyan-500/15',
+    licitando_repuestos: 'bg-violet-500/8 hover:bg-violet-500/15',
+    esperando_respuesta_tercero: 'bg-teal-500/8 hover:bg-teal-500/15',
+    ip_cerrada: 'bg-emerald-500/8 hover:bg-emerald-500/15',
     facturada: 'bg-[#111] hover:bg-[#1a1a1a] border-[#222]',
-    inspeccion_anulada: 'bg-gray-500/5 hover:bg-gray-500/10',
+    inspeccion_anulada: 'bg-gray-500/8 hover:bg-gray-500/15',
     // CRITICAL row backgrounds — stronger tint + inset border
-    en_consulta_cia: 'bg-red-600/10 hover:bg-red-600/15 shadow-[inset_4px_0_0_0_rgba(220,38,38,1)]',
-    pendiente_carga: 'bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_4px_0_0_0_rgba(245,158,11,1)]',
-    pendiente_presupuesto: 'bg-yellow-500/10 hover:bg-yellow-500/15 shadow-[inset_4px_0_0_0_rgba(234,179,8,1)]',
-    ip_reclamada_perito: 'bg-rose-600/10 hover:bg-rose-600/15 shadow-[inset_4px_0_0_0_rgba(225,29,72,1)]',
+    en_consulta_cia: 'bg-red-600/15 hover:bg-red-600/20 shadow-[inset_4px_0_0_0_rgba(220,38,38,1)]',
+    pendiente_carga: 'bg-amber-500/15 hover:bg-amber-500/20 shadow-[inset_4px_0_0_0_rgba(245,158,11,1)]',
+    pendiente_presupuesto: 'bg-yellow-500/15 hover:bg-yellow-500/20 shadow-[inset_4px_0_0_0_rgba(234,179,8,1)]',
+    ip_reclamada_perito: 'bg-rose-600/15 hover:bg-rose-600/20 shadow-[inset_4px_0_0_0_rgba(225,29,72,1)]',
 };
 
 export function EstadoBadge({ estado, compacto }: { estado?: string | null, compacto?: boolean }) {

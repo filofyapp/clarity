@@ -6,6 +6,7 @@ import { Send, Loader2, Paperclip, X, FileIcon, Image as ImageIcon } from "lucid
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ComentariosTareaProps {
     tareaId: string;
@@ -141,11 +142,13 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
 
         // Subir archivos si existen
         const adjuntosSubidos = [];
+        let huboErrorSubida = false;
+
         if (adjuntosOriginales.length > 0) {
             for (const archivo of adjuntosOriginales) {
                 const fileExt = archivo.name.split('.').pop();
                 const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-                const filePath = `tareas/${tareaId}/${fileName}`;
+                const filePath = `tareas/adjuntos/${fileName}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('fotos-inspecciones')
@@ -164,8 +167,17 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
                     });
                 } else {
                     console.error("Error upload:", uploadError);
+                    toast.error(`No se pudo subir ${archivo.name}. Verificá el tamaño o reintentá.`);
+                    huboErrorSubida = true;
                 }
             }
+        }
+
+        if (huboErrorSubida && adjuntosSubidos.length === 0 && !textoOriginal.trim()) {
+            // Revertir update optimista
+            setComentarios(prev => prev.filter(c => c.id !== tempId));
+            setEnviando(false);
+            return;
         }
 
         // Extract @mentions for notifications

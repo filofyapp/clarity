@@ -23,7 +23,7 @@ import { EstadoBadge, estadoStylesRow } from "./EstadoBadge";
 import { TipoIPBadge } from "./TipoIPBadge";
 import {
     ChevronRight, ArrowUpDown, Filter, Edit2, Search, SearchIcon,
-    LayoutList, LayoutGrid, Copy, Trash2, Mail
+    LayoutList, LayoutGrid, Copy, Trash2, Mail, MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 import { cambiarEstadoCaso } from "@/app/(dashboard)/casos/[id]/actions";
@@ -252,7 +252,12 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         return { iniciales: iniciales.toUpperCase(), nombre };
     };
 
-    const formatDateVal = (dateStr: string) => dateStr ? format(new Date(dateStr), "dd/MM/yy") : "-";
+    const formatDateVal = (dateStr: string) => {
+        if (!dateStr) return "-";
+        // Si el dateStr es solo YYYY-MM-DD sin tiempo, forzamos tiempo local al mediodía para evitar UTC shift
+        const safeDateStr = dateStr.includes("T") ? dateStr : `${dateStr}T12:00:00`;
+        return format(new Date(safeDateStr), "dd/MM/yy");
+    };
 
     return (
         <div className="flex flex-col h-full w-full bg-bg-primary overflow-hidden">
@@ -482,6 +487,11 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                         {caso.tiene_respuesta_gestor && (
                                                             <span title="Respuesta del gestor sin leer">
                                                                 <Mail size={14} className="text-[#D6006E] shrink-0" />
+                                                            </span>
+                                                        )}
+                                                        {caso.notas_admin && (
+                                                            <span title="Contiene notas internas">
+                                                                <MessageSquare size={13} strokeWidth={2.5} className="text-brand-primary shrink-0 opacity-80" />
                                                             </span>
                                                         )}
                                                     </div>
@@ -792,6 +802,11 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                 {caso.tiene_respuesta_gestor && (
                                                     <span title="Respuesta del gestor sin leer">
                                                         <Mail size={14} className="text-[#D6006E] shrink-0" />
+                                                    </span>
+                                                )}
+                                                {caso.notas_admin && (
+                                                    <span title="Contiene notas internas">
+                                                        <MessageSquare size={13} strokeWidth={2.5} className="text-brand-primary shrink-0 opacity-80" />
                                                     </span>
                                                 )}
                                             </div>

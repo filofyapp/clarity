@@ -621,7 +621,32 @@ TESTEADO: `npm run build` Ok sin errores TS. NextJS Virtualizer mantiene compati
 
 ---
 
+FECHA: 10/03/2026
+QUE SE CAMBIO: Migración Final de Datos e Integridad de Borrado de Usuarios (Fase 19).
+POR QUE: Se necesitaba volcar el excel final "DatosMigracion" sin desencadenar los ~1000 correos automáticos programados recientemente. A su vez, el panel de administración fallaba al intentar borrar un Perito producto de restricciones en la base de datos (Violación de Foreign Keys en la tabla Notificaciones).
+COMO: 1) Se generó la migración `020_fase19_usuarios_on_delete.sql` transformando todas las restricciones foreáneas dependientes del ID de usuario a políticas `ON DELETE SET NULL` (preservando historial de casos/comentarios) o `ON DELETE CASCADE` (borrando notificaciones y lecturas irrelevantes). 2) Se elaboró el motor `scripts/migrarFinal.ts` que se conecta por Supabase-JS e inserta 471 registros de forma nativa (bypass de NextJS), evitando despertar el Cron de Mails.
+ARCHIVOS AFECTADOS: `020_fase19_usuarios_on_delete.sql`, `scripts/migrarFinal.ts`.
+EFECTOS COLATERALES: Ninguno. Usuarios borrados ahora dejarán rastro de "Siniestro asignado a: Desconocido/Nulo" protegiendo la auditoría de tabla.
+TESTEADO: Se procesaron (Upsert) los datos correctamente. Script de base de datos entregado.
+
+---
+
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-018: Fechas de Siniestros desfasadas un día hacia atrás en la UI (RESUELTO)
+- PROBLEMA: Fechas puras "YYYY-MM-DD" como "2026-03-10" se renderizaban visualmente en la tabla como "09/03/2026".
+- CAUSA: El constructor `new Date('YYYY-MM-DD')` de JS interpreta la fecha asumiendo la medianoche en formato _UTC_ (Tiempo Universal Coordinado, Inglaterra). Al aplicarle el formato local para renderizar (ej: `-03:00` en Argentina), la fecha "retrocedía" 3 horas artificialmente cayendo en las 21:00 del día anterior.
+- SOLUCION: Se modificó el parseador `formatDateVal` en `CasosTable.tsx` inyectando artificialmente la hora local del mediodía (`T12:00:00`) a las fechas puras para anclar el día al calendario geográfico correcto antes de invocar a `new Date()`.
+- FECHA: 10/03/2026
+- NO REPETIR: Siempre usar variables DateJS relativas en Next.js, recordando que ISO en UTC causará desfases horarios visuales.
+
+### BUG-017: Error al eliminar perfil de peritos (Constraint Violation) (RESUELTO)
+- PROBLEMA: Al presionar "Eliminar" sobre un Perito, Supabase abortaba con _"update or delete on table usuarios violates foreign key constraint notificaciones_usuario_destino_id_fkey"_.
+- CAUSA: La arquitectura primigenia de PostgreSQL bloquea automáticamente los DELETE (modo `RESTRICT`) si la clave primaria del registro figura como clave foránea limitante en otras tablas (ej: Notificaciones, Casos Asignados, Tareas).
+- SOLUCION: Se aplicaron sentencias `ALTER TABLE` sobre más de 12 tablas para inyectar condiciones `ON DELETE CASCADE` en tablas epímeras y `ON DELETE SET NULL` en tablas documentales.
+- FECHA: 10/03/2026
+- NO REPETIR: Siempre plantear una topología de borrado al enlazar catálogos centrales (como Usuarios o Talleres).
+
 
 ### BUG-016: Buscador de Casos fallando por espacios en blanco (RESUELTO)
 - PROBLEMA: Al buscar un siniestro o dominio en la tabla principal, si el usuario ingresaba un espacio al principio o al final (por accidente o al pegar texto copiado), la tabla se quedaba vacía sin encontrar resultados.

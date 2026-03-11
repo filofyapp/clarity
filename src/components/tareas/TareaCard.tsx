@@ -61,35 +61,67 @@ interface TareaCardProps {
     currentUserRol?: string;
 }
 
-const getPrioridadColor = (prioridad: PrioridadTarea) => {
+// Priority border color for left stripe
+const getPrioridadBorderColor = (prioridad: PrioridadTarea) => {
     switch (prioridad) {
-        case "alfredo": return "bg-bg-tertiary text-danger border-danger font-bold uppercase tracking-wider animate-pulse-border";
-        case "urgente": return "bg-danger text-white border-danger";
-        case "alta": return "bg-color-warning text-bg-primary border-color-warning";
-        case "normal": return "bg-color-info text-white border-color-info";
-        case "baja": return "bg-color-success text-white border-color-success";
-        default: return "bg-bg-tertiary text-text-primary";
+        case "alfredo": return "border-l-red-500";
+        case "urgente": return "border-l-red-500";
+        case "alta": return "border-l-amber-500";
+        default: return "border-l-transparent";
     }
 };
 
-const getStatusColors = (estado: EstadoTarea) => {
-    switch (estado) {
-        case "pendiente": return { bg: "bg-danger/5 hover:bg-danger/10", border: "border-danger/20", line: "border-l-danger" };
-        case "en_proceso": return { bg: "bg-info/5 hover:bg-info/10", border: "border-info/20", line: "border-l-color-info" };
-        case "resuelta": return { bg: "bg-success/5 hover:bg-success/10", border: "border-success/20", line: "border-l-color-success" };
+// Priority badge styles
+const getPrioridadBadge = (prioridad: PrioridadTarea) => {
+    switch (prioridad) {
+        case "alfredo": return "bg-red-500/10 text-red-400 border-red-500/20";
+        case "urgente": return "bg-red-500/10 text-red-400 border-red-500/20";
+        case "alta": return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+        case "normal": return "bg-brand-primary/10 text-brand-primary border-brand-primary/20";
+        case "baja": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+        default: return "bg-bg-tertiary text-text-muted border-border-subtle";
     }
+};
+
+// Avatar color pool (deterministic by name)
+const AVATAR_COLORS = [
+    "bg-amber-600", "bg-indigo-600", "bg-emerald-600", "bg-rose-600",
+    "bg-cyan-600", "bg-violet-600", "bg-orange-600", "bg-teal-600",
+];
+const getAvatarColor = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
+
+// Age helper
+const getAge = (dateStr: string) => {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (hours < 1) return "Ahora";
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `${days}d`;
+};
+
+const isOverdue = (tarea: TareaData) => {
+    const diffMs = Date.now() - new Date(tarea.created_at).getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (tarea.estado === "pendiente" && days > 3) return true;
+    if (tarea.estado === "en_proceso" && days > 5) return true;
+    return false;
 };
 
 export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUserNombre, currentUserRol }: TareaCardProps) {
     const [isPending, startTransition] = useTransition();
     const [sheetOpen, setSheetOpen] = useState(false);
-    const [descExpanded, setDescExpanded] = useState(false);
     const [panelWidth, setPanelWidth] = useState(600);
     const [isChangingAsignado, setIsChangingAsignado] = useState(false);
 
     const hasOtrasRespuestas = tarea.comentarios_tarea?.some(
         (c: { usuario_id: string }) => c.usuario_id !== tarea.creador_id && c.usuario_id !== currentUserId
     );
+    const totalComments = tarea.comentarios_tarea?.length || 0;
 
     const handleAssigneeChange = (newId: string) => {
         setIsChangingAsignado(false);
@@ -111,7 +143,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
         const startX = e.clientX;
         const startWidth = panelWidth;
         const onMouseMove = (moveEvent: MouseEvent) => {
-            const delta = startX - moveEvent.clientX; // Dragging left increases width since sidebar is on the right
+            const delta = startX - moveEvent.clientX;
             const newWidth = Math.max(500, Math.min(window.innerWidth * 0.9, startWidth + delta));
             setPanelWidth(newWidth);
         };
@@ -131,7 +163,6 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
         let nextEstado: EstadoTarea | null = null;
         if (tarea.estado === "pendiente") nextEstado = "en_proceso";
         else if (tarea.estado === "en_proceso") nextEstado = "resuelta";
-
         if (!nextEstado) return;
 
         startTransition(async () => {
@@ -150,142 +181,142 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
         startTransition(async () => {
             const { deleteTarea } = await import("@/app/(dashboard)/tareas/actions");
             const result = await deleteTarea(tarea.id);
-            if (result.error) {
-                toast.error(result.error);
-            } else {
-                toast.success("Tarea eliminada");
-            }
+            if (result.error) toast.error(result.error);
+            else toast.success("Tarea eliminada");
         });
     };
 
+    const isResuelta = tarea.estado === "resuelta";
+    const assigneeName = tarea.asignado ? `${tarea.asignado.nombre} ${tarea.asignado.apellido}` : "";
+    const assigneeInitials = tarea.asignado
+        ? `${tarea.asignado.nombre?.charAt(0) || ""}${tarea.asignado.apellido?.charAt(0) || ""}`.toUpperCase()
+        : "?";
+
     return (
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            {/* ═══════ CARD (Compact, redesigned) ═══════ */}
             <div
                 onClick={() => setSheetOpen(true)}
-                className={`group relative border-l-4 ${tarea.prioridad === "alfredo" ? "border-l-red-500 bg-bg-primary border-y border-r border-red-500/50 shadow-sm animate-pulse-border" : `${getStatusColors(tarea.estado).line} border-y border-r ${getStatusColors(tarea.estado).border} ${getStatusColors(tarea.estado).bg}`} rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col p-3 gap-2 ${isChangingAsignado ? "z-50" : ""}`}
+                className={`group relative rounded-lg border border-border-subtle transition-all duration-200 cursor-pointer flex flex-col p-3 gap-2
+                    ${isResuelta
+                        ? "opacity-60 hover:opacity-85 bg-bg-secondary border-l-[3px] border-l-transparent"
+                        : `bg-bg-secondary hover:bg-bg-surface hover:border-border-hover hover:-translate-y-[1px] hover:shadow-md border-l-[3px] ${tarea.prioridad === "alfredo" ? "border-l-red-500 animate-pulse-border" : getPrioridadBorderColor(tarea.prioridad)}`
+                    }
+                    ${isChangingAsignado ? "z-50" : ""}`}
             >
-                {/* 1. Siniestro & Acciones Rápidas Ocultas */}
+                {/* Row 1: Siniestro prominente + Quick Actions */}
                 <div className="flex justify-between items-start w-full">
                     {tarea.caso_id ? (
-                        <div
-                            onClick={(e) => e.stopPropagation()}
-                            className="z-10"
-                        >
-                            <Link href={`/casos/${tarea.caso_id}`} className="flex items-center gap-1 text-[10px] text-brand-secondary hover:underline w-fit">
-                                <LinkIcon className="w-3 h-3" />
-                                <span className="font-semibold uppercase font-mono tracking-wider">{tarea.caso?.numero_siniestro || "..."}</span>
+                        <div onClick={(e) => e.stopPropagation()} className="z-10">
+                            <Link href={`/casos/${tarea.caso_id}`} className="flex items-center gap-1.5 text-brand-primary hover:underline w-fit">
+                                <LinkIcon className="w-3.5 h-3.5" />
+                                <span className="font-bold font-mono text-base tracking-wide">{tarea.caso?.numero_siniestro || "..."}</span>
                             </Link>
                         </div>
                     ) : (
-                        <span className="text-[10px] text-text-muted italic">Sin siniestro vinculado</span>
+                        <span className="text-[11px] text-text-muted italic">Sin siniestro vinculado</span>
                     )}
 
-                    {/* Acciones Hover */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={e => e.stopPropagation()}>
+                    {/* Quick Actions (hover only) */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={e => e.stopPropagation()}>
                         {usuarios && currentUserId && (
                             <TareaForm
                                 usuarios={usuarios}
                                 tareaEdit={{ ...tarea }}
                                 triggerNode={
-                                    <button className="text-text-muted hover:text-brand-primary p-2 bg-bg-secondary hover:bg-brand-primary/10 rounded-md transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 Z"></path></svg>
+                                    <button className="text-text-muted hover:text-brand-primary p-1.5 hover:bg-brand-primary/10 rounded-md transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 Z"></path></svg>
                                     </button>
                                 }
                             />
                         )}
                         {isAsignee && tarea.estado !== "resuelta" && (
-                            <button
-                                onClick={handleAvanzarEstado}
-                                disabled={isPending}
-                                className="text-text-muted hover:text-color-success p-2 bg-bg-secondary hover:bg-color-success/10 rounded-md transition-colors"
-                                title={tarea.estado === "pendiente" ? "Tomar Tarea" : "Resolver Tarea"}
-                            >
-                                <CheckCircle2 className="w-5 h-5" />
+                            <button onClick={handleAvanzarEstado} disabled={isPending}
+                                className="text-text-muted hover:text-emerald-500 p-1.5 hover:bg-emerald-500/10 rounded-md transition-colors"
+                                title={tarea.estado === "pendiente" ? "Tomar Tarea" : "Resolver Tarea"}>
+                                <CheckCircle2 className="w-4 h-4" />
                             </button>
                         )}
                         {(currentUserRol === "admin" || currentUserId === tarea.creador_id) && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-                                disabled={isPending}
-                                className="text-text-muted hover:text-danger p-2 bg-bg-secondary hover:bg-danger/10 rounded-md transition-colors ml-1"
-                                title="Eliminar tarea"
-                            >
-                                <Trash2 className="w-5 h-5" />
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} disabled={isPending}
+                                className="text-text-muted hover:text-red-400 p-1.5 hover:bg-red-500/10 rounded-md transition-colors"
+                                title="Eliminar tarea">
+                                <Trash2 className="w-4 h-4" />
                             </button>
                         )}
                     </div>
                 </div>
-                {/* 2. Título & Urgencia */}
-                <div className="flex items-start gap-2 pr-2 mt-1">
-                    <h4 className="font-bold text-text-primary text-[16px] leading-snug flex-1 border-b border-transparent group-hover:border-brand-primary/30 pb-0.5 transition-colors">{tarea.titulo}</h4>
-                    <Badge variant="outline" className={`capitalize text-[10px] px-2 py-0 border-none h-5 flex items-center shrink-0 shadow-sm ${getPrioridadColor(tarea.prioridad)}`}>
-                        {tarea.prioridad === "alfredo" && "🔥 "}{tarea.prioridad}
-                    </Badge>
-                </div>
 
-                {/* 3. Extracto Descripción */}
-                {tarea.descripcion && (
-                    <p className="text-[12px] text-text-muted line-clamp-2 leading-relaxed mt-1">
-                        {tarea.descripcion}
-                    </p>
+                {/* Row 2: Title */}
+                <h4 className={`font-semibold text-[13px] leading-snug line-clamp-2 ${isResuelta ? "line-through text-text-muted" : "text-text-primary"}`}>
+                    {tarea.titulo}
+                </h4>
+
+                {/* Row 3: Description (1 line, hidden for resuelta) */}
+                {tarea.descripcion && !isResuelta && (
+                    <p className="text-[12px] text-text-muted line-clamp-1 leading-relaxed">{tarea.descripcion}</p>
                 )}
 
-                {/* 4. Fecha, Creador (Texto sutil) y Avatar de Asignado */}
-                <div className="flex justify-between items-end pt-3 mt-auto">
-                    <div className="flex items-center gap-2 text-[11px] text-text-muted/80">
-                        <span className="flex items-center gap-0.5" title="Fecha de creación">
-                            <Clock className="w-3 h-3" /> {format(new Date(tarea.created_at), "dd/MM HH:mm")}
-                        </span>
+                {/* Row 4: Footer */}
+                <div className="flex justify-between items-center pt-2 mt-auto border-t border-border-subtle/50">
+                    {/* Left: metadata */}
+                    <div className="flex items-center gap-3 text-[11px] text-text-muted">
+                        {isResuelta ? (
+                            <span className="flex items-center gap-1 text-emerald-500">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Resuelta {format(new Date(tarea.created_at), "dd/MM")}
+                            </span>
+                        ) : (
+                            <span className={`flex items-center gap-1 ${isOverdue(tarea) ? "text-red-400 font-semibold" : ""}`}>
+                                <Clock className="w-3 h-3" />
+                                {getAge(tarea.created_at)}
+                            </span>
+                        )}
+
+                        {totalComments > 0 && (
+                            <span className="flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3" />
+                                {totalComments}
+                                {hasOtrasRespuestas && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse-dot inline-block" />
+                                )}
+                            </span>
+                        )}
+
+                        {tarea.adjuntos && tarea.adjuntos.length > 0 && (
+                            <span className="flex items-center gap-1">
+                                <Paperclip className="w-3 h-3" />
+                                {tarea.adjuntos.length}
+                            </span>
+                        )}
                     </div>
 
-                    <div className="flex gap-2 items-center" title={tarea.asignado ? `Asignado a: ${tarea.asignado.nombre}` : 'Sin asignar'}>
-                        {hasOtrasRespuestas && (
-                            <div className="flex items-center justify-center bg-brand-primary/10 text-brand-primary rounded-full w-5 h-5 mx-1" title="Nuevas respuestas">
-                                <MessageSquare className="w-3 h-3" />
-                            </div>
-                        )}
-                        {tarea.adjuntos && tarea.adjuntos.length > 0 && (
-                            <div className="flex items-center gap-0.5 text-text-muted text-[10px]" title={`${tarea.adjuntos.length} adjuntos`}>
-                                <Paperclip className="w-3 h-3" /> {tarea.adjuntos.length}
-                            </div>
+                    {/* Right: priority badge + avatar */}
+                    <div className="flex items-center gap-2">
+                        {!isResuelta && (
+                            <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ${getPrioridadBadge(tarea.prioridad)}`}>
+                                {tarea.prioridad === "alfredo" && "🔥 "}{tarea.prioridad}
+                            </span>
                         )}
 
                         <div className="relative" onClick={(e) => { e.stopPropagation(); setIsChangingAsignado(!isChangingAsignado); }}>
-                            {tarea.tarea_asignaciones && tarea.tarea_asignaciones.length > 0 ? (
-                                <div className="flex -space-x-2">
-                                    {tarea.tarea_asignaciones.map((asig, i) => (
-                                        <div key={asig.usuario_id} className={`h-6 w-6 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary font-medium text-[9px] uppercase border border-bg-primary shadow-sm z-[${10 - i}] cursor-pointer hover:scale-110 transition-transform`} title={`${asig.usuario.nombre} ${asig.usuario.apellido}`}>
-                                            {asig.usuario.nombre?.charAt(0)}{asig.usuario.apellido?.charAt(0)}
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : tarea.asignado ? (
-                                <div className="h-6 px-2 rounded-full bg-brand-primary/10 flex items-center gap-1.5 text-brand-primary font-medium text-[10px] border border-brand-primary/20 shadow-sm cursor-pointer hover:bg-brand-primary/20 transition-all">
-                                    <div className="w-4 h-4 rounded-full bg-brand-primary/20 flex items-center justify-center text-[8px] font-bold uppercase shrink-0">
-                                        {tarea.asignado.nombre?.charAt(0)}{tarea.asignado.apellido?.charAt(0)}
-                                    </div>
-                                    <span className="truncate max-w-[80px]">{tarea.asignado.nombre}</span>
-                                </div>
-                            ) : (
-                                <div className="h-6 px-2 rounded-full bg-bg-secondary flex items-center gap-1.5 text-text-muted text-[10px] border border-border border-dashed cursor-pointer hover:bg-bg-tertiary transition-all">
-                                    <div className="w-4 h-4 rounded-full bg-bg-tertiary flex items-center justify-center text-[8px] font-bold shrink-0">?</div>
-                                    <span>Sin asignar</span>
-                                </div>
-                            )}
+                            <div
+                                className={`w-[22px] h-[22px] rounded-md flex items-center justify-center text-[8px] font-bold text-white uppercase cursor-pointer hover:scale-110 transition-transform ${tarea.asignado ? getAvatarColor(assigneeName) : "bg-bg-tertiary text-text-muted border border-dashed border-border-default"}`}
+                                title={tarea.asignado ? assigneeName : "Sin asignar"}
+                            >
+                                {assigneeInitials}
+                            </div>
 
                             {isChangingAsignado && usuarios && (
-                                <div className="absolute bottom-full right-0 mb-2 w-48 bg-bg-primary border border-border rounded-lg shadow-xl z-50 py-1 overflow-hidden" onClick={e => e.stopPropagation()}>
-                                    <div className="px-3 py-2 text-[10px] font-semibold text-text-muted border-b border-border bg-bg-secondary uppercase tracking-wider">
+                                <div className="absolute bottom-full right-0 mb-2 w-48 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 py-1 overflow-hidden" onClick={e => e.stopPropagation()}>
+                                    <div className="px-3 py-2 text-[10px] font-semibold text-text-muted border-b border-border-subtle bg-bg-tertiary uppercase tracking-wider">
                                         Reasignar Tarea
                                     </div>
-                                    <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                    <div className="max-h-48 overflow-y-auto">
                                         {usuarios.map(u => (
-                                            <button
-                                                key={u.id}
-                                                onClick={() => handleAssigneeChange(u.id)}
-                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-bg-tertiary transition-colors flex items-center gap-2 ${u.id === tarea.asignado_id ? 'text-brand-primary bg-brand-primary/5 font-medium' : 'text-text-primary'}`}
-                                            >
-                                                <div className="w-5 h-5 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary text-[9px] uppercase shrink-0">
+                                            <button key={u.id} onClick={() => handleAssigneeChange(u.id)}
+                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-bg-tertiary transition-colors flex items-center gap-2 ${u.id === tarea.asignado_id ? 'text-brand-primary bg-brand-primary/5 font-medium' : 'text-text-primary'}`}>
+                                                <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] text-white uppercase shrink-0 ${getAvatarColor(`${u.nombre} ${u.apellido}`)}`}>
                                                     {u.nombre.charAt(0)}{u.apellido.charAt(0)}
                                                 </div>
                                                 <span className="truncate">{u.nombre} {u.apellido}</span>
@@ -299,7 +330,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                 </div>
             </div>
 
-            {/* Modal de Detalle (Sheet) */}
+            {/* ═══════ SHEET (Detail Panel — unchanged) ═══════ */}
             <SheetContent
                 className="w-full sm:max-w-none p-0 flex flex-col bg-bg-primary border-l border-border"
                 side="right"
@@ -308,7 +339,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                 onMouseDown={e => e.stopPropagation()}
                 style={{ maxWidth: panelWidth > 0 ? `${panelWidth}px` : '600px' }}
             >
-                {/* Agarrador para resize */}
+                {/* Resize handle */}
                 <div
                     onMouseDown={handleMouseDown}
                     className="absolute left-0 top-0 bottom-0 w-2.5 cursor-col-resize hover:bg-brand-primary/20 transition-colors z-50 group/resizer flex items-center justify-center"
@@ -333,14 +364,14 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                 </SheetHeader>
 
                 <div className="flex-1 flex flex-col min-h-0 relative">
-                    {/* Descripción completa en Modal */}
+                    {/* Full description */}
                     {tarea.descripcion && (
                         <div className="bg-bg-tertiary p-4 rounded-lg border border-border mx-6 mt-4 mb-2 text-sm text-text-muted whitespace-pre-line leading-relaxed shrink-0 max-h-[30vh] overflow-y-auto">
                             {tarea.descripcion}
                         </div>
                     )}
 
-                    {/* Adjuntos en el modal */}
+                    {/* Attachments */}
                     {tarea.adjuntos && tarea.adjuntos.length > 0 && (
                         <div className="mx-6 mb-4 mt-2 shrink-0">
                             <h4 className="text-xs font-semibold text-text-primary mb-2 flex items-center gap-1">
@@ -348,13 +379,8 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             </h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                 {tarea.adjuntos.map((adj: any, idx: number) => (
-                                    <a
-                                        key={idx}
-                                        href={adj.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-2 p-2 rounded-md bg-bg-secondary border border-border hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-colors group"
-                                    >
+                                    <a key={idx} href={adj.url} target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-2 p-2 rounded-md bg-bg-secondary border border-border hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-colors group">
                                         {adj.type?.startsWith('image/') ? (
                                             <div className="w-8 h-8 rounded shrink-0 bg-bg-tertiary overflow-hidden flex items-center justify-center border border-border">
                                                 <img src={adj.url} alt={adj.name} className="w-full h-full object-cover" />

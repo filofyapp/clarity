@@ -86,66 +86,53 @@
 }
 
 :root {
-  /* Brand Identity - Vibrant in Light Mode */
-  --brand-primary: #7C3AED;
-  --brand-primary-hover: #6D28D9;
-  --brand-primary-soft: rgba(124, 58, 237, 0.1);
-  --brand-secondary: #0891B2;
-  --brand-secondary-hover: #0E7490;
+  /* Brand Identity — Ámbar/Dorado */
+  --brand-primary: #D97706;
+  --brand-primary-hover: #B45309;
+  --brand-primary-soft: rgba(245, 158, 11, 0.10);
+  --brand-secondary: #92400E;
+  --brand-secondary-hover: #78350F;
 
   /* Classic Bright Light Mode Backgrounds */
   --bg-primary: #f8fafc;
-  /* slate-50 */
   --bg-secondary: #ffffff;
-  /* pure white for cards */
   --bg-tertiary: #eef2f7;
-  /* slightly darker slate for inputs - better distinction */
   --bg-elevated: #ffffff;
   --bg-surface: #dfe6ee;
-  /* slate-200+ for hovers - more visible */
 
-  /* Borders / Dividers - STRONGER for light mode readability */
+  /* Borders / Dividers */
   --border-subtle: rgba(0, 0, 0, 0.08);
   --border-default: rgba(0, 0, 0, 0.15);
   --border-hover: rgba(0, 0, 0, 0.22);
-  --border-focus: rgba(124, 58, 237, 0.5);
+  --border-focus: rgba(217, 119, 6, 0.5);
 
-  /* Shadows for Light Mode - more noticeable */
+  /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 6px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15);
+  --shadow-glow: 0 0 20px rgba(245, 158, 11, 0.15);
 
-  /* Text - High Contrast */
+  /* Text */
   --text-primary: #0f172a;
-  /* slate-900 */
   --text-secondary: #1e293b;
-  /* slate-800 - DARKER for better reading */
   --text-muted: #475569;
-  /* slate-600 - DARKER than before (was 500) */
-  --text-on-brand: #ffffff;
+  --text-on-brand: #000000;
 
-  /* Functional Colors - HIGH CONTRAST (Sun-readable) */
+  /* Functional Colors — High Contrast for light bg */
   --color-success: #15803d;
-  /* green-700 - deeper for white bg */
   --color-success-soft: rgba(22, 163, 74, 0.12);
   --color-warning: #c2410c;
-  /* orange-700 - deeper for white bg */
   --color-warning-soft: rgba(234, 88, 12, 0.12);
   --color-danger: #be123c;
-  /* rose-700 */
   --color-danger-soft: rgba(225, 29, 72, 0.12);
   --color-critical: #a21caf;
-  /* fuchsia-700 */
   --color-critical-soft: rgba(217, 70, 239, 0.12);
   --color-info: #0369a1;
-  /* sky-700 */
   --color-info-soft: rgba(2, 132, 199, 0.12);
   --color-neutral: #334155;
-  /* slate 700 - darker */
   --color-neutral-soft: rgba(71, 85, 105, 0.12);
 
-  /* Case State Colors (Families) - Adapting to Light mode contrast */
+  /* Case State Colors */
   --estado-ip-coordinada: var(--color-info);
   --estado-pendiente-coordinacion: var(--color-warning);
   --estado-contactado: var(--color-info);
@@ -161,67 +148,53 @@
 }
 
 .dark {
-  /* Brand Identity */
-  --brand-primary: #8B5CF6;
-  --brand-primary-hover: #7C3AED;
-  --brand-primary-soft: rgba(139, 92, 246, 0.15);
-  --brand-secondary: #06B6D4;
-  --brand-secondary-hover: #0891B2;
+  /* Brand Identity — Ámbar/Dorado */
+  --brand-primary: #F59E0B;
+  --brand-primary-hover: #FBBF24;
+  --brand-primary-soft: rgba(245, 158, 11, 0.08);
+  --brand-secondary: #D97706;
+  --brand-secondary-hover: #B45309;
 
-  /* Premium Slate-Blue Dark Mode Backgrounds */
-  --bg-primary: #0B0D17;
-  /* Deep navy-slate base */
-  --bg-secondary: #131627;
-  /* Soft blue-tinted card background */
-  --bg-tertiary: #1E2238;
-  /* Inputs and raised secondary surfaces */
-  --bg-elevated: #252A45;
-  /* Deep popovers and menus */
-  --bg-surface: #2A3152;
-  /* Hover states */
+  /* Deep Neutral Dark Backgrounds */
+  --bg-primary: #09090B;
+  --bg-secondary: #0F0F12;
+  --bg-tertiary: #141418;
+  --bg-elevated: #1A1A1F;
+  --bg-surface: #1A1A1F;
 
-  /* Borders (Extremely subtle, 1px rgba) */
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-hover: rgba(255, 255, 255, 0.2);
-  --border-focus: rgba(139, 92, 246, 0.5);
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-default: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-focus: rgba(245, 158, 11, 0.5);
 
-  /* Shadows (Depth and texture) for dark mode */
+  /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5), 0 4px 6px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.15);
+  --shadow-glow: 0 0 20px rgba(245, 158, 11, 0.15);
 
-  /* Text - Electric Contrast */
-  --text-primary: #ffffff;
-  /* Pure white */
-  --text-secondary: #cbd5e1;
-  /* slate-300 */
-  --text-muted: #94a3b8;
-  /* slate-400 */
-  --text-on-brand: #ffffff;
+  /* Text */
+  --text-primary: #F0EDF5;
+  --text-secondary: #8B8598;
+  --text-muted: #5C5670;
+  --text-on-brand: #000000;
 
-  /* Functional Colors (Vibrant / Neon / Tech) */
+  /* Functional Colors */
   --color-success: #10B981;
-  /* bright lime green */
-  --color-success-soft: rgba(16, 185, 129, 0.2);
-  --color-warning: #FACC15;
-  /* intense yellow/amber */
-  --color-warning-soft: rgba(250, 204, 21, 0.2);
-  --color-danger: #FB7185;
-  /* vivid rose/pink-red */
-  --color-danger-soft: rgba(251, 113, 133, 0.2);
+  --color-success-soft: rgba(16, 185, 129, 0.08);
+  --color-warning: #F59E0B;
+  --color-warning-soft: rgba(245, 158, 11, 0.08);
+  --color-danger: #EF4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.08);
   --color-critical: #E879F9;
-  /* electric magenta */
-  --color-critical-soft: rgba(232, 121, 249, 0.2);
-  --color-info: #38BDF8;
-  /* electric cyan-blue */
-  --color-info-soft: rgba(56, 189, 248, 0.2);
-  --color-neutral: #94a3b8;
-  /* slate 400 */
-  --color-neutral-soft: rgba(148, 163, 184, 0.15);
+  --color-critical-soft: rgba(232, 121, 249, 0.08);
+  --color-info: #6366F1;
+  --color-info-soft: rgba(99, 102, 241, 0.08);
+  --color-neutral: #5C5670;
+  --color-neutral-soft: rgba(92, 86, 112, 0.15);
 
-  /* Case State Colors (Families) */
+  /* Case State Colors */
   --estado-ip-coordinada: var(--color-info);
   --estado-pendiente-coordinacion: var(--color-warning);
   --estado-contactado: var(--color-info);
@@ -285,4 +258,55 @@
   .animate-pulse-border {
     animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
+  /* Kanban card entrance animation */
+  @keyframes card-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-card-enter {
+    animation: card-enter 300ms ease forwards;
+  }
+
+  /* Pulsing dot for unread comments */
+  @keyframes pulse-dot {
+
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.5;
+      transform: scale(0.8);
+    }
+  }
+
+  .animate-pulse-dot {
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+}
+
+/* =====================================================
+   SCOPED OVERRIDE: Inspección Remota + Seguimiento Público
+   Mantiene paleta magenta de Sancor (#D6006E) en rutas públicas
+   ===================================================== */
+.ip-magenta-theme {
+  --brand-primary: #D6006E;
+  --brand-primary-hover: #B90060;
+  --brand-primary-soft: rgba(214, 0, 110, 0.1);
+  --brand-secondary: #D6006E;
+  --brand-secondary-hover: #B90060;
+  --border-focus: rgba(214, 0, 110, 0.5);
+  --shadow-glow: 0 0 20px rgba(214, 0, 110, 0.15);
+  --text-on-brand: #ffffff;
 }

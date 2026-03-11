@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCorners, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { TareaCard, EstadoTarea } from "./TareaCard";
-import { Circle, Clock, CheckCircle2, Filter } from "lucide-react";
+import { Circle, Clock, CheckCircle2, Filter, Flame } from "lucide-react";
 import { updateTareaEstado } from "@/app/(dashboard)/tareas/actions";
 import { toast } from "sonner";
 
@@ -15,15 +15,15 @@ interface KanbanBoardProps {
     currentUserNombre: string;
 }
 
-const COLUMNS: { id: EstadoTarea; label: string; icon: any; borderColor: string; badgeColor: string }[] = [
-    { id: "pendiente", label: "Pendiente", icon: Circle, borderColor: "border-transparent", badgeColor: "bg-danger/10 text-danger" },
-    { id: "en_proceso", label: "En Proceso", icon: Clock, borderColor: "border-transparent", badgeColor: "bg-info/10 text-color-info" },
-    { id: "resuelta", label: "Resuelta", icon: CheckCircle2, borderColor: "border-transparent", badgeColor: "bg-success/10 text-color-success" },
+const COLUMNS: { id: EstadoTarea; label: string; icon: any; dotColor: string }[] = [
+    { id: "pendiente", label: "Pendiente", icon: Circle, dotColor: "bg-amber-500" },
+    { id: "en_proceso", label: "En Proceso", icon: Clock, dotColor: "bg-indigo-500" },
+    { id: "resuelta", label: "Resuelta", icon: CheckCircle2, dotColor: "bg-emerald-500" },
 ];
 
 export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, currentUserNombre }: KanbanBoardProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
-    const [filtro, setFiltro] = useState<"todas" | "mias" | "creadas">("todas");
+    const [filtro, setFiltro] = useState<"todas" | "mias" | "creadas" | "urgentes">("todas");
     const [showAllResueltas, setShowAllResueltas] = useState(false);
 
     const sensors = useSensors(
@@ -34,6 +34,7 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
     const tareasFiltradas = tareas.filter(t => {
         if (filtro === "mias") return t.asignado_id === currentUserId;
         if (filtro === "creadas") return t.creador_id === currentUserId;
+        if (filtro === "urgentes") return t.prioridad === "urgente" || t.prioridad === "alfredo";
         return true;
     });
 
@@ -55,11 +56,9 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
         const tarea = tareas.find(t => t.id === tareaId);
         if (!tarea) return;
 
-        // over.id is the column id (estado)
         const nuevoEstado = over.id as string;
         if (nuevoEstado === tarea.estado) return;
 
-        // Validate: only admin or assignee can move
         if (tarea.asignado_id !== currentUserId && currentUserRol !== "admin") {
             toast.error("Solo el asignado o un admin puede mover tareas.");
             return;
@@ -74,68 +73,81 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
         }
     };
 
+    const FILTROS = [
+        { key: "todas", label: "Todas" },
+        { key: "mias", label: "Asignadas a mí" },
+        { key: "creadas", label: "Creadas por mí" },
+        { key: "urgentes", label: "Urgentes", icon: Flame },
+    ];
+
     return (
         <div className="space-y-4">
-            {/* Filtro */}
-            <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-text-muted" />
-                {[
-                    { key: "todas", label: "Todas" },
-                    { key: "mias", label: "Asignadas a mí" },
-                    { key: "creadas", label: "Creadas por mí" },
-                ].map(f => (
-                    <button key={f.key}
-                        onClick={() => setFiltro(f.key as any)}
-                        className={`text-xs px-3 py-1.5 rounded-full transition-colors ${filtro === f.key
-                            ? "bg-brand-primary/20 text-brand-primary font-medium"
-                            : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
-                            }`}
-                    >{f.label}</button>
-                ))}
+            {/* Filter Pills */}
+            <div className="flex items-center gap-2 flex-wrap">
+                {FILTROS.map(f => {
+                    const isActive = filtro === f.key;
+                    const Icon = (f as any).icon;
+                    return (
+                        <button key={f.key}
+                            onClick={() => setFiltro(f.key as any)}
+                            className={`text-xs px-3.5 py-1.5 rounded-full transition-all border font-medium flex items-center gap-1.5 ${isActive
+                                ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                                : "border-border-subtle text-text-muted hover:text-text-primary hover:border-border-default hover:bg-bg-tertiary"
+                                }`}
+                        >
+                            {Icon && <Icon className="w-3 h-3" />}
+                            {f.label}
+                        </button>
+                    );
+                })}
             </div>
 
             <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                    {COLUMNS.map(col => {
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                    {COLUMNS.map((col, colIdx) => {
                         const columnTareas = getTareasByEstado(col.id);
 
                         let visibleTareas = columnTareas;
                         if (col.id === "resuelta" && !showAllResueltas) {
-                            visibleTareas = columnTareas.slice(0, 3);
+                            visibleTareas = columnTareas.slice(0, 5);
                         }
 
                         const Icon = col.icon;
                         return (
-                            <DroppableColumn key={col.id} id={col.id} borderColor={col.borderColor}>
-                                <div className="flex items-center justify-between border-b border-border/50 pb-2 mb-4">
-                                    <h3 className="font-semibold text-text-primary flex items-center gap-2">
-                                        <Icon className={`w-4 h-4 ${col.id === "pendiente" ? "text-danger fill-danger/20" : col.id === "en_proceso" ? "text-color-info" : "text-color-success"}`} />
+                            <DroppableColumn key={col.id} id={col.id} colIdx={colIdx}>
+                                <div className="flex items-center justify-between pb-3 mb-2">
+                                    <h3 className="font-semibold text-text-primary flex items-center gap-2 text-sm">
+                                        <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
                                         {col.label}
                                     </h3>
-                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${col.badgeColor}`}>{columnTareas.length}</span>
+                                    <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-bg-tertiary text-text-secondary border border-border-subtle">{columnTareas.length}</span>
                                 </div>
-                                {visibleTareas.map(t => (
-                                    <DraggableCard key={t.id} id={t.id}>
-                                        <TareaCard
-                                            tarea={t}
-                                            usuarios={usuarios}
-                                            isAsignee={t.asignado_id === currentUserId || currentUserRol === "admin"}
-                                            currentUserId={currentUserId}
-                                            currentUserNombre={currentUserNombre}
-                                            currentUserRol={currentUserRol}
-                                        />
-                                    </DraggableCard>
-                                ))}
-                                {col.id === "resuelta" && columnTareas.length > 3 && (
+                                <div className="flex flex-col gap-1.5">
+                                    {visibleTareas.map((t, idx) => (
+                                        <DraggableCard key={t.id} id={t.id}>
+                                            <div className="animate-card-enter" style={{ animationDelay: `${idx * 50}ms`, opacity: 0 }}>
+                                                <TareaCard
+                                                    tarea={t}
+                                                    usuarios={usuarios}
+                                                    isAsignee={t.asignado_id === currentUserId || currentUserRol === "admin"}
+                                                    currentUserId={currentUserId}
+                                                    currentUserNombre={currentUserNombre}
+                                                    currentUserRol={currentUserRol}
+                                                />
+                                            </div>
+                                        </DraggableCard>
+                                    ))}
+                                </div>
+                                {col.id === "resuelta" && columnTareas.length > 5 && (
                                     <button
                                         onClick={() => setShowAllResueltas(!showAllResueltas)}
-                                        className="w-full mt-2 py-2 text-xs font-semibold text-brand-primary border border-brand-primary/20 rounded-lg hover:bg-brand-primary/10 transition-colors"
+                                        className="w-full mt-3 py-2 text-xs font-semibold text-brand-primary border border-brand-primary/20 rounded-lg hover:bg-brand-primary/10 transition-colors"
                                     >
                                         {showAllResueltas ? "Ocultar Anteriores" : `Mostrar todas (${columnTareas.length})`}
                                     </button>
                                 )}
                                 {columnTareas.length === 0 && (
-                                    <p className="text-xs text-text-muted text-center py-8">
+                                    <p className="text-xs text-text-muted text-center py-10">
                                         {col.id === "pendiente" ? "Sin tareas pendientes" : col.id === "en_proceso" ? "Sin tareas en proceso" : "Sin tareas resueltas"}
                                     </p>
                                 )}
@@ -159,18 +171,14 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
 // Droppable Column
 import { useDroppable } from "@dnd-kit/core";
 
-function DroppableColumn({ id, children, borderColor }: { id: string; children: React.ReactNode; borderColor: string }) {
+function DroppableColumn({ id, children, colIdx }: { id: string; children: React.ReactNode; colIdx: number }) {
     const { setNodeRef, isOver } = useDroppable({ id });
-
-    let bgColor = "bg-bg-tertiary/20";
-    if (id === "pendiente") bgColor = "bg-danger/5";
-    else if (id === "en_proceso") bgColor = "bg-info/5";
-    else if (id === "resuelta") bgColor = "bg-success/5";
 
     return (
         <div
             ref={setNodeRef}
-            className={`flex flex-col gap-2 p-3 sm:p-4 rounded-xl min-h-[500px] border ${borderColor} transition-colors ${bgColor} ${isOver ? "ring-2 ring-brand-primary" : ""}`}
+            className={`flex flex-col p-3 sm:p-4 rounded-[14px] min-h-[400px] bg-bg-secondary border border-border-subtle transition-all animate-card-enter ${isOver ? "ring-2 ring-brand-primary/50 border-brand-primary/30" : ""}`}
+            style={{ animationDelay: `${colIdx * 80}ms`, opacity: 0 }}
         >
             {children}
         </div>

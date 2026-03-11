@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { CheckSquare } from "lucide-react";
+import { KanbanSquare } from "lucide-react";
 import { KanbanBoard } from "@/components/tareas/KanbanBoard";
 import { TareaForm } from "@/components/tareas/TareaForm";
 
@@ -44,10 +44,10 @@ export default async function TareasDashboard() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-                        <CheckSquare className="w-6 h-6 text-brand-secondary" />
+                        <KanbanSquare className="w-6 h-6 text-brand-primary" />
                         Tablero de Tareas
                     </h1>
-                    <p className="text-text-muted mt-1 text-sm">Organización y comunicación asincrónica operativa del estudio.</p>
+                    <p className="text-text-muted mt-1 text-sm">Organización y comunicación asincrónica del estudio</p>
                 </div>
 
                 <div className="flex gap-3 relative z-50">

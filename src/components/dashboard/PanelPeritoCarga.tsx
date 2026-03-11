@@ -13,7 +13,7 @@ export async function PanelPeritoCarga({ userId }: Props) {
     // Mis casos como perito de carga
     const { data: misCasos } = await supabase
         .from("casos")
-        .select("id, numero_siniestro, estado, dominio, marca, modelo, tipo_inspeccion, monto_facturado_estudio, monto_pagado_perito_carga, updated_at")
+        .select("id, numero_siniestro, estado, dominio, marca, modelo, tipo_inspeccion, monto_facturado_estudio, monto_pagado_perito_carga, updated_at, fecha_cierre")
         .eq("perito_carga_id", userId)
         .order("updated_at", { ascending: false });
 
@@ -29,10 +29,21 @@ export async function PanelPeritoCarga({ userId }: Props) {
         return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     };
 
-    const totalFacturado = casos
-        .filter(c => c.estado === "facturada" && isThisMonth(c.updated_at))
-        .reduce((s, c) => s + (c.monto_pagado_perito_carga || 0), 0);
-    // IMPORTANTE: Aseguramos la suma correcta para Jairo sumando montos pagados a peritos de carga que apliquen.
+    const casosCerradosMes = casos.filter(c =>
+        (c.estado === "ip_cerrada" || c.estado === "facturada") &&
+        isThisMonth(c.fecha_cierre)
+    );
+
+    const totalFacturado = casosCerradosMes.reduce((s, c) => s + (c.monto_pagado_perito_carga || 0), 0);
+
+    // Desglose por tipo
+    const desglose = casosCerradosMes.reduce((acc, c) => {
+        const tipo = c.tipo_inspeccion || "otros";
+        if (!acc[tipo]) acc[tipo] = { count: 0, sum: 0 };
+        acc[tipo].count += 1;
+        acc[tipo].sum += (c.monto_pagado_perito_carga || 0);
+        return acc;
+    }, {} as Record<string, { count: number, sum: number }>);
 
     // Tareas
     const { data: tareasPendientes } = await supabase
@@ -53,7 +64,28 @@ export async function PanelPeritoCarga({ userId }: Props) {
                 <KpiCard icon={AlertTriangle} label="Pdte. Carga" value={pendientes.length.toString()} color="text-danger" />
                 <KpiCard icon={Clock} label="En Proceso" value={enProceso.length.toString()} color="text-color-warning" />
                 <KpiCard icon={CheckCircle2} label="Cerrados" value={cerrados.length.toString()} color="text-color-success" />
-                <KpiCard icon={TrendingUp} label="Cobrado (mes)" value={formatCurrency(totalFacturado)} color="text-brand-secondary" />
+
+                {/* Cobrado KPI con Tooltip / Popover Desglose */}
+                <div className="bg-bg-secondary border border-border rounded-xl p-4 flex flex-col group relative">
+                    <div className="flex items-center gap-2 text-text-muted text-xs mb-1">
+                        <TrendingUp className="w-3.5 h-3.5" /> Generado (Mes)
+                    </div>
+                    <p className={`text-2xl font-bold text-brand-secondary`}>{formatCurrency(totalFacturado)}</p>
+                    {/* Tooltip Hover Breakdown */}
+                    {Object.keys(desglose).length > 0 && (
+                        <div className="absolute top-full left-0 mt-2 w-full bg-bg-elevated border border-border p-3 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                            <h4 className="text-[10px] uppercase font-bold text-text-muted mb-2 border-b border-border pb-1">Desglose de Ingresos</h4>
+                            <div className="space-y-1.5">
+                                {Object.entries(desglose).map(([tipo, data]) => (
+                                    <div key={tipo} className="flex items-center justify-between text-xs">
+                                        <span className="capitalize text-text-secondary">{tipo.replace(/_/g, " ")} ({data.count})</span>
+                                        <span className="font-semibold text-text-primary">{formatCurrency(data.sum)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Cola pendiente_carga */}

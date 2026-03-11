@@ -70,18 +70,15 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0, userName = "Us
                     </div>
                 </div>
 
-                {/* Finanzas — admin & carga */}
-                {(userRoles.includes("admin") || userRoles.includes("carga")) && (
+                {/* Finanzas — solo admin */}
+                {userRoles.includes("admin") && (
                     <div>
                         {!isCollapsed ? (
                             <h4 className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted font-outfit">Finanzas</h4>
                         ) : <div className="h-4" />}
                         <div className="space-y-1">
-                            {/* Carga also needs to see Facturación to check their numbers */}
                             <SidebarItem href="/facturacion" icon={BadgeDollarSign} label="Facturación" pathname={pathname} isCollapsed={isCollapsed} />
-                            {userRoles.includes("admin") && (
-                                <SidebarItem href="/reportes" icon={BarChart3} label="Reportes" pathname={pathname} isCollapsed={isCollapsed} />
-                            )}
+                            <SidebarItem href="/reportes" icon={BarChart3} label="Reportes" pathname={pathname} isCollapsed={isCollapsed} />
                         </div>
                     </div>
                 )}

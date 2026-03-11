@@ -39,8 +39,9 @@ export async function updateSession(request: NextRequest) {
     const isPublicInspeccion = request.nextUrl.pathname.startsWith('/ip/')
     const isPublicAPI = request.nextUrl.pathname.startsWith('/api/inspeccion-remota/')
     const isPublicSeguimiento = request.nextUrl.pathname.startsWith('/seguimiento/')
+    const isPublicCron = request.nextUrl.pathname.startsWith('/api/cron/')
 
-    if (!user && !isAuthRoute && !isPublicInspeccion && !isPublicAPI && !isPublicSeguimiento) {
+    if (!user && !isAuthRoute && !isPublicInspeccion && !isPublicAPI && !isPublicSeguimiento && !isPublicCron) {
         // no user, potentially respond by redirecting the user to the login page
         const url = request.nextUrl.clone()
         url.pathname = '/login'

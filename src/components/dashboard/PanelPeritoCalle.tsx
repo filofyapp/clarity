@@ -13,7 +13,7 @@ export async function PanelPeritoCalle({ userId }: Props) {
     // Mis casos como perito de calle
     const { data: misCasos } = await supabase
         .from("casos")
-        .select("id, numero_siniestro, estado, dominio, marca, modelo, fecha_inspeccion_programada, tipo_inspeccion, localidad, updated_at")
+        .select("id, numero_siniestro, estado, dominio, marca, modelo, fecha_inspeccion_programada, fecha_inspeccion_real, tipo_inspeccion, monto_pagado_perito_calle, localidad, updated_at")
         .eq("perito_calle_id", userId)
         .order("updated_at", { ascending: false });
 
@@ -28,11 +28,25 @@ export async function PanelPeritoCalle({ userId }: Props) {
     });
 
     const cerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
-    const totalMes = casos.filter(c => {
-        const d = new Date(c.updated_at);
-        const ahora = new Date();
-        return d.getMonth() === ahora.getMonth() && d.getFullYear() === ahora.getFullYear();
-    });
+
+    const now = new Date();
+    const isThisMonth = (d: string | null) => {
+        if (!d) return false;
+        const date = new Date(d);
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    };
+
+    const totalMesCasos = casos.filter(c => isThisMonth(c.fecha_inspeccion_real) && (c.monto_pagado_perito_calle || 0) > 0);
+    const totalFacturado = totalMesCasos.reduce((s, c) => s + (c.monto_pagado_perito_calle || 0), 0);
+
+    // Desglose por tipo
+    const desglose = totalMesCasos.reduce((acc, c) => {
+        const tipo = c.tipo_inspeccion || "otros";
+        if (!acc[tipo]) acc[tipo] = { count: 0, sum: 0 };
+        acc[tipo].count += 1;
+        acc[tipo].sum += (c.monto_pagado_perito_calle || 0);
+        return acc;
+    }, {} as Record<string, { count: number, sum: number }>);
 
     // Tareas
     const { data: tareasPendientes } = await supabase
@@ -52,8 +66,29 @@ export async function PanelPeritoCalle({ userId }: Props) {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <KpiCard icon={Briefcase} label="Casos Activos" value={activos.length.toString()} color="text-color-warning" />
                 <KpiCard icon={Calendar} label="IP Próximas" value={hoyManana.length.toString()} color="text-brand-primary" />
-                <KpiCard icon={CheckCircle2} label="Cerrados" value={cerrados.length.toString()} color="text-color-success" />
-                <KpiCard icon={TrendingUp} label="Este Mes" value={totalMes.length.toString()} />
+                <KpiCard icon={CheckCircle2} label="Realizadas" value={cerrados.length.toString()} color="text-color-success" />
+
+                {/* Cobrado KPI con Tooltip / Popover Desglose */}
+                <div className="bg-bg-secondary border border-border rounded-xl p-4 flex flex-col group relative">
+                    <div className="flex items-center gap-2 text-text-muted text-xs mb-1">
+                        <TrendingUp className="w-3.5 h-3.5" /> Generado (Mes)
+                    </div>
+                    <p className={`text-2xl font-bold text-brand-secondary`}>{formatCurrency(totalFacturado)}</p>
+                    {/* Tooltip Hover Breakdown */}
+                    {Object.keys(desglose).length > 0 && (
+                        <div className="absolute top-full left-0 mt-2 w-full bg-bg-elevated border border-border p-3 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                            <h4 className="text-[10px] uppercase font-bold text-text-muted mb-2 border-b border-border pb-1">Desglose de Ingresos (Cobrará este mes)</h4>
+                            <div className="space-y-1.5">
+                                {Object.entries(desglose).map(([tipo, data]) => (
+                                    <div key={tipo} className="flex items-center justify-between text-xs">
+                                        <span className="capitalize text-text-secondary">{tipo.replace(/_/g, " ")} ({data.count})</span>
+                                        <span className="font-semibold text-text-primary">{formatCurrency(data.sum)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Próximas inspecciones */}

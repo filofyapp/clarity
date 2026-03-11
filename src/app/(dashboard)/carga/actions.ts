@@ -12,11 +12,12 @@ export async function getCasosParaCarga() {
 
     const { data: usuario } = await supabase
         .from('usuarios')
-        .select('rol')
+        .select('rol, roles')
         .eq('id', userData.user.id)
         .single();
 
-    if (!usuario || (usuario.rol !== 'admin' && usuario.rol !== 'carga')) {
+    const roles = usuario?.roles || [usuario?.rol];
+    if (!usuario || (!roles.includes('admin') && !roles.includes('carga'))) {
         return { error: "Acceso denegado: Se requiere rol de Carga o Administrador." };
     }
 

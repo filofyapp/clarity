@@ -88,9 +88,11 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0 }: SidebarClien
                     ) : <div className="h-4" />}
                     <div className="space-y-1">
                         <SidebarItem href="/directorio/talleres" icon={Wrench} label="Talleres" pathname={pathname} isCollapsed={isCollapsed} />
+                        {userRoles.includes("admin") && (
+                            <SidebarItem href="/directorio/peritos" icon={UserSquare2} label="Peritos" pathname={pathname} isCollapsed={isCollapsed} />
+                        )}
                         {(userRoles.includes("admin") || userRoles.includes("carga")) && (
                             <>
-                                <SidebarItem href="/directorio/peritos" icon={UserSquare2} label="Peritos" pathname={pathname} isCollapsed={isCollapsed} />
                                 <SidebarItem href="/directorio/gestores" icon={Users} label="Gestores" pathname={pathname} isCollapsed={isCollapsed} />
                                 <SidebarItem href="/directorio/repuesteros" icon={CarFront} label="Repuesteros" pathname={pathname} isCollapsed={isCollapsed} />
                                 <SidebarItem href="/directorio/credenciales" icon={LockKeyhole} label="Credenciales" pathname={pathname} isCollapsed={isCollapsed} />
@@ -117,7 +119,7 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0 }: SidebarClien
                         </div>
                         <div className="flex flex-col overflow-hidden">
                             <span className="text-sm font-medium text-text-primary truncate font-outfit">Usuario</span>
-                            <span className="text-[10px] text-text-muted uppercase tracking-wider truncate" title={userRoles.join(", ")}>{userRoles[0] || "Invitado"}</span>
+                            <span className="text-[10px] text-text-muted uppercase tracking-wider truncate" title={userRoles.join(", ")}>{userRoles.join("/")}</span>
                         </div>
                     </div>
 

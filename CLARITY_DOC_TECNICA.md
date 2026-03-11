@@ -597,7 +597,19 @@ POR QUE: Sancor requiere un aviso automático en cada paso del proceso (Contacto
 COMO: (1) Se creó migración `019_fase16_...sql` para las tablas `mail_queue` (buffers 3-minutos antivampiro), `mail_templates` (Editor visual), `respuestas_gestor`, y `seguimiento_tokens`. (2) Hooks en `acciones.ts` (`crearCaso`, `cambiarEstadoCaso`) que evalúan e inyectan templates encolados, interrumpiendo redundancias. (3) Creación de Cron endpoints `/api/cron/` procesando mediante REST API calls a `gmail.googleapis.com` simulando el envío via Threading asíncrono. (4) Rediseñado Settings de "Notificaciones" en UI para soportar variables (`{{siniestro}}`, etc.). (5) Nueva ruta `/seguimiento/[token]` pública, read-only y mobile-first con Timeline interactivo. (6) Banner UI de Respuestas de Gestores incrustado encima de la data del Vehículo en el Detalle del Siniestro y Tabla principal.
 ARCHIVOS AFECTADOS: `mail_queue.ts`, `gmail.ts`, `templates.ts`, varios actions, `GestorRepliesBanner.tsx`, `MailTemplatesEditor.tsx`, `019_fase16_notificaciones_email.sql`.
 EFECTOS COLATERALES: Ninguno perjudicial. Permite alta configurabilidad pero depende de configuraciones OAuth externas de Google (Secret/Refresh keys provistas por ENV).
-TESTEADO: `npm run build` Ok sin errores de Transpilación ni Linting. Testing de lógica base y cron handlers.
+FECHA: 10/03/2026
+QUE SE CAMBIO: Bugfixing general pre-pull request (Notas Badge, Data Migration facturación, Filtros de Fecha avanzados, Roles Peritos).
+POR QUE: Los siniestros facturados de la migración no reflejaban el estado correcto ("facturada" o "ip_cerrada"), los usuarios tenían problemas notando si un caso tenía notas ocultas en la lupa, ciertos peritos de carga con multi-rol ("Jairo") no listaban en el dropdown, y la tabla de Casos requería que la columna principal de fecha sea dinámica frente al dropdown de filtrado elegido.
+COMO: 
+1. Ejecución de script `tmp/fix_estados.js` actualizando map DB ("IP CERRADA"->"facturada", "PARA FACTURAR"->"ip_cerrada").
+2. Modificado `CasosTable.tsx`: Se añadió borde de lectura visual rápida (`border-l-[3px] border-l-brand-primary`) en filas con `notas_admin`.
+3. Modificado `CasosTable.tsx`: El primer Th "Ingreso" muta su Value nativo por (`fecha_carga_sistema`|`fecha_cierre`|etc) en función del select nativo `filterDateType`, mostrándose automáticamente la fecha extraída y formateada en esa columna sin que el usuario deba adivinar de qué fecha se trata la renderizada.
+4. Extendido `getPeritos()` (en `actions.ts`) integrando el selector del column JSON `roles` a la par del viejo column text `rol`.
+5. Patcheados TS Errors residuales huérfanos preexistentes (`deleteTarea` no implementada, y condicionales opcionales de render de la tabla Peritos).
+ARCHIVOS AFECTADOS: `CasosTable.tsx`, `actions.ts` (casos, tareas), `page.tsx` (directorio), `tmp/fix_estados.js`.
+EFECTOS COLATERALES: Ninguno perjudicial. Resuelve bloqueos de la UI en tareas y mejora el filtrado general multi-date.
+TESTEADO: `npx tsc --noEmit` local arrojando Exit Code 0. Queries hot-swap en DB ejecutadas ok.
+
 
 ---
 

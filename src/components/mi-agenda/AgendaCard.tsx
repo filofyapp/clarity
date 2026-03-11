@@ -7,6 +7,8 @@ import { useState, useTransition } from "react";
 import { marcarInspeccionRealizada } from "@/app/(dashboard)/casos/[id]/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface AgendaCardProps {
     caso: any;
@@ -47,11 +49,22 @@ export function AgendaCard({ caso }: AgendaCardProps) {
         );
     }
 
+    const formatDateLocal = (dateStr: string) => {
+        if (!dateStr) return "Fecha a definir";
+        const safeDateStr = dateStr.includes("T") ? dateStr : `${dateStr}T12:00:00`;
+        return format(new Date(safeDateStr), "EEEE d 'de' MMMM", { locale: es });
+    };
+
     return (
         <div className="bg-bg-secondary border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 border-b border-border bg-bg-tertiary flex justify-between items-center">
-                <div>
-                    <h3 className="font-bold text-lg text-text-primary">{caso.numero_siniestro}</h3>
+                <div className="w-full">
+                    <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-bold text-lg text-text-primary">{caso.numero_siniestro}</h3>
+                        <span className="text-xs font-medium text-brand-secondary bg-brand-primary/10 px-2 py-1 rounded-md border border-brand-primary/20 capitalize">
+                            {formatDateLocal(caso.fecha_inspeccion_programada)}
+                        </span>
+                    </div>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="bg-bg-primary font-mono text-xs px-2 py-0.5 rounded text-text-primary uppercase flex items-center gap-1">
                             <Car className="w-3 h-3" /> {caso.dominio || "S/D"}
@@ -95,21 +108,12 @@ export function AgendaCard({ caso }: AgendaCardProps) {
                         <Phone className="w-4 h-4 mr-2 text-text-muted" /> Llamar
                     </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                     <Link href={`/casos/${caso.id}`}>
-                        <Button variant="outline" className="w-full h-10 text-xs border-border bg-bg-tertiary">
+                        <Button variant="outline" className="w-full h-11 text-xs font-semibold border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white transition-colors">
                             Ver Expediente
                         </Button>
                     </Link>
-                    <Button
-                        onClick={handleInspeccionRealizada}
-                        disabled={isPending}
-                        className="w-full h-10 bg-success hover:bg-success/90 text-white text-xs"
-                    >
-                        {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                            <><CheckCircle2 className="w-4 h-4 mr-1" /> IP Realizada</>
-                        )}
-                    </Button>
                 </div>
             </div>
         </div>

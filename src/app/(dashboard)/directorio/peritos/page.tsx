@@ -14,10 +14,11 @@ export default async function PeritosPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Validar Admin / Carga
+    // Validar Admin
     if (!user) redirect("/login");
-    const { data: usuarioData } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
-    if (usuarioData?.rol !== "admin" && usuarioData?.rol !== "carga") {
+    const { data: usuarioData } = await supabase.from("usuarios").select("rol, roles").eq("id", user.id).single();
+    const roles = usuarioData?.roles || [usuarioData?.rol];
+    if (!roles.includes("admin")) {
         redirect("/dashboard");
     }
 
@@ -35,23 +36,21 @@ export default async function PeritosPage() {
                         Control de credenciales, roles y acceso al sistema para peritos de calle y carga.
                     </p>
                 </div>
-                {usuarioData.rol === "admin" && (
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <div className="relative flex-1 sm:w-64">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-muted" />
-                            <Input
-                                type="search"
-                                placeholder="Buscar perito..."
-                                className="pl-9 bg-bg-tertiary border-border focus-visible:ring-brand-primary h-9"
-                            />
-                        </div>
-                        <PeritoFormDialog />
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-text-muted" />
+                        <Input
+                            type="search"
+                            placeholder="Buscar perito..."
+                            className="pl-9 bg-bg-tertiary border-border focus-visible:ring-brand-primary h-9"
+                        />
                     </div>
-                )}
+                    <PeritoFormDialog />
+                </div>
             </div>
 
             <div className="rounded-md border border-border bg-card shadow-sm">
-                <PeritosTable peritos={peritos} isReadOnly={usuarioData.rol !== "admin"} />
+                <PeritosTable peritos={peritos} isReadOnly={usuarioData?.rol !== "admin"} />
             </div>
         </div>
     );

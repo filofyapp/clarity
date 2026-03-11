@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EstadoBadge } from "@/components/casos/EstadoBadge";
 import { TimelineExpediente } from "@/components/casos/TimelineExpediente";
+import { Trash2 } from "lucide-react";
 
 import { TareaForm } from "./TareaForm";
 
@@ -144,6 +145,19 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
         });
     };
 
+    const handleDelete = () => {
+        if (!confirm("¿Seguro que querés eliminar esta tarea? Se borrarán sus comentarios y adjuntos.")) return;
+        startTransition(async () => {
+            const { deleteTarea } = await import("@/app/(dashboard)/tareas/actions");
+            const result = await deleteTarea(tarea.id);
+            if (result.error) {
+                toast.error(result.error);
+            } else {
+                toast.success("Tarea eliminada");
+            }
+        });
+    };
+
     return (
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <div
@@ -183,32 +197,42 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             <button
                                 onClick={handleAvanzarEstado}
                                 disabled={isPending}
-                                className="text-text-muted hover:text-color-success p-1 bg-bg-secondary hover:bg-color-success/10 rounded-md transition-colors"
+                                className="text-text-muted hover:text-color-success p-1.5 bg-bg-secondary hover:bg-color-success/10 rounded-md transition-colors"
                                 title={tarea.estado === "pendiente" ? "Tomar Tarea" : "Resolver Tarea"}
                             >
-                                <CheckCircle2 className="w-3 h-3" />
+                                <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                        )}
+                        {(currentUserRol === "admin" || currentUserId === tarea.creador_id) && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                                disabled={isPending}
+                                className="text-text-muted hover:text-danger p-1.5 bg-bg-secondary hover:bg-danger/10 rounded-md transition-colors ml-1"
+                                title="Eliminar tarea"
+                            >
+                                <Trash2 className="w-4 h-4" />
                             </button>
                         )}
                     </div>
                 </div>
                 {/* 2. Título & Urgencia */}
-                <div className="flex items-start gap-2 pr-4">
-                    <h4 className="font-bold text-text-primary text-[13px] leading-tight flex-1">{tarea.titulo}</h4>
-                    <Badge variant="outline" className={`capitalize text-[9px] px-1.5 py-0 border-none h-4 flex items-center shrink-0 shadow-sm ${getPrioridadColor(tarea.prioridad)}`}>
+                <div className="flex items-start gap-2 pr-2 mt-1">
+                    <h4 className="font-bold text-text-primary text-[14px] leading-snug flex-1">{tarea.titulo}</h4>
+                    <Badge variant="outline" className={`capitalize text-[10px] px-2 py-0 border-none h-5 flex items-center shrink-0 shadow-sm ${getPrioridadColor(tarea.prioridad)}`}>
                         {tarea.prioridad === "alfredo" && "🔥 "}{tarea.prioridad}
                     </Badge>
                 </div>
 
                 {/* 3. Extracto Descripción */}
                 {tarea.descripcion && (
-                    <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed">
+                    <p className="text-[12px] text-text-muted line-clamp-2 leading-relaxed mt-1">
                         {tarea.descripcion}
                     </p>
                 )}
 
                 {/* 4. Fecha, Creador (Texto sutil) y Avatar de Asignado */}
-                <div className="flex justify-between items-end pt-2 mt-auto">
-                    <div className="flex items-center gap-2 text-[10px] text-text-muted/60">
+                <div className="flex justify-between items-end pt-3 mt-auto">
+                    <div className="flex items-center gap-2 text-[11px] text-text-muted/80">
                         <span className="flex items-center gap-0.5" title="Fecha de creación">
                             <Clock className="w-3 h-3" /> {format(new Date(tarea.created_at), "dd/MM HH:mm")}
                         </span>

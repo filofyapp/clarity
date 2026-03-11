@@ -19,11 +19,12 @@ export default async function CredencialesPage() {
     // Role verification (Admin/Carga)
     const { data: userData } = await supabase
         .from("usuarios")
-        .select("rol")
+        .select("rol, roles")
         .eq("id", user.id)
         .single();
 
-    if (userData?.rol !== "admin" && userData?.rol !== "carga") {
+    const roles = userData?.roles || [userData?.rol];
+    if (!roles.includes("admin") && !roles.includes("carga")) {
         return (
             <div className="flex h-[400px] flex-col items-center justify-center p-8 bg-card rounded-md border border-border mt-12 text-center">
                 <Shield className="h-16 w-16 text-danger mb-4 opacity-80" />

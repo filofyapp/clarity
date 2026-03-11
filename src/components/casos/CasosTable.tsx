@@ -268,11 +268,16 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         return { iniciales: iniciales.toUpperCase(), nombre };
     };
 
-    const formatDateVal = (dateStr: string) => {
+    const formatDateVal = (dateStr: string | null) => {
         if (!dateStr) return "-";
-        // Si el dateStr es solo YYYY-MM-DD sin tiempo, forzamos tiempo local al mediodía para evitar UTC shift
-        const safeDateStr = dateStr.includes("T") ? dateStr : `${dateStr}T12:00:00`;
-        return format(new Date(safeDateStr), "dd/MM/yy");
+        try {
+            // Si el dateStr es solo YYYY-MM-DD sin tiempo, forzamos tiempo local al mediodía para evitar UTC shift
+            const safeDateStr = dateStr.includes("T") ? dateStr : `${dateStr}T12:00:00`;
+            return format(new Date(safeDateStr), "dd/MM/yy");
+        } catch (error) {
+            console.error("Error formatting date:", dateStr, error);
+            return "-";
+        }
     };
 
     return (
@@ -288,16 +293,6 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         <button onClick={() => toggleLayout("grid")} className={`p-1.5 rounded ${layoutMode === "grid" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista de Tarjetas">
                             <LayoutGrid className="w-4 h-4" />
                         </button>
-                    </div>
-
-                    <div className="relative w-full max-w-sm">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-                        <Input
-                            placeholder="Buscar N°, Dominio, Vehículo..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9 h-9 bg-bg-primary border-border focus:border-brand-primary/50 text-sm"
-                        />
                     </div>
                 </div>
 
@@ -480,7 +475,9 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                     <div className="min-w-max w-full flex flex-col pointer-events-auto">
                         {/* THEAD */}
                         <div className="flex sticky top-0 z-20 bg-bg-secondary shadow-[0_1px_0_var(--tw-shadow-color)] shadow-border font-medium text-[12px] text-text-secondary uppercase select-none backdrop-blur-md">
-                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_derivacion')}>Ingreso <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="w-[80px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort(filterDateType)}>
+                                {filterDateType === 'fecha_derivacion' ? 'Ingreso' : filterDateType === 'fecha_inspeccion_programada' ? 'IP Prog.' : filterDateType === 'fecha_carga_sistema' ? 'Carga' : 'Cierre'} <ArrowUpDown className="w-3 h-3" />
+                            </div>
                             <div className="w-[120px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('numero_siniestro')}>Siniestro <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('numero_servicio')}>Servicio <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[170px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('estado')}>Estado <ArrowUpDown className="w-3 h-3" /></div>
@@ -498,7 +495,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_inspeccion_programada')}>Fecha IP <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_carga_sistema')}>F. Carga <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[100px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_cierre')}>F. Cierre <ArrowUpDown className="w-3 h-3" /></div>
-                            <div className="flex-1 min-w-[150px] shrink-0 px-2 py-2.5 flex items-center justify-end gap-1 font-bold tracking-wider text-brand-primary">Acc.</div>
+                            <div className="w-[110px] shrink-0 px-2 py-2.5 flex items-center justify-center gap-1 font-bold tracking-wider text-brand-primary">Acc.</div>
                         </div>
                         {/* TBODY VIRTUALIZED */}
                         <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }} className="w-full">
@@ -517,11 +514,11 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                 return (
                                     <div
                                         key={caso.id}
-                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor} ${isFacturada ? "opacity-75 grayscale" : ""}`}
+                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor} ${isFacturada ? "opacity-75 grayscale" : ""} ${caso.notas_admin ? "border-l-[3px] border-l-brand-primary" : "border-l-[3px] border-l-transparent"}`}
                                         style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
                                     >
                                         <div className={`w-[80px] shrink-0 px-2 py-1 text-[12px] whitespace-nowrap ${textMuted}`}>
-                                            {formatDateVal(caso.fecha_derivacion)}
+                                            {formatDateVal(caso[filterDateType as keyof typeof caso] as string | null)}
                                         </div>
 
                                         <div className="w-[120px] shrink-0 px-2 py-1 flex items-center group/cell relative">

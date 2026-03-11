@@ -153,9 +153,8 @@ export async function getPeritos() {
 
     const { data, error } = await supabase
         .from("usuarios")
-        .select("id, nombre, apellido, rol")
+        .select("id, nombre, apellido, rol, roles")
         .eq("activo", true)
-        .in("rol", ["calle", "carga", "admin"])
         .order("nombre");
 
     if (error) {

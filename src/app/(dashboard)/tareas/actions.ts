@@ -47,3 +47,19 @@ export async function updateTareaAsignado(tareaId: string, nuevoAsignadoId: stri
     revalidatePath("/tareas");
     return { success: true };
 }
+
+export async function deleteTarea(tareaId: string) {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return { error: "No autorizado." };
+
+    const { error: errorTarea } = await supabase
+        .from("tareas")
+        .delete()
+        .eq("id", tareaId);
+
+    if (errorTarea) return { error: `Error eliminando la tarea: ${errorTarea.message}` };
+
+    revalidatePath("/tareas");
+    return { success: true };
+}

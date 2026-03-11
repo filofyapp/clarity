@@ -40,8 +40,7 @@ export default function EditableCoordinacion({
     );
 
     const roles = [rol]; // Assuming 'rol' is the primary role, and we're simulating a 'roles' array for consistency with the user's intent.
-    const puedeEditar = (roles.includes("admin") || roles.includes("carga")) &&
-        (estadoActual === "ip_coordinada" || estadoActual === "pendiente_coordinacion" || estadoActual === "contactado");
+    const puedeEditar = roles.includes("admin") || roles.includes("carga");
 
     const handleSave = async () => {
         setIsLoading(true);

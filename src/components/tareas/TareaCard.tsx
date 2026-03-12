@@ -478,7 +478,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             onMouseEnter={() => setIsDescHovered(true)}
                             onMouseLeave={() => { setIsDescHovered(false); setShowDescEmojiPicker(false); }}
                         >
-                            <div className="bg-bg-tertiary p-4 rounded-lg border border-border text-sm text-text-primary whitespace-pre-line leading-relaxed shrink-0 max-h-[40vh] overflow-y-auto">
+                            <div className="bg-bg-tertiary p-4 rounded-lg border border-border text-sm text-text-primary whitespace-pre-wrap break-words leading-relaxed shrink-0 max-h-[40vh] overflow-y-auto">
                                 {tarea.descripcion}
                             </div>
 

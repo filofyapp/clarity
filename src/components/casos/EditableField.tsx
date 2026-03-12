@@ -15,7 +15,7 @@ interface EditableFieldProps {
     campo: string;
     valorActual: string | null;
     displayValue?: string; // Lo que se muestra cuando no se edita (útil para selects)
-    tipo: "text" | "textarea" | "select";
+    tipo: "text" | "textarea" | "select" | "date";
     opciones?: Opcion[];
     placeholder?: string;
     className?: string;
@@ -102,6 +102,16 @@ export function EditableField({
                             placeholder={placeholder}
                         />
                     )}
+                    {tipo === "date" && (
+                        <input
+                            ref={inputRef}
+                            type="date"
+                            value={valor ? valor.split('T')[0] : ''}
+                            onChange={(e) => setValor(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="w-full bg-bg-tertiary border border-brand-primary rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary text-text-primary"
+                        />
+                    )}
                     {tipo === "select" && (
                         <select
                             ref={inputRef}
@@ -146,7 +156,9 @@ export function EditableField({
 
     const displayedText = tipo === "select"
         ? (opciones.find(o => o.value === valorActual)?.label || displayValue || placeholder)
-        : (valorActual || placeholder);
+        : tipo === "date" 
+            ? (valorActual ? new Date(valorActual + "T12:00:00").toLocaleDateString('es-AR') : placeholder) 
+            : (valorActual || placeholder);
 
     return (
         <div
@@ -154,7 +166,7 @@ export function EditableField({
             onClick={() => setIsEditing(true)}
             title="Click para editar"
         >
-            <span className={`${textClassName} ${!valorActual ? "text-text-muted italic" : "text-text-primary"}`}>
+            <span className={`${textClassName} ${!valorActual ? "text-text-muted italic" : "text-text-primary"} ${tipo === "textarea" ? "whitespace-pre-wrap break-words" : ""}`}>
                 {displayedText}
             </span>
             <Edit2 className="w-3 h-3 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />

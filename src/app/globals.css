@@ -86,51 +86,51 @@
 }
 
 :root {
-  /* Brand Identity — Ámbar/Dorado */
+  /* Brand Identity — Ámbar/Dorado (more saturated for light bg legibility) */
   --brand-primary: #D97706;
   --brand-primary-hover: #B45309;
-  --brand-primary-soft: rgba(245, 158, 11, 0.10);
+  --brand-primary-soft: rgba(217, 119, 6, 0.08);
   --brand-secondary: #92400E;
   --brand-secondary-hover: #78350F;
 
-  /* Classic Bright Light Mode Backgrounds */
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #eef2f7;
-  --bg-elevated: #ffffff;
-  --bg-surface: #dfe6ee;
+  /* Light Mode Backgrounds — warm neutral tone */
+  --bg-primary: #FAFAF9;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F5F5F2;
+  --bg-elevated: #FFFFFF;
+  --bg-surface: #F5F5F2;
 
-  /* Borders / Dividers */
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-default: rgba(0, 0, 0, 0.15);
-  --border-hover: rgba(0, 0, 0, 0.22);
+  /* Borders / Dividers — stronger for visibility */
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.10);
+  --border-hover: rgba(0, 0, 0, 0.18);
   --border-focus: rgba(217, 119, 6, 0.5);
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 6px rgba(0, 0, 0, 0.06);
-  --shadow-glow: 0 0 20px rgba(245, 158, 11, 0.15);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.10), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px rgba(217, 119, 6, 0.12);
 
-  /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #1e293b;
-  --text-muted: #475569;
+  /* Text — deeply legible hierarchy */
+  --text-primary: #1A1A1A;
+  --text-secondary: #6B6B6B;
+  --text-muted: #9B9B9B;
   --text-on-brand: #000000;
 
-  /* Functional Colors — High Contrast for light bg */
-  --color-success: #15803d;
-  --color-success-soft: rgba(22, 163, 74, 0.12);
-  --color-warning: #c2410c;
-  --color-warning-soft: rgba(234, 88, 12, 0.12);
-  --color-danger: #be123c;
-  --color-danger-soft: rgba(225, 29, 72, 0.12);
-  --color-critical: #a21caf;
-  --color-critical-soft: rgba(217, 70, 239, 0.12);
-  --color-info: #0369a1;
-  --color-info-soft: rgba(2, 132, 199, 0.12);
-  --color-neutral: #334155;
-  --color-neutral-soft: rgba(71, 85, 105, 0.12);
+  /* Functional Colors — darker hues for WCAG AA on white backgrounds */
+  --color-success: #059669;
+  --color-success-soft: rgba(5, 150, 105, 0.08);
+  --color-warning: #D97706;
+  --color-warning-soft: rgba(217, 119, 6, 0.08);
+  --color-danger: #DC2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.08);
+  --color-critical: #9333EA;
+  --color-critical-soft: rgba(147, 51, 234, 0.08);
+  --color-info: #4F46E5;
+  --color-info-soft: rgba(79, 70, 229, 0.08);
+  --color-neutral: #374151;
+  --color-neutral-soft: rgba(55, 65, 81, 0.08);
 
   /* Case State Colors */
   --estado-ip-coordinada: var(--color-info);

@@ -866,6 +866,14 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 12/03/2026 (Sprint 2)
+QUE SE CAMBIO: Sprint de correcciones UI/UX — 7 ítems independientes resueltos.
+POR QUE: Bugs reportados en uso diario: imagen rota en pantalla final de inspección remota, saltos de línea no visibles en observaciones internas, lightbox sin click-fuera y sin teclado, fechas de carga y cierre no se grababan automáticamente, falta de indicador "Link Enviado" en Mi Agenda, y modo claro con colores ilegibles.
+COMO: (1) Imagen rota WizardCaptura — ya corregido previamente en esta sesión (path `/logo-al-servicio-de-SS-negro.png`). (2) Saltos de línea — `whitespace-pre-wrap break-words` en `EditableField.tsx` (spans de textarea) y `TareaCard.tsx` (descripción). (3) Lightbox — `ImageLightbox.tsx` actualizado para cerrar con click en backdrop (`onClick={onClose}` en wrapper + `stopPropagation` en img). Teclado ←/→/Esc ya existía. (4) Fechas automáticas — `fecha_carga_sistema` y `fecha_cierre` (que ya existían en la DB) ahora se setean automáticamente en `cambiarEstadoCaso()` y `marcarInspeccionRealizada()` al transicionar a `pendiente_carga` / `ip_cerrada` / `inspeccion_anulada`. Se preservan si el caso se reabre. Nuevos campos `EditableField tipo="date"` en `CasoDetail.tsx` para edición manual admin. (5) Link Enviado — nueva columna `link_enviado BOOLEAN` en `casos` (migración `022`). Server action `toggleLinkEnviado()` en `mi-agenda/actions.ts`. Botón toggle visible solo para `ip_remota` en `AgendaCard.tsx`. (6) Filtros avanzados — ya existían (multi-select con localStorage persistence). No se requirieron cambios. (7) Modo claro — Paleta `:root` actualizada: backgrounds a `#FAFAF9`/`#F5F5F2`, text hierarchy `#1A1A1A`/`#6B6B6B`/`#9B9B9B`, colores funcionales a versiones WCAG AA (`#059669` success, `#D97706` warning, `#DC2626` danger, `#4F46E5` info, `#9333EA` critical). `EstadoBadge.tsx` actualizado con `dark:` variants en todos los estados para que los badges usen text-*-700 en light y text-*-400 en dark. Row style de `facturada` también corregido con `dark:` variants.
+ARCHIVOS AFECTADOS: `globals.css`, `EstadoBadge.tsx`, `EditableField.tsx`, `TareaCard.tsx`, `ImageLightbox.tsx`, `CasoDetail.tsx`, `WizardCaptura.tsx`, `casos/[id]/actions.ts`, `casos/actions.ts`, `mi-agenda/actions.ts`, `AgendaCard.tsx`, `api/inspeccion-remota/complete/route.ts`, `022_fechas_automaticas.sql`
+EFECTOS COLATERALES: El modo claro ahora tiene una apariencia sustancialmente diferente (backgrounds más cálidos, textos más oscuros). Los badges de estados críticos en light mode usan text-*-700/800 en vez de text-*-300/400.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 Documento vivo. Ultima actualizacion: Marzo 2026 - v5
 
 FECHA: 11/03/2026

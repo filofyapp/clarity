@@ -1,10 +1,11 @@
 "use client";
 
-import { MapPin, Phone, Car, CheckCircle2, Loader2 } from "lucide-react";
+import { MapPin, Phone, Car, CheckCircle2, Loader2, Link2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useState, useTransition } from "react";
 import { marcarInspeccionRealizada } from "@/app/(dashboard)/casos/[id]/actions";
+import { toggleLinkEnviado } from "@/app/(dashboard)/mi-agenda/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -17,6 +18,7 @@ interface AgendaCardProps {
 export function AgendaCard({ caso }: AgendaCardProps) {
     const [isPending, startTransition] = useTransition();
     const [marcado, setMarcado] = useState(false);
+    const [isSendingLink, setIsSendingLink] = useState(false);
     const router = useRouter();
 
     const formatPhone = (phone: string) => {
@@ -39,6 +41,19 @@ export function AgendaCard({ caso }: AgendaCardProps) {
         });
     };
 
+    const handleToggleLink = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsSendingLink(true);
+        const result = await toggleLinkEnviado(caso.id, !caso.link_enviado);
+        setIsSendingLink(false);
+        if (result.error) {
+            toast.error("Error al actualizar estado del link");
+        } else {
+            toast.success(caso.link_enviado ? "Link marcado como PENDIENTE" : "Link marcado como ENVIADO");
+        }
+    };
+
     if (marcado) {
         return (
             <div className="bg-success/5 border border-success/20 rounded-xl p-6 flex flex-col items-center justify-center text-center min-h-[200px]">
@@ -59,11 +74,27 @@ export function AgendaCard({ caso }: AgendaCardProps) {
         <div className="bg-bg-secondary border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 border-b border-border bg-bg-tertiary flex justify-between items-center">
                 <div className="w-full">
-                    <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-bold text-lg text-text-primary">{caso.numero_siniestro}</h3>
-                        <span className="text-xs font-medium text-brand-secondary bg-brand-primary/10 px-2 py-1 rounded-md border border-brand-primary/20 capitalize">
-                            {formatDateLocal(caso.fecha_inspeccion_programada)}
-                        </span>
+                    <div className="flex justify-between items-start mb-1 gap-2">
+                        <h3 className="font-bold text-lg text-text-primary shrink-0">{caso.numero_siniestro}</h3>
+                        <div className="flex flex-wrap items-center justify-end gap-1.5 flex-1 p-0.5">
+                            {caso.tipo_inspeccion === "ip_remota" && (
+                                <button 
+                                    onClick={handleToggleLink}
+                                    disabled={isSendingLink}
+                                    className={`text-[10px] font-bold px-2 py-1 rounded border flex items-center gap-1 transition-colors ${
+                                        caso.link_enviado 
+                                            ? "bg-success/10 text-success border-success/30 hover:bg-success/20" 
+                                            : "bg-color-warning-soft text-color-warning border-color-warning/30 hover:bg-color-warning-soft/80"
+                                    }`}
+                                >
+                                    {isSendingLink ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />}
+                                    {caso.link_enviado ? "LINK ENVIADO" : "ENVIAR LINK"}
+                                </button>
+                            )}
+                            <span className="text-xs font-medium text-brand-secondary bg-brand-primary/10 px-2 py-1 rounded-md border border-brand-primary/20 capitalize shrink-0">
+                                {formatDateLocal(caso.fecha_inspeccion_programada)}
+                            </span>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="bg-bg-primary font-mono text-xs px-2 py-0.5 rounded text-text-primary uppercase flex items-center gap-1">

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 /**
  * Retorna exclusivamente los casos asignados al perito logueado (RLS enforced)
@@ -31,11 +32,29 @@ export async function getMiAgenda() {
             telefono_asegurado,
             nombre_asegurado,
             fecha_inspeccion_programada,
-            estado
+            estado,
+            link_enviado
         `)
         .eq("perito_calle_id", user.id)
         .eq("estado", "ip_coordinada")
         .order("fecha_inspeccion_programada", { ascending: true });
 
     return { data, error };
+}
+
+export async function toggleLinkEnviado(casoId: string, enviado: boolean) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "No autorizado" };
+
+    const { error } = await supabase
+        .from("casos")
+        .update({ link_enviado: enviado })
+        .eq("id", casoId)
+        .eq("perito_calle_id", user.id); // Seguridad: solo el perito asignado puede cambiarlo
+
+    if (error) return { error: error.message };
+
+    revalidatePath("/mi-agenda");
+    return { success: true };
 }

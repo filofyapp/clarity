@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         // Get current caso state
         const { data: caso } = await supabase
             .from("casos")
-            .select("estado, fecha_inspeccion_real, perito_calle_id, perito_carga_id")
+            .select("estado, fecha_inspeccion_real, fecha_carga_sistema, perito_calle_id, perito_carga_id")
             .eq("id", link.caso_id)
             .single();
 
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
             .update({
                 estado: "pendiente_carga",
                 fecha_inspeccion_real: caso?.fecha_inspeccion_real || new Date().toISOString(),
+                fecha_carga_sistema: caso?.fecha_carga_sistema || new Date().toISOString(),
             })
             .eq("id", link.caso_id);
 

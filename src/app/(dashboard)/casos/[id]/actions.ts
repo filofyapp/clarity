@@ -17,7 +17,7 @@ export async function marcarInspeccionRealizada(casoId: string) {
     // Verificar que el caso está en ip_coordinada y el usuario es el perito asignado o admin
     const { data: caso } = await supabase
         .from("casos")
-        .select("estado, perito_calle_id")
+        .select("estado, perito_calle_id, fecha_carga_sistema")
         .eq("id", casoId)
         .single();
 
@@ -36,6 +36,7 @@ export async function marcarInspeccionRealizada(casoId: string) {
         .update({
             estado: "pendiente_carga",
             fecha_inspeccion_real: new Date().toISOString(),
+            fecha_carga_sistema: caso.fecha_carga_sistema || new Date().toISOString(),
             updated_at: new Date().toISOString(),
         })
         .eq("id", casoId);
@@ -76,7 +77,7 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
     if (!usuario) return { error: "Usuario no encontrado." };
 
     // Obtener estado actual
-    const { data: caso } = await supabase.from("casos").select("estado").eq("id", casoId).single();
+    const { data: caso } = await supabase.from("casos").select("estado, fecha_carga_sistema, fecha_cierre").eq("id", casoId).single();
     if (!caso) return { error: "Caso no encontrado." };
 
     // Validar permisos por rol
@@ -106,10 +107,17 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
 
     if (!permitido) return { error: `No tiene permiso para cambiar al estado '${nuevoEstado}'.` };
 
-    // Actualizar
     const updateData: any = { estado: nuevoEstado, updated_at: new Date().toISOString() };
-    if (nuevoEstado === "ip_cerrada") {
+    
+    // Auto-dates according to state
+    if (!caso.fecha_carga_sistema && nuevoEstado === "pendiente_carga") {
+        updateData.fecha_carga_sistema = new Date().toISOString();
+    }
+    if (!caso.fecha_cierre && (nuevoEstado === "ip_cerrada" || nuevoEstado === "inspeccion_anulada")) {
         updateData.fecha_cierre = new Date().toISOString();
+    }
+
+    if (nuevoEstado === "ip_cerrada") {
 
         // ANTI-DUPLICACIÓN: Solo asignar montos de facturación si es la PRIMERA vez que se cierra.
         // Si ya tiene monto_facturado_estudio > 0, significa que ya fue cerrado antes y se reabrió.

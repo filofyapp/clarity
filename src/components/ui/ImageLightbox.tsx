@@ -94,7 +94,10 @@ export function ImageLightbox({ images, initialIndex = 0, open, onClose }: Image
                 </div>
 
                 {/* Main Image Area */}
-                <div className="flex-1 relative flex items-center justify-center p-4">
+                <div 
+                    className="flex-1 relative flex items-center justify-center p-4 cursor-pointer"
+                    onClick={onClose}
+                >
                     {images.length > 1 && (
                         <Button
                             variant="ghost"
@@ -110,7 +113,8 @@ export function ImageLightbox({ images, initialIndex = 0, open, onClose }: Image
                     <img
                         src={current.url}
                         alt={current.nombre}
-                        className="max-w-full max-h-full object-contain pointer-events-none select-none"
+                        className="max-w-full max-h-full object-contain cursor-default"
+                        onClick={(e) => e.stopPropagation()}
                     />
 
                     {images.length > 1 && (

@@ -13,7 +13,7 @@ import { SelectorEstado } from "./SelectorEstado";
 import { ZonaArchivos } from "./ZonaArchivos";
 import { TimelineExpediente } from "./TimelineExpediente";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Car, MapPin, ClipboardList, Users, ClipboardType, FileText } from "lucide-react";
+import { Car, MapPin, ClipboardList, Users, ClipboardType, FileText, Calendar, CheckCircle } from "lucide-react";
 import { EditableLinkOrion } from "./EditableLinkOrion";
 import { GenerarLinkInspeccion } from "./GenerarLinkInspeccion";
 import { GestorRepliesBanner } from "./GestorRepliesBanner";
@@ -219,6 +219,33 @@ export async function CasoDetail({ id }: { id: string }) {
                                     fechaProgramadaInicial={caso.fecha_inspeccion_programada}
                                     rol={rol}
                                 />
+                                
+                                {/* NUEVO: Bloque de fechas automáticas */}
+                                <div className="md:col-span-2 mt-2 pt-4 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                                    <div>
+                                        <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Fecha de Carga</p>
+                                        <EditableField
+                                            casoId={caso.id}
+                                            campo="fecha_carga_sistema"
+                                            valorActual={caso.fecha_carga_sistema}
+                                            tipo="date"
+                                            placeholder="No registrada"
+                                            textClassName="font-medium text-text-primary text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Fecha de Cierre</p>
+                                        <EditableField
+                                            casoId={caso.id}
+                                            campo="fecha_cierre"
+                                            valorActual={caso.fecha_cierre}
+                                            tipo="date"
+                                            placeholder="No registrada"
+                                            textClassName="font-medium text-text-primary text-sm"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div className="md:col-span-2 mt-2 pt-4 border-t border-border/50">
                                     <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Observaciones Internas</p>
                                     <EditableField

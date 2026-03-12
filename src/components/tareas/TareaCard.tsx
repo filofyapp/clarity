@@ -408,13 +408,10 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                         <div className="relative" onClick={(e) => { e.stopPropagation(); setIsChangingAsignado(!isChangingAsignado); }}>
                             <div className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 transition-transform" title={tarea.asignado ? assigneeName : "Sin asignar"}>
                                 <div
-                                    className={`w-[24px] h-[24px] rounded-md flex items-center justify-center text-[10px] font-bold text-white uppercase ${tarea.asignado ? getAvatarColor(assigneeName) : "bg-bg-tertiary text-text-muted border border-dashed border-border-default"}`}
+                                    className={`px-2.5 py-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white max-w-[80px] ${tarea.asignado ? getAvatarColor(assigneeName) : "bg-bg-tertiary text-text-muted border border-dashed border-border-default"}`}
                                 >
-                                    {assigneeInitials}
+                                    <span className="truncate">{tarea.asignado ? tarea.asignado.nombre : "Asignar"}</span>
                                 </div>
-                                <span className="text-[10px] text-text-secondary leading-none w-full text-center truncate max-w-[60px]">
-                                    {tarea.asignado ? tarea.asignado.nombre : "Asignar"}
-                                </span>
                             </div>
 
                             {isChangingAsignado && usuarios && (

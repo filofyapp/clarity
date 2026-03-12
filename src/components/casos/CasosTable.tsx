@@ -256,7 +256,6 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     });
 
 
-    if (!casos || casos.length === 0) return (<div className="flex h-48 items-center justify-center text-text-muted">No hay casos.</div>);
 
     const formatDays = (dateStr: string) => {
         if (!dateStr) return { days: 0, color: "text-text-muted" };
@@ -396,9 +395,17 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                     />
                 </div>
             </div>
-
             {/* MAIN TABLE OR GRID CONTAINER */}
-            {layoutMode === "list" ? (
+            {procesados.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-text-muted gap-3 p-8">
+                    <p className="text-sm">No hay casos que coincidan con los filtros aplicados.</p>
+                    {hasActiveFilters && (
+                        <button onClick={clearFilters} className="text-xs text-brand-primary hover:underline font-medium">
+                            ✕ Limpiar filtros y ver todos
+                        </button>
+                    )}
+                </div>
+            ) : layoutMode === "list" ? (
                 <div className="flex-1 overflow-auto bg-bg-primary relative" ref={parentRef}>
                     <div className="min-w-max w-full flex flex-col pointer-events-auto">
                         {/* THEAD */}

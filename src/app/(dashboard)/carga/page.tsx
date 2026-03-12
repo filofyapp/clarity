@@ -32,7 +32,7 @@ export default function CargaPage() {
                         Cola de Carga & Oficina
                     </h1>
                     <p className="text-text-muted text-sm mt-1">
-                        Revisiones fotográficas y pedidos de repuestaje listos para ser procesados frente a las compañías.
+                        Panel de vista rápida de siniestros a cargar.
                     </p>
                 </div>
             </div>

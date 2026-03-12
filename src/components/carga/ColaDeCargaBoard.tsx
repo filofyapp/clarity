@@ -207,7 +207,7 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
                                                 <ChevronRight className="w-3.5 h-3.5" />
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-64">
+                                        <DropdownMenuContent align="end" className="w-64 bg-bg-elevated border border-border z-50">
                                             {ACCIONES.map((accion, i) => (
                                                 <DropdownMenuItem
                                                     key={accion.value}

@@ -906,4 +906,11 @@ COMO: (1) Fix `CasoForm.tsx` agregando `gestor_id: gestorId` al payload e integr
 ARCHIVOS AFECTADOS: CasoForm.tsx, CasoDetail.tsx, EditableField.tsx (nuevo), WizardCaptura.tsx, ip/[token]/page.tsx
 EFECTOS COLATERALES: Al crear caso sube directo al storage `caso-archivos` existente eliminando necesidad de nuevas columnas BD.
 TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 11/03/2026
+QUE SE CAMBIO: Sprint Fixes de Fechas y UX de Tareas/Cola de Carga
+POR QUE: (1) Las fechas programadas en CasoDetail aparecían un día desfasado por conflictos entre UTC y Local Time al parsear strings `YYYY-MM-DD` con `new Date()`. (2) El punto de mensajes no leídos en el Kanban titilaba indefinidamente sin mecanismo de "visto". (3) El avatar del Gestor/Asignado era muy pequeño usando solo iniciales. (4) Detalles menores de UI en la Cola de Carga (fondo transparente en dropdown y texto del subtítulo).
+COMO: (1) Se agregó un offset local seguro `T12:00:00` a `fechaProgramadaInicial` en `EditableCoordinacion.tsx` antes de parsear. (2) Se implementó un hook con `localStorage` en `TareaCard.tsx` que guarda el timestamp de la última lectura (`ultimo_leido_at`) y compara con `created_at` del comentario más reciente. (3) Se rediseñó el área del asignado en el TareaCard para mostrar el Avatar y debajo el `Nombre Completo`. (4) Se añadió `bg-bg-elevated` al menú de la cola de carga y se ajustó el subtítulo en `page.tsx`.
+ARCHIVOS AFECTADOS: EditableCoordinacion.tsx, TareaCard.tsx, tareas/page.tsx, carga/page.tsx, ColaDeCargaBoard.tsx
+EFECTOS COLATERALES: Ninguno severo. El estado de "leído" de las tareas depende del caché local (localStorage) por dispositivo/usuario; asume la consulta de "comentarios" completa la fecha de creación en la tabla.
 TESTEADO: TypeScript --noEmit OK.

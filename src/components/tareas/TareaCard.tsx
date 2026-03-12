@@ -146,8 +146,27 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
         }
     }, [searchParams, tarea.id, sheetOpen, router]);
 
-    const hasOtrasRespuestas = tarea.comentarios_tarea?.some(
-        (c: { usuario_id: string }) => c.usuario_id !== tarea.creador_id && c.usuario_id !== currentUserId
+    const [lastReadAt, setLastReadAt] = useState<number>(() => {
+        if (typeof window !== "undefined" && currentUserId) {
+            const stored = localStorage.getItem(`clarity_read_tarea_${tarea.id}_${currentUserId}`);
+            if (stored) return parseInt(stored, 10);
+        }
+        return 0; // Se asume no leída si no hay registro
+    });
+
+    useEffect(() => {
+        if (sheetOpen && currentUserId) {
+            const now = Date.now();
+            localStorage.setItem(`clarity_read_tarea_${tarea.id}_${currentUserId}`, now.toString());
+            setLastReadAt(now);
+        }
+    }, [sheetOpen, tarea.id, currentUserId]);
+
+    const hasUnread = tarea.comentarios_tarea?.some(
+        (c: { usuario_id: string; created_at?: string }) => 
+            c.usuario_id !== currentUserId && 
+            c.created_at && 
+            new Date(c.created_at).getTime() > lastReadAt
     );
 
     const supabase = createClient();
@@ -364,7 +383,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             <span className="flex items-center gap-1">
                                 <MessageSquare className="w-3 h-3" />
                                 {totalComments}
-                                {hasOtrasRespuestas && (
+                                {hasUnread && (
                                     <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse-dot inline-block" />
                                 )}
                             </span>
@@ -387,11 +406,15 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                         )}
 
                         <div className="relative" onClick={(e) => { e.stopPropagation(); setIsChangingAsignado(!isChangingAsignado); }}>
-                            <div
-                                className={`w-[22px] h-[22px] rounded-md flex items-center justify-center text-[8px] font-bold text-white uppercase cursor-pointer hover:scale-110 transition-transform ${tarea.asignado ? getAvatarColor(assigneeName) : "bg-bg-tertiary text-text-muted border border-dashed border-border-default"}`}
-                                title={tarea.asignado ? assigneeName : "Sin asignar"}
-                            >
-                                {assigneeInitials}
+                            <div className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 transition-transform" title={tarea.asignado ? assigneeName : "Sin asignar"}>
+                                <div
+                                    className={`w-[24px] h-[24px] rounded-md flex items-center justify-center text-[10px] font-bold text-white uppercase ${tarea.asignado ? getAvatarColor(assigneeName) : "bg-bg-tertiary text-text-muted border border-dashed border-border-default"}`}
+                                >
+                                    {assigneeInitials}
+                                </div>
+                                <span className="text-[10px] text-text-secondary leading-none w-full text-center truncate max-w-[60px]">
+                                    {tarea.asignado ? tarea.asignado.nombre : "Asignar"}
+                                </span>
                             </div>
 
                             {isChangingAsignado && usuarios && (

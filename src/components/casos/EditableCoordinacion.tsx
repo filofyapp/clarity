@@ -27,8 +27,11 @@ export default function EditableCoordinacion({
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Initial parsing
-    const startDateObj = fechaProgramadaInicial ? new Date(fechaProgramadaInicial) : null;
+    // Initial parsing: safe offset to avoid UTC midnight shifting to previous day
+    const safeDateStr = fechaProgramadaInicial && !fechaProgramadaInicial.includes('T') 
+        ? `${fechaProgramadaInicial}T12:00:00` 
+        : fechaProgramadaInicial;
+    const startDateObj = safeDateStr ? new Date(safeDateStr) : null;
 
     const [direccion, setDireccion] = useState(direccionInicial || "");
     const [localidad, setLocalidad] = useState(localidadInicial || "");

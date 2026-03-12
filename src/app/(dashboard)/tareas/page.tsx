@@ -26,7 +26,7 @@ export default async function TareasDashboard() {
         creador:usuarios!tareas_creador_id_fkey(nombre, apellido),
         asignado:usuarios!tareas_asignado_id_fkey(nombre, apellido),
         caso:casos(id, numero_siniestro, marca, compania:companias(nombre), nombre_asegurado, telefono_asegurado, dominio, estado),
-        comentarios_tarea(usuario_id)
+        comentarios_tarea(usuario_id, created_at)
     `).order("created_at", { ascending: false });
 
     if (usuarioData.rol !== "admin") {

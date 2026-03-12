@@ -86,16 +86,37 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
         for (let i = 0; i < allFotos.length; i++) {
             setUploadProgress(Math.round(((i + 1) / allFotos.length) * 100));
+            
+            // Si ya se subió con éxito en un intento anterior, la saltamos
+            if (allFotos[i].uploaded) {
+                successCount++;
+                continue;
+            }
+
             console.log(`Subiendo foto ${i + 1} de ${allFotos.length} (${allFotos[i].tipo})...`);
             const result = await uploadPhoto(allFotos[i], i + 1);
             if (result.ok) {
                 successCount++;
+                // Marcar como subida para futuros reintentos si otra foto falla
+                allFotos[i].uploaded = true;
+                
+                // Liberar memoria para evitar OOM Crash (Safari Recarga la página por límite de memoria RAM)
+                if (allFotos[i].preview) {
+                    URL.revokeObjectURL(allFotos[i].preview);
+                    // Opcional: allFotos[i].preview = ""; pero rompería la UI de "fotos enviadas".
+                }
+                
                 console.log(`Foto ${i + 1} subida con éxito.`);
             } else {
                 console.error(`Error en foto ${i + 1}:`, result.error);
                 failedUploads.push(`Foto ${i + 1} (${allFotos[i].tipo}): ${result.error}`);
             }
         }
+        
+        // Guardar el estado de las fotos actualizadas con sus marcas de 'uploaded'
+        const regulCount = fotosReglamentarias.length;
+        setFotosReglamentarias(allFotos.slice(0, regulCount));
+        setFotosDanios(allFotos.slice(regulCount));
 
         if (successCount === allFotos.length) {
             console.log("Todas las fotos subidas. Llamando a complete endpoint...");
@@ -435,7 +456,8 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                                     onClick={handleFinalize}
                                     className="w-full bg-[#2DD4A0] hover:brightness-110 text-[#0C0A0F] font-bold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(45,212,160,0.2)] active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
-                                    <CheckCircle2 className="w-5 h-5" /> Enviar {totalFotos} fotos
+                                    <CheckCircle2 className="w-5 h-5" /> 
+                                    {error ? `Reintentar ${[...fotosReglamentarias, ...fotosDanios].filter(f => !f.uploaded).length} fotos pendientes` : `Enviar ${totalFotos} fotos`}
                                 </button>
                                 <button
                                     onClick={() => setStep("zona_danio")}

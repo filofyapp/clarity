@@ -185,7 +185,12 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
     const retake = () => { if (captured) URL.revokeObjectURL(captured); setCaptured(null); setCapturedBlob(null); };
 
     const removeMultiple = (index: number) => {
-        setCapturedReel(prev => prev.filter((_, i) => i !== index));
+        setCapturedReel(prev => {
+            const newList = [...prev];
+            const removed = newList.splice(index, 1)[0];
+            if (removed?.preview) URL.revokeObjectURL(removed.preview);
+            return newList;
+        });
     };
 
     const accept = () => { if (capturedBlob && captured) { stream?.getTracks().forEach(t => t.stop()); onCapture(capturedBlob, captured); } };

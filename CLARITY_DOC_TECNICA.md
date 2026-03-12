@@ -914,3 +914,11 @@ COMO: (1) Se agregó un offset local seguro `T12:00:00` a `fechaProgramadaInicia
 ARCHIVOS AFECTADOS: EditableCoordinacion.tsx, TareaCard.tsx, tareas/page.tsx, carga/page.tsx, ColaDeCargaBoard.tsx
 EFECTOS COLATERALES: Ninguno severo. El estado de "leído" de las tareas depende del caché local (localStorage) por dispositivo/usuario; asume la consulta de "comentarios" completa la fecha de creación en la tabla.
 TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 12/03/2026
+QUE SE CAMBIO: Fix de fotos duplicadas y reload forzado (Out Of Memory) en Inspección Remota (WizardCaptura).
+POR QUE: (1) Si el envío de fotos fallaba por un microcorte de internet, al reintentar, se volvían a subir TODAS las fotos desde 0 generando duplicados que agotaban el límite de 50 (max_fotos). (2) En la app nativa de la cámara y en ciertos dispositivos iOS/Safari, al llegar a tener ~50 fotos base64 o Blobs en memoria, el navegador mataba la pestaña por exceso de RAM ("Out Of Memory"), recargando la página hacia el inicio ("bienvenida") sin dar feedback, justo antes o durante el aviso final.
+COMO: (1) Para los duplicados: Se implementó un "Smart Retry" añadiendo la flag `uploaded: true` a los elementos de los arrays de estado (fotosReglamentarias y fotosDanios) a medida que dan HTTP 200 OK. El loop `handleFinalize` ahora hace `if(foto.uploaded) continue;`. También el botón avisa "Reintentar X fotos pendientes". (2) Para los reseteos de página (OOM Crash): Ahora, apenas una foto se sube a Supabase con éxito o se remueve desde la UI, se aplica un `URL.revokeObjectURL(foto.preview)` forzado para limpiar la RAM ("Garbage Collection" inmediato de la imagen cacheada en el navegador).
+ARCHIVOS AFECTADOS: WizardCaptura.tsx, CameraCapture.tsx
+EFECTOS COLATERALES: Las fotos que ya fueron exitosamente subidas no se vuelven a mandar, ahorrando tiempo, ancho de banda y espacio en Bucket/DB. Evita que el cliente agote la subida permitida inútilmente.
+TESTEADO: TypeScript --noEmit OK.

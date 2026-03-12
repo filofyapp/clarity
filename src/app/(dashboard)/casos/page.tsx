@@ -43,6 +43,7 @@ export default async function CasosPage({ searchParams }: PageProps) {
         peritos_calle: parseArray(params.perito_calle),
         peritos_carga: parseArray(params.perito_carga),
         gestores: parseArray(params.gestor),
+        fecha_campo: typeof params.fecha_campo === "string" ? params.fecha_campo : undefined,
         fecha_desde: typeof params.fecha_desde === "string" ? params.fecha_desde : undefined,
         fecha_hasta: typeof params.fecha_hasta === "string" ? params.fecha_hasta : undefined,
         search: typeof params.search === "string" ? params.search : undefined,

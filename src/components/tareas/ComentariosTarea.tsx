@@ -295,7 +295,7 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
         const { data, error } = await supabase.from("comentarios_tarea").insert({
             tarea_id: tareaId,
             usuario_id: currentUserId,
-            contenido: nuevoComentario.trim(),
+            contenido: textoOriginal.trim(),
             adjuntos: adjuntosSubidos.length > 0 ? adjuntosSubidos : null
         }).select("id, contenido, created_at, adjuntos, usuario_id").single();
 

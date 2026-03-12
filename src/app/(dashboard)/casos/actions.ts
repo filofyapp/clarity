@@ -116,6 +116,7 @@ export interface CasosFilters {
     peritos_calle?: string[];
     peritos_carga?: string[];
     gestores?: string[];
+    fecha_campo?: string; // Which date field to filter by
     fecha_desde?: string; // YYYY-MM-DD
     fecha_hasta?: string; // YYYY-MM-DD
     search?: string;
@@ -169,12 +170,22 @@ export async function getCasos(filters?: CasosFilters) {
         if (filters.gestores && filters.gestores.length > 0) {
             query = query.in("gestor_id", filters.gestores);
         }
-        if (filters.fecha_desde) {
-            query = query.gte("fecha_derivacion", filters.fecha_desde);
-        }
-        if (filters.fecha_hasta) {
-            // Add a day to make it inclusive of the end date
-            query = query.lte("fecha_derivacion", filters.fecha_hasta + "T23:59:59");
+        if (filters.fecha_desde || filters.fecha_hasta) {
+            const campo = filters.fecha_campo || "fecha_derivacion";
+            // Validate campo is an allowed date field
+            const ALLOWED_DATE_FIELDS = ["fecha_derivacion", "fecha_inspeccion_programada", "fecha_carga_sistema", "fecha_cierre"];
+            if (ALLOWED_DATE_FIELDS.includes(campo)) {
+                // For fecha_carga_sistema and fecha_cierre, exclude nulls
+                if (campo === "fecha_carga_sistema" || campo === "fecha_cierre") {
+                    query = query.not(campo, "is", null);
+                }
+                if (filters.fecha_desde) {
+                    query = query.gte(campo, filters.fecha_desde);
+                }
+                if (filters.fecha_hasta) {
+                    query = query.lte(campo, filters.fecha_hasta + "T23:59:59");
+                }
+            }
         }
         if (filters.search && filters.search.trim() !== "") {
             const q = filters.search.trim();

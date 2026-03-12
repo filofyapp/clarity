@@ -866,6 +866,14 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 12/03/2026 (Sprint 5)
+QUE SE CAMBIO: (1) Filtros de fecha: nuevo selector de tipo de fecha (Ingreso, Fecha IP, Carga, Cierre) que permite filtrar por cualquiera de los 4 campos de fecha del caso. (2) Bug crítico de comentarios de tareas: el contenido del comentario se insertaba vacío/incorrecto en la BD por una referencia a estado React ya limpiado.
+POR QUE: (1) Solo se podía filtrar por fecha_derivacion. Los usuarios necesitan filtrar por fecha_inspeccion_programada, fecha_carga_sistema y fecha_cierre. (2) `handleEnviar` en `ComentariosTarea.tsx` hacía `setNuevoComentario("")` en línea 222, y luego en línea 298 usaba `contenido: nuevoComentario.trim()`. Después de awaits intermedios (subida de archivos), React puede re-renderizar y el closure captura el estado vacío. El contenido se guardaba vacío o con el valor de otro comentario, dando la impresión de que el comentario aparecía en la tarea equivocada.
+COMO: (1) Nuevo param `fecha_campo` en `CasosFilters`, procesado en `getCasos()` con validación de campos permitidos. Para `fecha_carga_sistema` y `fecha_cierre` se excluyen registros con valor null. Selector `<select>` en `CasosTable.tsx` junto al DateFilter existente. URL param `fecha_campo` persistido en searchParams. (2) Cambiado `contenido: nuevoComentario.trim()` → `contenido: textoOriginal.trim()` (variable salvada antes del setState en línea 216).
+ARCHIVOS AFECTADOS: `actions.ts`, `page.tsx`, `CasosTable.tsx`, `ComentariosTarea.tsx`
+EFECTOS COLATERALES: Ninguno. Los filtros existentes siguen funcionando igual (fecha_derivacion es el default).
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 FECHA: 12/03/2026 (Sprint 4)
 QUE SE CAMBIO: (1) Lightbox de fotos de inspección: click en costados izq/der ahora cierra el lightbox. (2) Subida de fotos por link de inspección remota: refactor completo a upload progresivo inmediato con compresión y semáforo de 3 concurrentes.
 POR QUE: (1) El contenedor de la imagen tenía `w-full` + `stopPropagation`, los clicks en los costados vacíos no llegaban al overlay de cierre. (2) Con 30-40 fotos de cámara (3-5MB c/u), los 90-200MB de blobs en estado React causan que el navegador mate el tab en celulares con poca RAM. El proceso se reiniciaba perdiendo todo.

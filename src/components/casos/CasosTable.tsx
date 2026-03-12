@@ -85,6 +85,14 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
     const searchQuery = searchParams.get("search") || "";
     const fechaDesde = searchParams.get("fecha_desde") || null;
     const fechaHasta = searchParams.get("fecha_hasta") || null;
+    const fechaCampo = searchParams.get("fecha_campo") || "fecha_derivacion";
+
+    const FECHA_CAMPOS: Record<string, string> = {
+        fecha_derivacion: "Ingreso",
+        fecha_inspeccion_programada: "Fecha IP",
+        fecha_carga_sistema: "Carga",
+        fecha_cierre: "Cierre",
+    };
 
     const hasActiveFilters = filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || searchQuery !== "" || fechaDesde !== null || fechaHasta !== null;
 
@@ -387,12 +395,23 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         onChange={(sel) => updateFilter("gestor", sel)}
                     />
 
-                    <DateFilter
-                        label="Fecha"
-                        fechaDesde={fechaDesde}
-                        fechaHasta={fechaHasta}
-                        onChange={(desde, hasta) => updateMultipleFilters({ fecha_desde: desde, fecha_hasta: hasta })}
-                    />
+                    <div className="flex items-center gap-1">
+                        <select
+                            value={fechaCampo}
+                            onChange={(e) => updateFilter("fecha_campo", e.target.value === "fecha_derivacion" ? null : e.target.value)}
+                            className="h-7 text-[11px] font-medium bg-bg-secondary border border-border rounded-md px-1.5 text-text-primary cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                        >
+                            {Object.entries(FECHA_CAMPOS).map(([k, v]) => (
+                                <option key={k} value={k}>{v}</option>
+                            ))}
+                        </select>
+                        <DateFilter
+                            label="Rango"
+                            fechaDesde={fechaDesde}
+                            fechaHasta={fechaHasta}
+                            onChange={(desde, hasta) => updateMultipleFilters({ fecha_desde: desde, fecha_hasta: hasta })}
+                        />
+                    </div>
                 </div>
             </div>
             {/* MAIN TABLE OR GRID CONTAINER */}

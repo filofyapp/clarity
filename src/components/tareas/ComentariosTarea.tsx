@@ -2,12 +2,30 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Send, Loader2, Paperclip, X, FileIcon, Image as ImageIcon, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Send, Loader2, Paperclip, X, FileIcon, Image as ImageIcon, Download, SmilePlus } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ImageLightbox, type LightboxImage } from "@/components/ui/ImageLightbox";
+
+// === Emoji Reactions ===
+const EMOJI_SET = ["👍", "✅", "👀", "🙏", "❤️", "😂", "⚠️", "🔥"];
+
+interface Reaccion {
+    id: string;
+    comentario_id: string;
+    usuario_id: string;
+    emoji: string;
+    usuario?: { nombre: string; apellido: string } | null;
+}
+
+interface ReaccionGroup {
+    emoji: string;
+    count: number;
+    users: string[];
+    hasOwn: boolean;
+}
 
 interface ComentariosTareaProps {
     tareaId: string;
@@ -22,6 +40,7 @@ interface Comentario {
     adjuntos?: any[] | null;
     usuario: { nombre: string; apellido: string } | null;
     usuario_id: string;
+    reacciones?: Reaccion[];
 }
 
 interface UsuarioMencion {
@@ -40,9 +59,10 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
 
     // Adjuntos state
     const [archivosPendientes, setArchivosPendientes] = useState<File[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
 
     const endRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
     // Mentions state
@@ -52,8 +72,14 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
     const [mentionIndex, setMentionIndex] = useState(0);
 
     // Lightbox / Image Viewer state
-    const [previewImages, setPreviewImages] = useState<{ url: string; nombre: string }[]>([]);
-    const [previewIndex, setPreviewIndex] = useState(0);
+    const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+
+    // Emoji reactions state
+    const [reaccionesMap, setReaccionesMap] = useState<Record<string, Reaccion[]>>({});
+    const [hoveredComment, setHoveredComment] = useState<string | null>(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
 
     // Fetch users for mentions (once)
     useEffect(() => {
@@ -80,9 +106,73 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
         if (!error && data) {
             setComentarios(data as any);
             await marcarLeidos(data.map((c: any) => c.id));
+            // Fetch reactions for all comments
+            await fetchReacciones(data.map((c: any) => c.id));
         }
         if (isInitial) setLoading(false);
     }, [tareaId, currentUserId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Fetch reactions for a set of comment IDs
+    const fetchReacciones = useCallback(async (comentarioIds: string[]) => {
+        if (comentarioIds.length === 0) return;
+        const { data } = await supabase
+            .from("reacciones_comentario")
+            .select("id, comentario_id, usuario_id, emoji, usuario:usuarios(nombre, apellido)")
+            .in("comentario_id", comentarioIds);
+        if (data) {
+            const map: Record<string, Reaccion[]> = {};
+            for (const r of data as any[]) {
+                if (!map[r.comentario_id]) map[r.comentario_id] = [];
+                map[r.comentario_id].push(r);
+            }
+            setReaccionesMap(map);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Toggle emoji reaction
+    const toggleReaccion = async (comentarioId: string, emoji: string) => {
+        const existing = reaccionesMap[comentarioId]?.find(
+            r => r.emoji === emoji && r.usuario_id === currentUserId
+        );
+        if (existing) {
+            // Remove
+            await supabase.from("reacciones_comentario").delete().eq("id", existing.id);
+            setReaccionesMap(prev => ({
+                ...prev,
+                [comentarioId]: (prev[comentarioId] || []).filter(r => r.id !== existing.id)
+            }));
+        } else {
+            // Add
+            const { data } = await supabase.from("reacciones_comentario").insert({
+                comentario_id: comentarioId,
+                usuario_id: currentUserId,
+                emoji
+            }).select("id, comentario_id, usuario_id, emoji").single();
+            if (data) {
+                setReaccionesMap(prev => ({
+                    ...prev,
+                    [comentarioId]: [...(prev[comentarioId] || []), { ...data, usuario: { nombre: currentUserNombre.split(" ")[0], apellido: currentUserNombre.split(" ").slice(1).join(" ") } } as any]
+                }));
+            }
+        }
+        setShowEmojiPicker(null);
+    };
+
+    // Group reactions for display
+    const getReaccionGroups = (comentarioId: string): ReaccionGroup[] => {
+        const reacciones = reaccionesMap[comentarioId] || [];
+        const groups: Record<string, ReaccionGroup> = {};
+        for (const r of reacciones) {
+            if (!groups[r.emoji]) {
+                groups[r.emoji] = { emoji: r.emoji, count: 0, users: [], hasOwn: false };
+            }
+            groups[r.emoji].count++;
+            const nombre = r.usuario ? `${r.usuario.nombre} ${r.usuario.apellido}` : "Usuario";
+            groups[r.emoji].users.push(nombre);
+            if (r.usuario_id === currentUserId) groups[r.emoji].hasOwn = true;
+        }
+        return Object.values(groups);
+    };
 
     useEffect(() => {
         fetchComentarios();
@@ -277,6 +367,46 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
         setArchivosPendientes(prev => prev.filter((_, i) => i !== index));
     };
 
+    // Paste image from clipboard
+    const handlePaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        const imageFiles: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith("image/")) {
+                const file = items[i].getAsFile();
+                if (file) imageFiles.push(file);
+            }
+        }
+        if (imageFiles.length > 0) {
+            e.preventDefault();
+            setArchivosPendientes(prev => [...prev, ...imageFiles]);
+            toast.info(`${imageFiles.length} imagen(es) pegada(s)`);
+        }
+    };
+
+    // Drag and drop
+    const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+    const handleDragLeave = () => setIsDragging(false);
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+        if (files.length > 0) {
+            setArchivosPendientes(prev => [...prev, ...files]);
+            toast.info(`${files.length} imagen(es) agregada(s)`);
+        }
+    };
+
+    // Auto-resize textarea
+    const autoResize = () => {
+        const el = textareaRef.current;
+        if (el) {
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 120) + "px";
+        }
+    };
+
     // Input handler with @ detection
     const handleInputChange = (value: string) => {
         setNuevoComentario(value);
@@ -306,7 +436,7 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
         const before = nuevoComentario.slice(0, lastAt);
         setNuevoComentario(`${before}@${user.nombre} ${user.apellido} `);
         setShowMentions(false);
-        inputRef.current?.focus();
+        textareaRef.current?.focus();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -374,8 +504,9 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
     };
 
     const openPreview = (images: any[], index: number) => {
-        setPreviewImages(images.map(img => ({ url: img.url, nombre: img.nombre })));
-        setPreviewIndex(index);
+        setLightboxImages(images.map((img: any) => ({ url: img.url, nombre: img.nombre })));
+        setLightboxIndex(index);
+        setLightboxOpen(true);
     };
 
     if (loading) {
@@ -395,74 +526,123 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
                 )}
                 {comentarios.map(c => {
                     const esMio = c.usuario_id === currentUserId;
+                    const reaccionGroups = getReaccionGroups(c.id);
+                    const isHovered = hoveredComment === c.id;
                     return (
-                        <div key={c.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${esMio
-                                ? "bg-brand-primary/20 text-white"
-                                : "bg-bg-tertiary text-text-primary border border-border"
-                                }`}>
-                                {!esMio && (
-                                    <p className="text-xs font-medium text-brand-secondary mb-1">
-                                        {c.usuario?.nombre} {c.usuario?.apellido}
+                        <div
+                            key={c.id}
+                            className={`flex ${esMio ? "justify-end" : "justify-start"} group/comment relative`}
+                            onMouseEnter={() => setHoveredComment(c.id)}
+                            onMouseLeave={() => { setHoveredComment(null); if (showEmojiPicker === c.id) setShowEmojiPicker(null); }}
+                        >
+                            <div className="relative max-w-[80%]">
+                                <div className={`rounded-lg px-3 py-2 text-sm ${esMio
+                                    ? "bg-brand-primary/20 text-white"
+                                    : "bg-bg-tertiary text-text-primary border border-border"
+                                    }`}>
+                                    {!esMio && (
+                                        <p className="text-xs font-medium text-brand-secondary mb-1">
+                                            {c.usuario?.nombre} {c.usuario?.apellido}
+                                        </p>
+                                    )}
+                                    {c.contenido && <p className="whitespace-pre-wrap">{renderContenido(c.contenido)}</p>}
+                                    {c.adjuntos && c.adjuntos.length > 0 && (
+                                        <div className="mt-2 space-y-1.5 flex flex-col">
+                                            {(() => {
+                                                const images = c.adjuntos.filter((a: any) => a.tipo?.startsWith("image/"));
+                                                const others = c.adjuntos.filter((a: any) => !a.tipo?.startsWith("image/"));
+                                                return (
+                                                    <>
+                                                        {images.length > 0 && (
+                                                            <div className="bg-bg-primary/50 rounded-lg p-2 border border-border/50">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className={`text-[11px] font-medium ${esMio ? "text-white/80" : "text-text-muted"}`}>
+                                                                        {images.length} {images.length === 1 ? 'imagen' : 'imágenes'}
+                                                                    </span>
+                                                                    {images.length > 1 && (
+                                                                        <Button variant="ghost" size="sm"
+                                                                            className={`h-6 text-[10px] px-2 ${esMio ? "text-white/90 hover:bg-white/20" : "text-brand-primary hover:bg-brand-primary/10"}`}
+                                                                            onClick={() => handleDownloadAll(images)} title="Descargar todas las imágenes">
+                                                                            <Download className="w-3 h-3 mr-1" /> Descargar Todo
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                                <div className={`grid gap-1 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'}`}>
+                                                                    {images.map((img: any, idx: number) => (
+                                                                        <div key={idx}
+                                                                            className={`relative aspect-square cursor-pointer overflow-hidden rounded border border-border/30 hover:opacity-90 transition-opacity bg-bg-secondary ${images.length === 3 && idx === 0 ? 'col-span-2 row-span-2 aspect-auto' : ''}`}
+                                                                            onClick={() => openPreview(images, idx)}>
+                                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                            <img src={img.url} alt={img.nombre} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {others.length > 0 && others.map((adj: any, i: number) => (
+                                                            <a key={i} href={adj.url} target="_blank" rel="noreferrer" className={`flex items-center w-max max-w-full gap-1.5 p-1.5 pr-3 rounded-md text-xs border border-border/50 shadow-sm ${esMio ? "bg-white/10 hover:bg-white/20" : "bg-bg-primary hover:bg-bg-secondary"}`}>
+                                                                <FileIcon className="w-3.5 h-3.5 shrink-0" />
+                                                                <span className="truncate">{adj.nombre}</span>
+                                                            </a>
+                                                        ))}
+                                                    </>
+                                                )
+                                            })()}
+                                        </div>
+                                    )}
+                                    <p className={`text-[10px] mt-1 ${esMio ? "text-brand-primary/60" : "text-text-muted"}`}>
+                                        {format(new Date(c.created_at), "dd/MM HH:mm", { locale: es })}
                                     </p>
-                                )}
-                                {c.contenido && <p className="whitespace-pre-wrap">{renderContenido(c.contenido)}</p>}
-                                {c.adjuntos && c.adjuntos.length > 0 && (
-                                    <div className="mt-2 space-y-1.5 flex flex-col">
-                                        {/* Agrupar imágenes para grilla */}
-                                        {(() => {
-                                            const images = c.adjuntos.filter((a: any) => a.tipo?.startsWith("image/"));
-                                            const others = c.adjuntos.filter((a: any) => !a.tipo?.startsWith("image/"));
+                                </div>
 
-                                            return (
-                                                <>
-                                                    {images.length > 0 && (
-                                                        <div className="bg-bg-primary/50 rounded-lg p-2 border border-border/50">
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <span className={`text-[11px] font-medium ${esMio ? "text-white/80" : "text-text-muted"}`}>
-                                                                    {images.length} {images.length === 1 ? 'imagen' : 'imágenes'}
-                                                                </span>
-                                                                {images.length > 1 && (
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className={`h-6 text-[10px] px-2 ${esMio ? "text-white/90 hover:bg-white/20" : "text-brand-primary hover:bg-brand-primary/10"}`}
-                                                                        onClick={() => handleDownloadAll(images)}
-                                                                        title="Descargar todas las imágenes"
-                                                                    >
-                                                                        <Download className="w-3 h-3 mr-1" /> Descargar Todo
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                            <div className={`grid gap-1 ${images.length === 1 ? 'grid-cols-1' : images.length === 2 ? 'grid-cols-2' : images.length >= 3 ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2'}`}>
-                                                                {images.map((img: any, idx: number) => (
-                                                                    <div
-                                                                        key={idx}
-                                                                        className={`relative aspect-square cursor-pointer overflow-hidden rounded border border-border/30 hover:opacity-90 transition-opacity bg-bg-secondary ${images.length === 3 && idx === 0 ? 'col-span-2 row-span-2 aspect-auto' : ''}`}
-                                                                        onClick={() => openPreview(images, idx)}
-                                                                    >
-                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                        <img src={img.url} alt={img.nombre} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {others.length > 0 && others.map((adj: any, i: number) => (
-                                                        <a key={i} href={adj.url} target="_blank" rel="noreferrer" className={`flex items-center w-max max-w-full gap-1.5 p-1.5 pr-3 rounded-md text-xs border border-border/50 shadow-sm ${esMio ? "bg-white/10 hover:bg-white/20" : "bg-bg-primary hover:bg-bg-secondary"}`}>
-                                                            <FileIcon className="w-3.5 h-3.5 shrink-0" />
-                                                            <span className="truncate">{adj.nombre}</span>
-                                                        </a>
-                                                    ))}
-                                                </>
-                                            )
-                                        })()}
+                                {/* Emoji Reaction Pills */}
+                                {reaccionGroups.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {reaccionGroups.map(g => (
+                                            <button
+                                                key={g.emoji}
+                                                onClick={() => toggleReaccion(c.id, g.emoji)}
+                                                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer
+                                                    ${g.hasOwn
+                                                        ? "bg-brand-primary/15 border-brand-primary/40 text-brand-primary"
+                                                        : "bg-bg-tertiary border-border-subtle text-text-muted hover:border-border"
+                                                    }`}
+                                                title={g.users.join(", ")}
+                                            >
+                                                <span>{g.emoji}</span>
+                                                <span className="text-[10px] font-medium">{g.count}</span>
+                                            </button>
+                                        ))}
                                     </div>
                                 )}
-                                <p className={`text-[10px] mt-1 ${esMio ? "text-brand-primary/60" : "text-text-muted"}`}>
-                                    {format(new Date(c.created_at), "dd/MM HH:mm", { locale: es })}
-                                </p>
+
+                                {/* Hover Emoji Add Button */}
+                                {isHovered && !c.id.startsWith("temp-") && (
+                                    <div className={`absolute -top-3 ${esMio ? "left-0" : "right-0"} z-20`}>
+                                        <button
+                                            onClick={() => setShowEmojiPicker(showEmojiPicker === c.id ? null : c.id)}
+                                            className="p-1 rounded-full bg-bg-secondary border border-border shadow-md hover:bg-bg-tertiary transition-colors"
+                                            title="Reaccionar"
+                                        >
+                                            <SmilePlus className="w-3.5 h-3.5 text-text-muted" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Emoji Picker Popover */}
+                                {showEmojiPicker === c.id && (
+                                    <div className={`absolute ${esMio ? "left-0" : "right-0"} -top-10 z-30 bg-bg-elevated border border-border rounded-lg shadow-xl p-1.5 flex gap-0.5 animate-in fade-in zoom-in-95 duration-150`}>
+                                        {EMOJI_SET.map(emoji => (
+                                            <button
+                                                key={emoji}
+                                                onClick={() => toggleReaccion(c.id, emoji)}
+                                                className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-tertiary transition-colors text-base hover:scale-125"
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );
@@ -508,7 +688,12 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
                     </div>
                 )}
 
-                <div className="flex gap-2">
+                <div
+                    className={`flex gap-2 items-end ${isDragging ? "ring-2 ring-brand-primary ring-offset-2 ring-offset-bg-primary rounded-lg" : ""}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                >
                     <input
                         type="file"
                         multiple
@@ -522,123 +707,39 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
                         size="icon"
                         onClick={() => fileRef.current?.click()}
                         disabled={enviando}
-                        className="text-text-muted hover:text-text-primary hover:bg-bg-tertiary shrink-0"
+                        className="text-text-muted hover:text-text-primary hover:bg-bg-tertiary shrink-0 self-end"
                         title="Adjuntar archivo"
                     >
                         <Paperclip className="w-4 h-4" />
                     </Button>
-                    <input
-                        ref={inputRef}
+                    <textarea
+                        ref={textareaRef}
                         value={nuevoComentario}
-                        onChange={e => handleInputChange(e.target.value)}
+                        onChange={e => { handleInputChange(e.target.value); autoResize(); }}
                         onKeyDown={handleKeyDown}
-                        placeholder="Comentario... (@ para mencionar)"
-                        className="flex-1 min-w-0 bg-bg-secondary border border-border rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-primary"
+                        onPaste={handlePaste}
+                        placeholder="Comentario... (@ para mencionar, Shift+Enter para nueva línea)"
+                        rows={1}
+                        className="flex-1 min-w-0 bg-bg-secondary border border-border rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-primary resize-none overflow-y-auto"
+                        style={{ maxHeight: 120 }}
                     />
                     <Button
                         onClick={handleEnviar}
                         disabled={enviando || (!nuevoComentario.trim() && archivosPendientes.length === 0)}
                         size="icon"
-                        className="bg-brand-primary hover:bg-brand-primary-hover text-white flex-shrink-0"
+                        className="bg-brand-primary hover:bg-brand-primary-hover text-white flex-shrink-0 self-end"
                     >
                         {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
                     </Button>
                 </div>
             </div>
 
-            {/* Lightbox / Image Viewer */}
-            <Dialog open={previewImages.length > 0} onOpenChange={(open) => !open && setPreviewImages([])}>
-                <DialogContent className="max-w-[95vw] sm:max-w-4xl bg-black/95 border-none p-0 flex flex-col h-[90vh] shadow-2xl">
-                    <DialogTitle className="sr-only">Visor de imágenes</DialogTitle>
-
-                    {/* Header Controls */}
-                    <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent">
-                        <div className="flex items-center gap-2">
-                            <span className="text-white/90 text-sm font-medium">
-                                {previewIndex + 1} de {previewImages.length}
-                            </span>
-                            <span className="text-white/60 text-xs truncate max-w-[200px] hidden sm:inline-block">
-                                {previewImages[previewIndex]?.nombre}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-white hover:bg-white/20"
-                                onClick={() => {
-                                    const a = document.createElement("a");
-                                    a.href = previewImages[previewIndex]?.url;
-                                    a.download = previewImages[previewIndex]?.nombre;
-                                    a.target = "_blank";
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    document.body.removeChild(a);
-                                }}
-                            >
-                                <Download className="w-4 h-4 mr-2" />
-                                Descargar
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-white hover:bg-white/20 rounded-full"
-                                onClick={() => setPreviewImages([])}
-                            >
-                                <X className="w-5 h-5" />
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Main Image Area */}
-                    <div className="flex-1 relative flex items-center justify-center p-4">
-                        {previewImages.length > 1 && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 rounded-full w-12 h-12 z-50 hidden sm:flex"
-                                onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev > 0 ? prev - 1 : previewImages.length - 1); }}
-                            >
-                                <ChevronLeft className="w-8 h-8" />
-                            </Button>
-                        )}
-
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={previewImages[previewIndex]?.url}
-                            alt={previewImages[previewIndex]?.nombre}
-                            className="max-w-full max-h-full object-contain pointer-events-none"
-                        />
-
-                        {previewImages.length > 1 && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 rounded-full w-12 h-12 z-50 hidden sm:flex"
-                                onClick={(e) => { e.stopPropagation(); setPreviewIndex(prev => prev < previewImages.length - 1 ? prev + 1 : 0); }}
-                            >
-                                <ChevronRight className="w-8 h-8" />
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* Thumbnail strip */}
-                    {previewImages.length > 1 && (
-                        <div className="h-20 bg-black/80 flex items-center justify-center gap-2 px-4 overflow-x-auto custom-scrollbar">
-                            {previewImages.map((img, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => setPreviewIndex(idx)}
-                                    className={`relative h-14 w-14 shrink-0 rounded overflow-hidden transition-all ${idx === previewIndex ? 'ring-2 ring-brand-primary opacity-100 scale-105' : 'opacity-50 hover:opacity-100'}`}
-                                >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={img.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <ImageLightbox
+                images={lightboxImages}
+                initialIndex={lightboxIndex}
+                open={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+            />
         </div>
     );
 }

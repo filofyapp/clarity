@@ -13,11 +13,12 @@ import { useSidebar } from "./SidebarContext";
 interface SidebarClientProps {
     userRoles: string[];
     pendingCargaCount?: number;
+    unreadTasksCount?: number;
     userName?: string;
     userInitial?: string;
 }
 
-export function SidebarClient({ userRoles, pendingCargaCount = 0, userName = "Usuario", userInitial = "U" }: SidebarClientProps) {
+export function SidebarClient({ userRoles, pendingCargaCount = 0, unreadTasksCount = 0, userName = "Usuario", userInitial = "U" }: SidebarClientProps) {
     const pathname = usePathname();
     const { isCollapsed, toggleSidebar } = useSidebar();
 
@@ -61,7 +62,7 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0, userName = "Us
                         {userRoles.includes("admin") && (
                             <SidebarItem href="/casos/nuevo" icon={PlusCircle} label="Nuevo Caso" pathname={pathname} isCollapsed={isCollapsed} />
                         )}
-                        <SidebarItem href="/tareas" icon={ListTodo} label="Tareas" pathname={pathname} isCollapsed={isCollapsed} />
+                        <SidebarItem href="/tareas" icon={ListTodo} label="Tareas" pathname={pathname} badgeCount={unreadTasksCount} badgeColor="amber" isCollapsed={isCollapsed} />
                         {(userRoles.includes("admin") || userRoles.includes("carga")) && (
                             <SidebarItem href="/carga" icon={FileBox} label="Cola de Carga" pathname={pathname} badgeCount={pendingCargaCount} isCollapsed={isCollapsed} />
                         )}
@@ -143,6 +144,7 @@ function SidebarItem({
     label,
     pathname,
     badgeCount,
+    badgeColor,
     isCollapsed
 }: {
     href: string;
@@ -150,6 +152,7 @@ function SidebarItem({
     label: string;
     pathname: string;
     badgeCount?: number;
+    badgeColor?: "red" | "amber";
     isCollapsed?: boolean;
 }) {
     // Active detection: exact match or starts with (for nested routes like /casos/[id])
@@ -172,12 +175,12 @@ function SidebarItem({
                 {!isCollapsed && label}
             </div>
             {!isCollapsed && !!badgeCount && badgeCount > 0 && (
-                <span className="flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-color-danger text-[10px] font-bold text-white shadow-shadow-glow ml-auto animate-in zoom-in">
+                <span className={`flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[10px] font-bold text-white shadow-shadow-glow ml-auto animate-in zoom-in ${badgeColor === "amber" ? "bg-amber-500" : "bg-color-danger"}`}>
                     {badgeCount > 99 ? '99+' : badgeCount}
                 </span>
             )}
             {isCollapsed && !!badgeCount && badgeCount > 0 && (
-                <span className="absolute top-1 right-2 flex h-2 w-2 rounded-full bg-color-danger shadow-shadow-glow"></span>
+                <span className={`absolute top-1 right-2 flex h-2 w-2 rounded-full shadow-shadow-glow ${badgeColor === "amber" ? "bg-amber-500" : "bg-color-danger"}`}></span>
             )}
         </Link>
     );

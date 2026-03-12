@@ -18,6 +18,7 @@ import { EditableLinkOrion } from "./EditableLinkOrion";
 import { GenerarLinkInspeccion } from "./GenerarLinkInspeccion";
 import { GestorRepliesBanner } from "./GestorRepliesBanner";
 import EditableCoordinacion from "./EditableCoordinacion";
+import { EditableField } from "./EditableField";
 
 export async function CasoDetail({ id }: { id: string }) {
     const supabase = await createClient();
@@ -39,7 +40,18 @@ export async function CasoDetail({ id }: { id: string }) {
     // Fetch usuarios activos para el selector de tareas
     const { data: usuariosAll } = await supabase
         .from("usuarios")
-        .select("id, nombre, apellido, rol")
+        .select("id, nombre, apellido, rol, roles")
+        .eq("activo", true)
+        .order("nombre");
+
+    const { data: talleres } = await supabase
+        .from("talleres")
+        .select("id, nombre")
+        .order("nombre");
+
+    const { data: gestores } = await supabase
+        .from("gestores")
+        .select("id, nombre, sector")
         .eq("activo", true)
         .order("nombre");
 
@@ -51,6 +63,7 @@ export async function CasoDetail({ id }: { id: string }) {
       taller:talleres(nombre, direccion),
       perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido),
       perito_carga:usuarios!casos_perito_carga_id_fkey(nombre, apellido),
+      gestor:gestores(nombre, email, sector),
       historial_estados(id, estado_nuevo, created_at, usuario:usuarios(nombre, apellido))
     `)
         .eq("id", id)
@@ -72,6 +85,19 @@ export async function CasoDetail({ id }: { id: string }) {
         .order("created_at", { ascending: true });
 
     const hayRelacionados = casosRelacionados && casosRelacionados.length > 1;
+
+    // Opciones para EditableField
+    const peritosActivos = usuariosAll || [];
+    const opcionesPeritosCalle = peritosActivos
+        .filter((u: any) => u.rol === "calle" || u.rol === "admin" || (u.roles || []).includes("calle") || (u.roles || []).includes("admin"))
+        .map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido}` }));
+    
+    const opcionesPeritosCarga = peritosActivos
+        .filter((u: any) => u.rol === "carga" || u.rol === "admin" || (u.roles || []).includes("carga") || (u.roles || []).includes("admin"))
+        .map((u: any) => ({ value: u.id, label: `${u.nombre} ${u.apellido}` }));
+
+    const opcionesTalleres = (talleres || []).map((t: any) => ({ value: t.id, label: t.nombre }));
+    const opcionesGestores = (gestores || []).map((g: any) => ({ value: g.id, label: `${g.nombre}${g.sector ? ` (${g.sector})` : ""}` }));
 
     return (
         <div className="space-y-8">
@@ -165,11 +191,25 @@ export async function CasoDetail({ id }: { id: string }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                                 <div>
                                     <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><Car className="w-3.5 h-3.5" /> Vehículo</p>
-                                    <p className="font-semibold text-text-primary text-base">{caso.marca}</p>
+                                    <EditableField
+                                        casoId={caso.id}
+                                        campo="marca"
+                                        valorActual={caso.marca}
+                                        tipo="text"
+                                        placeholder="Ej: FIAT CRONOS 2024"
+                                        textClassName="font-semibold text-text-primary text-base"
+                                    />
                                 </div>
                                 <div>
                                     <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Dominio</p>
-                                    <p className="font-semibold text-text-primary text-base uppercase tracking-wider">{caso.dominio}</p>
+                                    <EditableField
+                                        casoId={caso.id}
+                                        campo="dominio"
+                                        valorActual={caso.dominio}
+                                        tipo="text"
+                                        placeholder="Sin dominio"
+                                        textClassName="font-semibold text-text-primary text-base uppercase tracking-wider"
+                                    />
                                 </div>
                                 <EditableCoordinacion
                                     casoId={caso.id}
@@ -179,6 +219,18 @@ export async function CasoDetail({ id }: { id: string }) {
                                     fechaProgramadaInicial={caso.fecha_inspeccion_programada}
                                     rol={rol}
                                 />
+                                <div className="md:col-span-2 mt-2 pt-4 border-t border-border/50">
+                                    <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Observaciones Internas</p>
+                                    <EditableField
+                                        casoId={caso.id}
+                                        campo="notas_admin"
+                                        valorActual={caso.notas_admin}
+                                        tipo="textarea"
+                                        placeholder="Clic para agregar una nota interna (solo personal del estudio)..."
+                                        textClassName="text-sm"
+                                        className="w-full"
+                                    />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -225,21 +277,62 @@ export async function CasoDetail({ id }: { id: string }) {
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                 <div className="p-4 rounded-lg bg-bg-secondary border border-border/60 flex flex-col gap-1 transition-colors hover:border-brand-primary/30 hover:bg-bg-tertiary">
                                     <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Perito de Calle</p>
-                                    <p className="font-medium text-text-primary">
-                                        {caso.perito_calle ? `${caso.perito_calle.nombre} ${caso.perito_calle.apellido}` : "Sin asignar"}
-                                    </p>
+                                    <EditableField
+                                        casoId={caso.id}
+                                        campo="perito_calle_id"
+                                        valorActual={caso.perito_calle_id}
+                                        displayValue={caso.perito_calle ? `${caso.perito_calle.nombre} ${caso.perito_calle.apellido}` : undefined}
+                                        tipo="select"
+                                        opciones={opcionesPeritosCalle}
+                                        placeholder="Seleccionar Perito Calle..."
+                                        textClassName="font-medium"
+                                    />
                                 </div>
                                 <div className="p-4 rounded-lg bg-bg-secondary border border-border/60 flex flex-col gap-1 transition-colors hover:border-brand-primary/30 hover:bg-bg-tertiary">
                                     <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Perito de Carga</p>
-                                    <p className="font-medium text-text-primary">
-                                        {caso.perito_carga ? `${caso.perito_carga.nombre} ${caso.perito_carga.apellido}` : "Sin asignar"}
-                                    </p>
+                                    <EditableField
+                                        casoId={caso.id}
+                                        campo="perito_carga_id"
+                                        valorActual={caso.perito_carga_id}
+                                        displayValue={caso.perito_carga ? `${caso.perito_carga.nombre} ${caso.perito_carga.apellido}` : undefined}
+                                        tipo="select"
+                                        opciones={opcionesPeritosCarga}
+                                        placeholder="Seleccionar Perito Carga..."
+                                        textClassName="font-medium"
+                                    />
                                 </div>
                                 <div className="p-4 rounded-lg bg-bg-secondary border border-border/60 flex flex-col gap-1 transition-colors hover:border-brand-primary/30 hover:bg-bg-tertiary">
                                     <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Taller de Destino</p>
-                                    <p className="font-medium text-text-primary line-clamp-1">
-                                        {caso.taller?.nombre || "No especificado"}
-                                    </p>
+                                    <EditableField
+                                        casoId={caso.id}
+                                        campo="taller_id"
+                                        valorActual={caso.taller_id}
+                                        displayValue={caso.taller?.nombre}
+                                        tipo="select"
+                                        opciones={opcionesTalleres}
+                                        placeholder="Seleccionar Taller..."
+                                        textClassName="font-medium line-clamp-1"
+                                    />
+                                </div>
+                                <div className="p-4 rounded-lg bg-bg-secondary border border-border/60 flex flex-col gap-1 transition-colors hover:border-brand-primary/30 hover:bg-bg-tertiary">
+                                    <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Gestor de Reclamo</p>
+                                    <EditableField
+                                        casoId={caso.id}
+                                        campo="gestor_id"
+                                        valorActual={caso.gestor_id}
+                                        displayValue={caso.gestor?.nombre}
+                                        tipo="select"
+                                        opciones={opcionesGestores}
+                                        placeholder="Seleccionar Gestor..."
+                                        textClassName="font-medium"
+                                    />
+                                    {caso.gestor && (
+                                        <div className="-mt-1">
+                                            {caso.gestor.email && (
+                                                <a href={`mailto:${caso.gestor.email}`} className="text-xs text-brand-primary hover:underline">{caso.gestor.email}</a>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <EditableLinkOrion casoId={caso.id} linkOrion={caso.link_orion} />
                                 <GenerarLinkInspeccion casoId={caso.id} />

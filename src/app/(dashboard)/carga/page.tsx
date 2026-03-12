@@ -1,19 +1,14 @@
 import { Suspense } from "react";
 import { getCasosParaCarga } from "./actions";
-import { getPeritos, getGestores } from "../casos/actions";
-import { AlertCircle, FileSearch, ShieldCheck } from "lucide-react";
-import { CasosTable } from "@/components/casos/CasosTable";
+import { AlertCircle, FileSearch } from "lucide-react";
+import { ColaDeCargaBoard } from "@/components/carga/ColaDeCargaBoard";
 
 export const metadata = {
     title: "Cola de Oficina y Carga - CLARITY"
 };
 
 async function ColaCarga() {
-    const [{ data: casos, error }, peritos, gestores] = await Promise.all([
-        getCasosParaCarga(),
-        getPeritos(),
-        getGestores()
-    ]);
+    const { data: casos, error } = await getCasosParaCarga();
 
     if (error) {
         return (
@@ -24,23 +19,7 @@ async function ColaCarga() {
         );
     }
 
-    if (!casos || casos.length === 0) {
-        return (
-            <div className="flex flex-col flex-1 h-[60vh] items-center justify-center p-8 text-center bg-bg-secondary/50 rounded-xl border border-dashed border-border">
-                <ShieldCheck className="w-16 h-16 text-color-success mb-4" />
-                <h3 className="text-xl font-semibold text-text-primary mb-2">Oficina al día</h3>
-                <p className="text-text-muted max-w-sm">
-                    No tienes informes técnicos listos para cerrar o cotizar a Sancor por el momento.
-                </p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-bg-secondary border border-border rounded-xl mt-6 overflow-hidden hidden md:block animate-in fade-in duration-500">
-            <CasosTable casos={casos} peritos={peritos} gestores={gestores} userRol="carga" />
-        </div>
-    );
+    return <ColaDeCargaBoard casos={casos || []} />;
 }
 
 export default function CargaPage() {

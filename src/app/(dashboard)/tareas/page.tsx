@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { KanbanSquare } from "lucide-react";
+import { Suspense } from "react";
 import { KanbanBoard } from "@/components/tareas/KanbanBoard";
 import { TareaForm } from "@/components/tareas/TareaForm";
 
@@ -56,13 +57,15 @@ export default async function TareasDashboard() {
             </div>
 
             {/* Kanban Grid Injection */}
-            <KanbanBoard
-                tareas={tareas || []}
-                usuarios={usuariosAll || []}
-                currentUserId={usuarioData.id}
-                currentUserRol={usuarioData.rol}
-                currentUserNombre={`${usuarioData.nombre} ${usuarioData.apellido}`}
-            />
+            <Suspense fallback={<div className="text-text-muted">Cargando tablero...</div>}>
+                <KanbanBoard
+                    tareas={tareas || []}
+                    usuarios={usuariosAll || []}
+                    currentUserId={usuarioData.id}
+                    currentUserRol={usuarioData.rol}
+                    currentUserNombre={`${usuarioData.nombre} ${usuarioData.apellido}`}
+                />
+            </Suspense>
         </div>
     );
 }

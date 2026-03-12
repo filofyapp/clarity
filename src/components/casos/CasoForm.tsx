@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { crearCaso } from "@/app/(dashboard)/casos/actions";
-import { Loader2, Plus, CheckCircle2, Sparkles } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Loader2, Plus, CheckCircle2, Sparkles, Upload, FileText, X, ImageIcon } from "lucide-react";
 
 interface CasoFormProps {
     gestores?: any[];
@@ -49,6 +50,11 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
     const [direccion, setDireccion] = useState("");
     const [localidad, setLocalidad] = useState("");
     const [descripcion, setDescripcion] = useState("");
+
+    // Archivos adjuntos (carátula, denuncia, etc.)
+    const [archivos, setArchivos] = useState<File[]>([]);
+    const [dragActive, setDragActive] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Fix: usar roles array (multi-role) en vez de rol string
     const peritosCalle = peritos.filter(p => {
@@ -110,6 +116,7 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
         setDescripcion("");
         setCasoOrigenId(null);
         setExistingCaso(null);
+        setArchivos([]);
         // No resetear peritos: suelen repetir en carga masiva
     };
 
@@ -125,6 +132,7 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                 numero_siniestro: numSiniestro,
                 numero_servicio: numServicio || undefined,
                 tipo_inspeccion: tipoIp,
+                gestor_id: gestorId || undefined,
                 taller_id: tallerId || undefined,
                 perito_calle_id: peritoCelleId || undefined,
                 perito_carga_id: peritoCargaId || undefined,
@@ -141,6 +149,23 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
             if (result.error) {
                 toast.error(result.error);
             } else {
+                // Upload archivos al bucket caso-archivos/{casoId}/
+                if (archivos.length > 0 && result.casoId) {
+                    const supabase = createClient();
+                    let uploadedCount = 0;
+                    for (const file of archivos) {
+                        const fileName = `${Date.now()}_${file.name}`;
+                        const { error: uploadErr } = await supabase.storage
+                            .from("caso-archivos")
+                            .upload(`${result.casoId}/${fileName}`, file);
+                        if (!uploadErr) uploadedCount++;
+                        else console.error("Upload error:", uploadErr.message);
+                    }
+                    if (uploadedCount > 0) {
+                        toast.success(`${uploadedCount} archivo${uploadedCount > 1 ? "s" : ""} adjuntado${uploadedCount > 1 ? "s" : ""}`);
+                    }
+                }
+
                 const estadoMsg = fechaInspeccion ? "IP Coordinada" : "Pendiente Coordinación";
                 setCasosCreados(prev => prev + 1);
                 toast.success(`Caso creado → ${estadoMsg}`, {
@@ -149,14 +174,13 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
 
                 if (modoSecuencial) {
                     resetForm();
-                    // Focus en el primer campo
                     const input = document.getElementById("num_siniestro") as HTMLInputElement;
                     input?.focus();
                 } else {
-                    router.refresh(); // Clear the cache before navigating
+                    router.refresh();
                     setTimeout(() => {
                         router.push(`/casos/${result.casoId}`);
-                    }, 500); // 500ms debounce to ensure Supabase replication completes
+                    }, 500);
                 }
             }
         });
@@ -402,6 +426,61 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                         placeholder="Información adicional del caso (reemplazo del bloc de notas). Pegá acá los datos de Sancor..."
                         className="w-full bg-bg-tertiary border border-border rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-primary resize-y"
                     />
+                </div>
+
+                {/* ── Sección 5: Archivos Adjuntos ── */}
+                <div className="space-y-4">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary border-b border-border-subtle pb-2 font-outfit mt-4">Archivos Adjuntos (Carátula, Denuncia, etc.)</h3>
+                    <div
+                        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
+                        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                            e.preventDefault(); e.stopPropagation(); setDragActive(false);
+                            if (e.dataTransfer.files.length > 0) {
+                                setArchivos(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
+                            }
+                        }}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-lg p-5 text-center transition-all cursor-pointer ${
+                            dragActive ? "border-brand-primary bg-brand-primary/5" : "border-border hover:border-border-hover"
+                        }`}
+                    >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => {
+                                if (e.target.files) {
+                                    setArchivos(prev => [...prev, ...Array.from(e.target.files!)]);
+                                    e.target.value = "";
+                                }
+                            }}
+                        />
+                        <Upload className="w-6 h-6 text-text-muted mx-auto mb-1" />
+                        <p className="text-sm text-text-secondary">
+                            Arrastrá archivos acá o <span className="text-brand-primary underline">seleccioná</span>
+                        </p>
+                        <p className="text-xs text-text-muted">PDF, JPG, PNG</p>
+                    </div>
+                    {archivos.length > 0 && (
+                        <div className="space-y-1">
+                            {archivos.map((file, idx) => (
+                                <div key={idx} className="flex items-center justify-between bg-bg-tertiary border border-border rounded-md px-3 py-2 text-sm">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        {file.type.startsWith("image/") ? <ImageIcon className="w-4 h-4 text-brand-secondary shrink-0" /> : <FileText className="w-4 h-4 text-text-muted shrink-0" />}
+                                        <span className="truncate text-text-primary">{file.name}</span>
+                                        <span className="text-xs text-text-muted shrink-0">({(file.size / 1024).toFixed(0)} KB)</span>
+                                    </div>
+                                    <button type="button" onClick={() => setArchivos(prev => prev.filter((_, i) => i !== idx))} className="text-text-muted hover:text-danger ml-2">
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* ── Footer ── */}

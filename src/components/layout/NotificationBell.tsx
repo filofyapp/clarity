@@ -105,7 +105,7 @@ export function NotificationBell() {
     };
 
     const getLink = (n: Notificacion) => {
-        if (n.tarea_id) return `/tareas`;
+        if (n.tarea_id) return `/tareas?tareaId=${n.tarea_id}`;
         if (n.caso_id) return `/casos/${n.caso_id}`;
         return "#";
     };

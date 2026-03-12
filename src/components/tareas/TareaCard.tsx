@@ -1,10 +1,12 @@
 "use client";
 
-import { AlertCircle, Clock, ChevronRight, CheckCircle2, Link as LinkIcon, MessageSquare, Paperclip, FileIcon, ImageIcon } from "lucide-react";
+import { AlertCircle, Clock, ChevronRight, CheckCircle2, Link as LinkIcon, MessageSquare, Paperclip, FileIcon, ImageIcon, SmilePlus } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { updateTareaEstado, updateTareaAsignado } from "@/app/(dashboard)/tareas/actions";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EstadoBadge } from "@/components/casos/EstadoBadge";
 import { TimelineExpediente } from "@/components/casos/TimelineExpediente";
+import { ImageLightbox, type LightboxImage } from "@/components/ui/ImageLightbox";
 import { Trash2 } from "lucide-react";
 
 import { TareaForm } from "./TareaForm";
@@ -114,13 +117,97 @@ const isOverdue = (tarea: TareaData) => {
 
 export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUserNombre, currentUserRol }: TareaCardProps) {
     const [isPending, startTransition] = useTransition();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [sheetOpen, setSheetOpen] = useState(false);
     const [panelWidth, setPanelWidth] = useState(600);
     const [isChangingAsignado, setIsChangingAsignado] = useState(false);
 
+    // Lightbox state for task attachments
+    const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+
+    // Emoji reactions on task description
+    const EMOJI_SET = ["👍", "✅", "👀", "🙏", "❤️", "😂", "⚠️", "🔥"];
+    const [descReacciones, setDescReacciones] = useState<{ id: string; tarea_id: string; usuario_id: string; emoji: string; usuario?: { nombre: string; apellido: string } | null }[]>([]);
+    const [showDescEmojiPicker, setShowDescEmojiPicker] = useState(false);
+    const [isDescHovered, setIsDescHovered] = useState(false);
+
+    // Auto-open if URL param matches this task ID
+    useEffect(() => {
+        const urlTareaId = searchParams.get("tareaId");
+        if (urlTareaId === tarea.id && !sheetOpen) {
+            setSheetOpen(true);
+            // Clean up the URL to prevent reopening on subsequent navigations
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete("tareaId");
+            router.replace(newUrl.pathname + newUrl.search, { scroll: false });
+        }
+    }, [searchParams, tarea.id, sheetOpen, router]);
+
     const hasOtrasRespuestas = tarea.comentarios_tarea?.some(
         (c: { usuario_id: string }) => c.usuario_id !== tarea.creador_id && c.usuario_id !== currentUserId
     );
+
+    const supabase = createClient();
+
+    // Fetch description reactions when sheet opens
+    useEffect(() => {
+        if (!sheetOpen) return;
+        async function fetchDescReacciones() {
+            const { data } = await supabase
+                .from("reacciones_tarea")
+                .select("id, tarea_id, usuario_id, emoji, usuario:usuarios(nombre, apellido)")
+                .eq("tarea_id", tarea.id);
+            if (data) setDescReacciones(data as any);
+        }
+        fetchDescReacciones();
+    }, [sheetOpen, tarea.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Toggle emoji reaction on description
+    const toggleDescReaccion = async (emoji: string) => {
+        const existing = descReacciones.find(
+            r => r.emoji === emoji && r.usuario_id === currentUserId
+        );
+        if (existing) {
+            await supabase.from("reacciones_tarea").delete().eq("id", existing.id);
+            setDescReacciones(prev => prev.filter(r => r.id !== existing.id));
+        } else {
+            const { data } = await supabase.from("reacciones_tarea").insert({
+                tarea_id: tarea.id,
+                usuario_id: currentUserId,
+                emoji
+            }).select("id, tarea_id, usuario_id, emoji").single();
+            if (data) {
+                setDescReacciones(prev => [...prev, { ...data, usuario: { nombre: currentUserNombre?.split(" ")[0] || "Yo", apellido: currentUserNombre?.split(" ").slice(1).join(" ") || "" } } as any]);
+            }
+        }
+        setShowDescEmojiPicker(false);
+    };
+
+    // Group description reactions for display
+    const descReaccionGroups = (() => {
+        const groups: Record<string, { emoji: string; count: number; users: string[]; hasOwn: boolean }> = {};
+        for (const r of descReacciones) {
+            if (!groups[r.emoji]) groups[r.emoji] = { emoji: r.emoji, count: 0, users: [], hasOwn: false };
+            groups[r.emoji].count++;
+            const nombre = r.usuario ? `${r.usuario.nombre} ${r.usuario.apellido}` : "Usuario";
+            groups[r.emoji].users.push(nombre);
+            if (r.usuario_id === currentUserId) groups[r.emoji].hasOwn = true;
+        }
+        return Object.values(groups);
+    })();
+
+    // Open lightbox for task attachments
+    const openAttachmentLightbox = (adjuntos: any[], index: number) => {
+        const images = adjuntos
+            .filter((a: any) => a.type?.startsWith("image/"))
+            .map((a: any) => ({ url: a.url, nombre: a.name }));
+        setLightboxImages(images);
+        setLightboxIndex(index);
+        setLightboxOpen(true);
+    };
     const totalComments = tarea.comentarios_tarea?.length || 0;
 
     const handleAssigneeChange = (newId: string) => {
@@ -207,9 +294,9 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                 {/* Row 1: Siniestro prominente + Quick Actions */}
                 <div className="flex justify-between items-start w-full">
                     {tarea.caso_id ? (
-                        <div onClick={(e) => e.stopPropagation()} className="z-10">
-                            <Link href={`/casos/${tarea.caso_id}`} className="flex items-center gap-1.5 text-brand-primary hover:underline w-fit">
-                                <LinkIcon className="w-3.5 h-3.5" />
+                        <div onClick={(e) => e.stopPropagation()} className="z-10 flex flex-col">
+                            <Link href={`/casos/${tarea.caso_id}`} className="flex items-center gap-1.5 text-accent-text hover:underline w-fit">
+                                <LinkIcon className="w-4 h-4" />
                                 <span className="font-bold font-mono text-base tracking-wide">{tarea.caso?.numero_siniestro || "..."}</span>
                             </Link>
                         </div>
@@ -332,7 +419,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
 
             {/* ═══════ SHEET (Detail Panel — unchanged) ═══════ */}
             <SheetContent
-                className="w-full sm:max-w-none p-0 flex flex-col bg-bg-primary border-l border-border"
+                className="w-full sm:max-w-none p-0 flex flex-col bg-bg-primary border-l border-border h-[100dvh] overflow-hidden"
                 side="right"
                 onClick={e => e.stopPropagation()}
                 onPointerDown={e => e.stopPropagation()}
@@ -363,11 +450,66 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                     </div>
                 </SheetHeader>
 
-                <div className="flex-1 flex flex-col min-h-0 relative">
+                <div className="flex-1 overflow-y-auto flex flex-col w-full relative">
                     {/* Full description */}
                     {tarea.descripcion && (
-                        <div className="bg-bg-tertiary p-4 rounded-lg border border-border mx-6 mt-4 mb-2 text-sm text-text-muted whitespace-pre-line leading-relaxed shrink-0 max-h-[30vh] overflow-y-auto">
-                            {tarea.descripcion}
+                        <div
+                            className="relative mx-6 mt-4 mb-2 group/desc"
+                            onMouseEnter={() => setIsDescHovered(true)}
+                            onMouseLeave={() => { setIsDescHovered(false); setShowDescEmojiPicker(false); }}
+                        >
+                            <div className="bg-bg-tertiary p-4 rounded-lg border border-border text-sm text-text-primary whitespace-pre-line leading-relaxed shrink-0 max-h-[40vh] overflow-y-auto">
+                                {tarea.descripcion}
+                            </div>
+
+                            {/* Emoji reaction pills below description */}
+                            {descReaccionGroups.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {descReaccionGroups.map(g => (
+                                        <button
+                                            key={g.emoji}
+                                            onClick={() => toggleDescReaccion(g.emoji)}
+                                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer
+                                                ${g.hasOwn
+                                                    ? "bg-brand-primary/15 border-brand-primary/40 text-brand-primary"
+                                                    : "bg-bg-tertiary border-border-subtle text-text-muted hover:border-border"
+                                                }`}
+                                            title={g.users.join(", ")}
+                                        >
+                                            <span>{g.emoji}</span>
+                                            <span className="text-[10px] font-medium">{g.count}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Hover emoji button */}
+                            {isDescHovered && (
+                                <div className="absolute -top-3 right-2 z-20">
+                                    <button
+                                        onClick={() => setShowDescEmojiPicker(!showDescEmojiPicker)}
+                                        className="p-1 rounded-full bg-bg-secondary border border-border shadow-md hover:bg-bg-tertiary transition-colors"
+                                        title="Reaccionar"
+                                    >
+                                        <SmilePlus className="w-3.5 h-3.5 text-text-muted" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Emoji picker popover */}
+                            {showDescEmojiPicker && (
+                                <div className="absolute right-2 -top-10 z-30 bg-bg-elevated border border-border rounded-lg shadow-xl p-1.5 flex gap-0.5 animate-in fade-in zoom-in-95 duration-150">
+                                    {EMOJI_SET.map(emoji => (
+                                        <button
+                                            key={emoji}
+                                            onClick={() => toggleDescReaccion(emoji)}
+                                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-bg-tertiary transition-colors text-base hover:scale-125"
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -378,30 +520,39 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                                 <Paperclip className="w-3 h-3" /> Archivos Adjuntos ({tarea.adjuntos.length})
                             </h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {tarea.adjuntos.map((adj: any, idx: number) => (
-                                    <a key={idx} href={adj.url} target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center gap-2 p-2 rounded-md bg-bg-secondary border border-border hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-colors group">
-                                        {adj.type?.startsWith('image/') ? (
-                                            <div className="w-8 h-8 rounded shrink-0 bg-bg-tertiary overflow-hidden flex items-center justify-center border border-border">
-                                                <img src={adj.url} alt={adj.name} className="w-full h-full object-cover" />
+                                {tarea.adjuntos.map((adj: any, idx: number) => {
+                                    const isImage = adj.type?.startsWith('image/');
+                                    const imageAdjuntos = tarea.adjuntos!.filter((a: any) => a.type?.startsWith('image/'));
+                                    const imageIdx = isImage ? imageAdjuntos.indexOf(adj) : -1;
+                                    return (
+                                        <div
+                                            key={idx}
+                                            onClick={() => isImage ? openAttachmentLightbox(tarea.adjuntos!, imageIdx >= 0 ? imageIdx : 0) : window.open(adj.url, '_blank')}
+                                            className="flex items-center gap-2 p-2 rounded-md bg-bg-secondary border border-border hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-colors group cursor-pointer"
+                                        >
+                                            {isImage ? (
+                                                <div className="w-8 h-8 rounded shrink-0 bg-bg-tertiary overflow-hidden flex items-center justify-center border border-border">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={adj.url} alt={adj.name} className="w-full h-full object-cover" />
+                                                </div>
+                                            ) : (
+                                                <div className="w-8 h-8 rounded shrink-0 bg-bg-tertiary flex items-center justify-center border border-border text-brand-secondary">
+                                                    <FileIcon className="w-4 h-4" />
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[10px] font-medium text-text-primary truncate group-hover:text-brand-primary transition-colors">{adj.name}</p>
+                                                <p className="text-[9px] text-text-muted">{(adj.size / 1024).toFixed(0)} KB</p>
                                             </div>
-                                        ) : (
-                                            <div className="w-8 h-8 rounded shrink-0 bg-bg-tertiary flex items-center justify-center border border-border text-brand-secondary">
-                                                <FileIcon className="w-4 h-4" />
-                                            </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-[10px] font-medium text-text-primary truncate group-hover:text-brand-primary transition-colors">{adj.name}</p>
-                                            <p className="text-[9px] text-text-muted">{(adj.size / 1024).toFixed(0)} KB</p>
                                         </div>
-                                    </a>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
 
-                    <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                        <div className="px-6 border-b border-border bg-bg-secondary shrink-0">
+                    <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
+                        <div className="px-6 border-b border-border bg-bg-secondary shrink-0 pt-2 sticky top-0 z-10">
                             <TabsList className="bg-transparent border-none h-12 w-full justify-start gap-4 space-x-0 p-0">
                                 <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-brand-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 font-medium">
                                     Conversación
@@ -414,17 +565,19 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             </TabsList>
                         </div>
 
-                        <TabsContent value="chat" className="flex-1 m-0 data-[state=active]:flex flex-col min-h-0 overflow-hidden">
-                            <ComentariosTarea
-                                tareaId={tarea.id}
-                                currentUserId={currentUserId!}
-                                currentUserNombre={currentUserNombre!}
-                            />
+                        <TabsContent value="chat" className="flex-1 m-0 data-[state=active]:flex flex-col min-h-0">
+                            <div className="flex-1 flex flex-col">
+                                <ComentariosTarea
+                                    tareaId={tarea.id}
+                                    currentUserId={currentUserId!}
+                                    currentUserNombre={currentUserNombre!}
+                                />
+                            </div>
                         </TabsContent>
 
                         {tarea.caso && (
-                            <TabsContent value="siniestro" className="flex-1 m-0 data-[state=active]:flex flex-col p-6 min-h-0 overflow-hidden">
-                                <ScrollArea className="flex-1 py-1">
+                            <TabsContent value="siniestro" className="flex-1 m-0 data-[state=active]:flex flex-col p-6 min-h-0">
+                                <div className="flex-1">
                                     <div className="space-y-6">
                                         <div className="bg-bg-tertiary p-4 rounded-lg border border-border">
                                             <h3 className="font-semibold text-text-primary text-sm mb-4">Datos del Vehículo</h3>
@@ -453,7 +606,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                                             <TimelineExpediente casoId={tarea.caso.id} />
                                         </div>
 
-                                        <div className="pt-4 flex justify-between items-center border-t border-border">
+                                        <div className="pt-4 flex justify-between items-center border-t border-border mt-4 pb-2">
                                             <div>
                                                 <p className="text-xs text-text-muted mb-1">Estado de Expediente</p>
                                                 <EstadoBadge estado={tarea.caso.estado} />
@@ -465,12 +618,20 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                                             </Link>
                                         </div>
                                     </div>
-                                </ScrollArea>
+                                </div>
                             </TabsContent>
                         )}
                     </Tabs>
                 </div>
             </SheetContent>
+
+            {/* Unified Lightbox for task attachments */}
+            <ImageLightbox
+                images={lightboxImages}
+                initialIndex={lightboxIndex}
+                open={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+            />
         </Sheet>
     );
 }

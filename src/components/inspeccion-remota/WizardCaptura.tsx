@@ -79,34 +79,46 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
     const handleFinalize = useCallback(async () => {
         setUploading(true);
         setError(null);
+        console.log("Iniciando subida de fotos. Total:", fotosReglamentarias.length + fotosDanios.length);
         const allFotos = [...fotosReglamentarias, ...fotosDanios];
-        let success = 0;
-        let lastError = "";
+        let successCount = 0;
+        const failedUploads: string[] = [];
 
         for (let i = 0; i < allFotos.length; i++) {
             setUploadProgress(Math.round(((i + 1) / allFotos.length) * 100));
+            console.log(`Subiendo foto ${i + 1} de ${allFotos.length} (${allFotos[i].tipo})...`);
             const result = await uploadPhoto(allFotos[i], i + 1);
             if (result.ok) {
-                success++;
+                successCount++;
+                console.log(`Foto ${i + 1} subida con éxito.`);
             } else {
-                lastError = result.error || "Error desconocido";
+                console.error(`Error en foto ${i + 1}:`, result.error);
+                failedUploads.push(`Foto ${i + 1} (${allFotos[i].tipo}): ${result.error}`);
             }
         }
 
-        if (success === allFotos.length) {
+        if (successCount === allFotos.length) {
+            console.log("Todas las fotos subidas. Llamando a complete endpoint...");
             // Mark as complete
             try {
-                await fetch("/api/inspeccion-remota/complete", {
+                const completeRes = await fetch("/api/inspeccion-remota/complete", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ token }),
                 });
+                if (!completeRes.ok) {
+                     const errorData = await completeRes.json();
+                     console.error("Complete endpoint falló:", completeRes.status, errorData);
+                } else {
+                     console.log("Complete endpoint exitoso.");
+                }
             } catch (e) {
-                console.error("Complete endpoint error:", e);
+                console.error("Complete endpoint exception:", e);
             }
             setStep("completado");
         } else {
-            setError(`Se subieron ${success} de ${allFotos.length} fotos. Error: ${lastError}`);
+            console.error(`Subida finalizada con errores. Éxitos: ${successCount}, Fallos: ${failedUploads.length}`);
+            setError(`Oops. Se subieron ${successCount} de ${allFotos.length} fotos.\nDetalles de errores:\n- ${failedUploads.join('\n- ')}\nPor favor, intentá nuevamente enviar las que faltan.`);
         }
         setUploading(false);
     }, [fotosReglamentarias, fotosDanios, uploadPhoto, token]);
@@ -399,8 +411,8 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                     </div>
 
                     {error && (
-                        <div className="bg-[#EF4444]/10 border border-[#EF4444]/20 rounded-lg p-3 mb-4 flex items-center gap-2 text-[#EF4444] text-sm">
-                            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+                        <div className="bg-[#EF4444]/10 border border-[#EF4444]/20 rounded-lg p-3 mb-4 flex items-start gap-2 text-[#EF4444] text-sm whitespace-pre-line text-left">
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> <div>{error}</div>
                         </div>
                     )}
 

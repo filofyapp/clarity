@@ -883,3 +883,27 @@ COMO: (1) Filtros consolidados en 3 filas: barra de búsqueda + layout toggle, q
 ARCHIVOS AFECTADOS: CasosTable.tsx, EstadoBadge.tsx
 EFECTOS COLATERALES: Las filas ya no tienen fondos de color intenso para todos los estados (solo los 4 críticos). Los badges de estados normales son más sutiles. La barra de quick-click ahora diferencia visualmente los estados urgentes.
 TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 11/03/2026
+QUE SE CAMBIO: Fase 2.3 — Mejoras Panel de Tareas, Emojis, Comentarios, Notificaciones, Sidebar Badge, Rediseño Cola de Carga
+POR QUE: (1) Panel lateral de tareas no scrolleaba correctamente. (2) Notificaciones no abrían la tarea referenciada. (3) Comentarios carecían de Shift+Enter, paste imágenes, reacciones emoji. (4) Sidebar no indicaba tareas pendientes. (5) Cola de Carga usaba tabla genérica sin acciones claras. (6) Siniestro no era prominente en tarjetas Kanban.
+COMO: (1) SheetContent con h-[100dvh] overflow-hidden, header fijo, contenido flex-1 overflow-y-auto. (2) NotificationBell enlaza a /tareas?tareaId=X, TareaCard auto-abre via useSearchParams. (3) Input→textarea auto-resize, onPaste para imágenes, drag-and-drop. (4) Tablas reacciones_comentario/reacciones_tarea con RLS+Realtime. Hover→SmilePlus→popover 8 emojis→pills toggle. (5) Sidebar cuenta comentarios no leídos, badge amber. (6) ColaDeCargaBoard: cards con siniestro prominente, antigüedad, dropdown Procesar 3 acciones + confirmación modal.
+ARCHIVOS AFECTADOS: TareaCard.tsx, ComentariosTarea.tsx, NotificationBell.tsx, tareas/page.tsx, Sidebar.tsx, SidebarClient.tsx, carga/page.tsx, ColaDeCargaBoard.tsx (nuevo), 021_fase23_mejoras_tareas.sql (nueva migración)
+EFECTOS COLATERALES: Suspense wrapper en tareas/page.tsx. Input de comentarios ahora es textarea multilínea. Cola de Carga ya no usa CasosTable. Tablas de reacciones requieren migración SQL.
+TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 11/03/2026
+QUE SE CAMBIO: Lightbox unificado para imágenes + Reacciones emoji en descripción de tarea
+POR QUE: (1) Imágenes adjuntas se abrían en nueva pestaña, sin modal de visualización ni navegación. (2) Las reacciones emoji solo funcionaban en comentarios, no en la descripción de la tarea.
+COMO: (1) Componente ImageLightbox.tsx reutilizable: Dialog fullscreen, navegación con flechas y teclado (← → Escape), botón Descargar, strip de miniaturas. Integrado en ComentariosTarea (reemplazó ~100 líneas de Dialog inline) y en TareaCard (adjuntos clickeables abren lightbox). (2) Descripción de tarea: hover muestra SmilePlus, popover con 8 emojis, pills de conteo debajo, toggle propio, usa tabla reacciones_tarea existente.
+ARCHIVOS AFECTADOS: ImageLightbox.tsx (nuevo), ComentariosTarea.tsx (refactor lightbox), TareaCard.tsx (lightbox + emoji)
+EFECTOS COLATERALES: ComentariosTarea ya no importa Dialog/ChevronLeft/ChevronRight. TareaCard ahora importa createClient para interactuar con reacciones_tarea.
+
+FECHA: 11/03/2026
+QUE SE CAMBIO: Sprint Fixes Críticos de Expediente y Fotos Remotas
+POR QUE: (1) El Gestor asignado al crear el caso no se guardaba en la BD. (2) Faltaba la posibilidad de adjuntar archivos (carátula, denuncia) al crear el caso directamente. (3) Los datos del expediente en CasoDetail eran estáticos obligando a flujos largos para editar. (4) Subidas parciales de fotos remotas o fallos de red causaban desinformación y redirecciones sin feedback claro.
+COMO: (1) Fix `CasoForm.tsx` agregando `gestor_id: gestorId` al payload e integrando sección en `CasoDetail` Asignaciones. (2) UI drag-drop agregada al formulario de creación para PDF/imágenes, que auto-sube al bucket `caso-archivos` al finalizar alta. (3) Nuevo componente `EditableField.tsx` genérico para edición inline; implementado en vehículo, perito calle/carga, taller, gestor y observaciones. (4) Mejorado error logging en `WizardCaptura.tsx` para mostrar qué fotos fallan y añadido banner en `ip/[token]/page.tsx` si link tiene fotos pre-subidas.
+ARCHIVOS AFECTADOS: CasoForm.tsx, CasoDetail.tsx, EditableField.tsx (nuevo), WizardCaptura.tsx, ip/[token]/page.tsx
+EFECTOS COLATERALES: Al crear caso sube directo al storage `caso-archivos` existente eliminando necesidad de nuevas columnas BD.
+TESTEADO: TypeScript --noEmit OK.
+TESTEADO: TypeScript --noEmit OK.

@@ -83,7 +83,16 @@ export default async function InspeccionRemotaPage({ params }: { params: Promise
     const caso = link.caso as any;
 
     return (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative w-full h-full">
+            {link.fotos_subidas > 0 && (
+                <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 flex items-start gap-3 w-full">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-amber-500 text-sm font-semibold">Carga parcial detectada</p>
+                        <p className="text-amber-500/80 text-xs mt-0.5">Ya se subieron {link.fotos_subidas} fotos anteriormente. Podés continuar enviando las faltantes.</p>
+                    </div>
+                </div>
+            )}
             <WizardCaptura
                 token={link.token}
                 siniestro={caso?.numero_siniestro || ""}

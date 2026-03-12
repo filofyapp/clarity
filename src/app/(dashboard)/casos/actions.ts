@@ -110,10 +110,21 @@ export async function crearCaso(input: CasoInput) {
     return { success: true, casoId: caso.id };
 }
 
-export async function getCasos() {
+export interface CasosFilters {
+    estados?: string[];
+    tipos_ip?: string[];
+    peritos_calle?: string[];
+    peritos_carga?: string[];
+    gestores?: string[];
+    fecha_desde?: string; // YYYY-MM-DD
+    fecha_hasta?: string; // YYYY-MM-DD
+    search?: string;
+}
+
+export async function getCasos(filters?: CasosFilters) {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    let query = supabase
         .from("casos")
         .select(`
             id,
@@ -134,11 +145,46 @@ export async function getCasos() {
             notas_admin,
             link_orion,
             gestor_id,
+            perito_calle_id,
+            perito_carga_id,
             gestor:gestores(id, nombre, email),
             perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido),
             perito_carga:usuarios!casos_perito_carga_id_fkey(nombre, apellido)
-        `)
-        .order("created_at", { ascending: false });
+        `);
+
+    // Apply server-side filters
+    if (filters) {
+        if (filters.estados && filters.estados.length > 0) {
+            query = query.in("estado", filters.estados);
+        }
+        if (filters.tipos_ip && filters.tipos_ip.length > 0) {
+            query = query.in("tipo_inspeccion", filters.tipos_ip);
+        }
+        if (filters.peritos_calle && filters.peritos_calle.length > 0) {
+            query = query.in("perito_calle_id", filters.peritos_calle);
+        }
+        if (filters.peritos_carga && filters.peritos_carga.length > 0) {
+            query = query.in("perito_carga_id", filters.peritos_carga);
+        }
+        if (filters.gestores && filters.gestores.length > 0) {
+            query = query.in("gestor_id", filters.gestores);
+        }
+        if (filters.fecha_desde) {
+            query = query.gte("fecha_derivacion", filters.fecha_desde);
+        }
+        if (filters.fecha_hasta) {
+            // Add a day to make it inclusive of the end date
+            query = query.lte("fecha_derivacion", filters.fecha_hasta + "T23:59:59");
+        }
+        if (filters.search && filters.search.trim() !== "") {
+            const q = filters.search.trim();
+            query = query.or(`numero_siniestro.ilike.%${q}%,dominio.ilike.%${q}%,marca.ilike.%${q}%,modelo.ilike.%${q}%,nombre_asegurado.ilike.%${q}%`);
+        }
+    }
+
+    query = query.order("created_at", { ascending: false });
+
+    const { data, error } = await query;
 
     if (error) {
         console.error("Error fetching casos:", error);

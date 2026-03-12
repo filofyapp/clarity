@@ -154,10 +154,21 @@ export function EditableField({
         );
     }
 
+    const formatDateDisplay = (val: string | null): string => {
+        if (!val) return placeholder;
+        // Extract just YYYY-MM-DD, whether val is "2026-03-12" or "2026-03-12T17:44:18.123Z"
+        const dateOnly = val.includes("T") ? val.split("T")[0] : val;
+        const [y, m, d] = dateOnly.split("-");
+        if (!y || !m || !d) return placeholder;
+        const date = new Date(Number(y), Number(m) - 1, Number(d));
+        if (isNaN(date.getTime())) return "—";
+        return date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    };
+
     const displayedText = tipo === "select"
         ? (opciones.find(o => o.value === valorActual)?.label || displayValue || placeholder)
-        : tipo === "date" 
-            ? (valorActual ? new Date(valorActual + "T12:00:00").toLocaleDateString('es-AR') : placeholder) 
+        : tipo === "date"
+            ? formatDateDisplay(valorActual)
             : (valorActual || placeholder);
 
     return (

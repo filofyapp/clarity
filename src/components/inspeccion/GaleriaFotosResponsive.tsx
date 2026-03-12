@@ -142,6 +142,24 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
         document.body.style.overflow = "auto";
     };
 
+    // Keyboard navigation for lightbox
+    useEffect(() => {
+        if (!showLightbox) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                closeLightbox();
+            } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                changePhoto(Math.max(0, lightboxIndex - 1));
+            } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                changePhoto(Math.min(filteredFotos.length - 1, lightboxIndex + 1));
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [showLightbox, lightboxIndex, filteredFotos.length, changePhoto]);
+
     // Counts per tab
     const countReglamentarias = fotos.filter(f => REGLAMENTARIAS.includes(f.tipo)).length;
     const countDanios = fotos.filter(f => f.tipo === "danio_detalle").length;

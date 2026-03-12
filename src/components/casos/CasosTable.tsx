@@ -1,19 +1,15 @@
 "use client";
 
-import { useState, useMemo, useTransition, useRef, useEffect } from "react";
-import { useLocalStorageState } from "@/hooks/useLocalStorageState";
+import { useState, useMemo, useTransition, useRef, useEffect, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { format, differenceInDays, isSameWeek, isSameMonth, isToday } from "date-fns";
-import { es } from "date-fns/locale";
+import { format, differenceInDays } from "date-fns";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-    DropdownMenuCheckboxItem,
-    DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,8 +17,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EstadoBadge, estadoStylesRow } from "./EstadoBadge";
 import { TipoIPBadge } from "./TipoIPBadge";
+import { FilterDropdown, DateFilter } from "./FilterDropdown";
 import {
-    ChevronRight, ArrowUpDown, Filter, Edit2, Search, SearchIcon,
+    ChevronRight, ArrowUpDown, Filter, Edit2, Search,
     LayoutList, LayoutGrid, Copy, Trash2, Mail, MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
@@ -59,6 +56,7 @@ const TIPOS_IP: Record<string, string> = {
 
 export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admin", hiddenColumns = [] }: { casos: any[], peritos?: any[], gestores?: any[], userRol?: string, hiddenColumns?: string[] }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
 
     // Local Storage layout pref
@@ -72,46 +70,67 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         localStorage.setItem("clarity_casos_layout", mode);
     };
 
-    // Filters - Persistent across navigation
-    const [searchQuery, setSearchQuery] = useLocalStorageState(`${userRol}_clarity_filter_search`, "");
-    const [filterEstados, setFilterEstados] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_estados`, []);
-    const [filterTiposIP, setFilterTiposIP] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_tipos`, []);
-    const [filterPeritosCalle, setFilterPeritosCalle] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_calle`, []);
-    const [filterPeritosCarga, setFilterPeritosCarga] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_carga`, []);
-    const [filterGestores, setFilterGestores] = useLocalStorageState<string[]>(`${userRol}_clarity_filter_gest`, []);
-    const [filterProgramada, setFilterProgramada] = useLocalStorageState<string | null>(`${userRol}_clarity_filter_prog`, null);
-    const [filterDateRange, setFilterDateRange] = useLocalStorageState<"hoy" | "semana" | "mes" | null>(`${userRol}_clarity_filter_date`, null);
-    const [filterDateExact, setFilterDateExact] = useLocalStorageState<string | null>(`${userRol}_clarity_filter_date_exact`, null);
-    const [filterDateType, setFilterDateType] = useLocalStorageState<string>(`${userRol}_clarity_filter_date_type`, "fecha_derivacion");
-
-    const hasActiveFilters = searchQuery !== "" || filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || filterProgramada !== null || filterDateRange !== null || filterDateExact !== null;
-
-    const clearFilters = () => {
-        setSearchQuery("");
-        setFilterEstados([]);
-        setFilterTiposIP([]);
-        setFilterPeritosCalle([]);
-        setFilterPeritosCarga([]);
-        setFilterGestores([]);
-        setFilterProgramada(null);
-        setFilterDateRange(null);
-        setFilterDateExact(null);
-        setFilterDateType("fecha_derivacion");
+    // --- URL-PARAM BASED FILTERS ---
+    const parseParam = (key: string): string[] => {
+        const val = searchParams.get(key);
+        if (!val) return [];
+        return val.split(",").filter(Boolean);
     };
 
-    // Sort
-    const [sortConfig, setSortConfig] = useLocalStorageState<{ key: string; direction: 'asc' | 'desc' }>(`${userRol}_clarity_sort_config`, {
-        key: 'fecha_derivacion',
-        direction: 'desc'
-    });
+    const filterEstados = parseParam("estado");
+    const filterTiposIP = parseParam("tipo_ip");
+    const filterPeritosCalle = parseParam("perito_calle");
+    const filterPeritosCarga = parseParam("perito_carga");
+    const filterGestores = parseParam("gestor");
+    const searchQuery = searchParams.get("search") || "";
+    const fechaDesde = searchParams.get("fecha_desde") || null;
+    const fechaHasta = searchParams.get("fecha_hasta") || null;
 
-    // Excel-like UX: Keep track of cases that were changed inline so they don't disappear from filters immediately
-    const [retainedCaseIds, setRetainedCaseIds] = useState<string[]>([]);
+    const hasActiveFilters = filterEstados.length > 0 || filterTiposIP.length > 0 || filterPeritosCalle.length > 0 || filterPeritosCarga.length > 0 || filterGestores.length > 0 || searchQuery !== "" || fechaDesde !== null || fechaHasta !== null;
 
-    // Al cambiar cualquier filtro explícitamente, vaciamos la retención
+    // Helper to update URL params without full page navigation
+    const updateFilter = useCallback((key: string, value: string | string[] | null) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value === null || (Array.isArray(value) && value.length === 0) || value === "") {
+            params.delete(key);
+        } else if (Array.isArray(value)) {
+            params.set(key, value.join(","));
+        } else {
+            params.set(key, value);
+        }
+        router.push(`/casos?${params.toString()}`);
+    }, [searchParams, router]);
+
+    const updateMultipleFilters = useCallback((updates: Record<string, string | string[] | null>) => {
+        const params = new URLSearchParams(searchParams.toString());
+        for (const [key, value] of Object.entries(updates)) {
+            if (value === null || (Array.isArray(value) && value.length === 0) || value === "") {
+                params.delete(key);
+            } else if (Array.isArray(value)) {
+                params.set(key, value.join(","));
+            } else {
+                params.set(key, value);
+            }
+        }
+        router.push(`/casos?${params.toString()}`);
+    }, [searchParams, router]);
+
+    const clearFilters = () => {
+        router.push("/casos");
+    };
+
+    // Sort (kept in localStorage since it's a display preference, not a data filter)
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'fecha_derivacion', direction: 'desc' });
     useEffect(() => {
-        setRetainedCaseIds([]);
-    }, [searchQuery, filterEstados, filterTiposIP, filterPeritosCalle, filterPeritosCarga, filterGestores, filterProgramada, filterDateRange, filterDateExact, filterDateType]);
+        const saved = localStorage.getItem(`${userRol}_clarity_sort_config`);
+        if (saved) { try { setSortConfig(JSON.parse(saved)); } catch {} }
+    }, [userRol]);
+    useEffect(() => {
+        localStorage.setItem(`${userRol}_clarity_sort_config`, JSON.stringify(sortConfig));
+    }, [sortConfig, userRol]);
+
+    // Excel-like UX: Keep track of cases that were changed inline so they don't disappear
+    const [retainedCaseIds, setRetainedCaseIds] = useState<string[]>([]);
 
     // Rapid Obvs & Inline Edits
     const [editingNota, setEditingNota] = useState<string | null>(null);
@@ -192,42 +211,9 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         toast.success(`Email de ${gestor.nombre} copiado al portapapeles`);
     };
 
-    // Filter Logic
+    // Sort Logic — data is already filtered server-side, just sort client-side
     const procesados = useMemo(() => {
-        let result = [...casos];
-        if (searchQuery.trim() !== "") {
-            const lowerQuery = searchQuery.trim().toLowerCase();
-            result = result.filter(c => c.numero_siniestro?.toLowerCase().includes(lowerQuery) || c.dominio?.toLowerCase().includes(lowerQuery) || (c.marca && c.marca.toLowerCase().includes(lowerQuery)) || (c.modelo && c.modelo.toLowerCase().includes(lowerQuery)));
-        }
-        if (filterEstados.length > 0) result = result.filter(c => filterEstados.includes(c.estado) || retainedCaseIds.includes(c.id));
-        if (filterTiposIP.length > 0) result = result.filter(c => filterTiposIP.includes(c.tipo_inspeccion) || retainedCaseIds.includes(c.id));
-        if (filterPeritosCalle.length > 0) result = result.filter(c => filterPeritosCalle.includes(c.perito_calle_id) || retainedCaseIds.includes(c.id));
-        if (filterPeritosCarga.length > 0) result = result.filter(c => filterPeritosCarga.includes(c.perito_carga_id) || retainedCaseIds.includes(c.id));
-        if (filterGestores.length > 0) result = result.filter(c => filterGestores.includes(c.gestor_id) || retainedCaseIds.includes(c.id));
-        if (filterProgramada === "con_fecha") result = result.filter(c => c.fecha_inspeccion_programada);
-        if (filterProgramada === "sin_fecha") result = result.filter(c => !c.fecha_inspeccion_programada);
-        if (filterDateRange) {
-            const now = new Date();
-            const parseLocal = (dStr: string) => new Date(dStr.includes("T") ? dStr : `${dStr}T12:00:00`);
-            result = result.filter(c => {
-                const targetDateStr = c[filterDateType as keyof typeof c] as string | null | undefined;
-                if (!targetDateStr) return false;
-                const date = parseLocal(targetDateStr);
-                if (filterDateRange === "hoy") return isToday(date);
-                if (filterDateRange === "semana") return isSameWeek(date, now, { weekStartsOn: 1 });
-                if (filterDateRange === "mes") return isSameMonth(date, now);
-                return true;
-            });
-        }
-        if (filterDateExact) {
-            result = result.filter(c => {
-                const targetDateStr = c[filterDateType as keyof typeof c] as string | null | undefined;
-                if (!targetDateStr) return false;
-                // Comparing 'YYYY-MM-DD' from DateExact input against local 'YYYY-MM-DD' extraction
-                const cDateStr = targetDateStr.split("T")[0];
-                return cDateStr === filterDateExact;
-            });
-        }
+        const result = [...casos];
         result.sort((a, b) => {
             let valA = a[sortConfig.key];
             let valB = b[sortConfig.key];
@@ -239,14 +225,25 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
             return 0;
         });
         return result;
-    }, [casos, sortConfig, filterEstados, filterTiposIP, filterPeritosCalle, filterPeritosCarga, filterGestores, searchQuery, filterProgramada, filterDateRange, filterDateExact, filterDateType]);
+    }, [casos, sortConfig]);
 
-    // Derived stats for Summary Bar
+    // Derived stats for Summary Bar — counts from the filtered result
     const summaryStats = useMemo(() => {
         const counts: Record<string, number> = {};
         casos.forEach(c => { counts[c.estado] = (counts[c.estado] || 0) + 1; });
         return counts;
     }, [casos]);
+
+    // Search input debounce
+    const [localSearch, setLocalSearch] = useState(searchQuery);
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const handleSearchChange = (val: string) => {
+        setLocalSearch(val);
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => {
+            updateFilter("search", val || null);
+        }, 400);
+    };
 
 
     // Virtualizer
@@ -295,7 +292,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         <div className="flex flex-col h-full w-full bg-bg-primary overflow-hidden">
             {/* TOP BAR / FILTERS */}
             <div className="flex flex-col gap-2 p-3 border-b border-border bg-bg-secondary/50">
-                {/* Row 1: Search + View Toggle + Active filter count */}
+                {/* Row 1: Search + View Toggle + Clear */}
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1 max-w-sm">
                         <Search className="absolute left-2.5 top-2 h-4 w-4 text-text-muted" />
@@ -303,8 +300,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                             type="search"
                             placeholder="Buscar siniestro, patente, marca..."
                             className="pl-9 bg-bg-primary border-border focus-visible:ring-brand-primary h-8 w-full text-xs shadow-none"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            value={localSearch}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                         />
                     </div>
 
@@ -331,7 +328,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
                 {/* Row 2: Quick Estado Clicks + Count */}
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-                    <BadgeCounter label="Todos" count={casos.length} onClick={() => setFilterEstados([])} active={filterEstados.length === 0} />
+                    <BadgeCounter label="Todos" count={casos.length} onClick={() => updateFilter("estado", null)} active={filterEstados.length === 0} />
                     <div className="h-4 w-[1px] bg-border mx-0.5" />
                     {Object.entries(ESTADOS_DISPONIBLES).map(([key, label]) => {
                         const count = summaryStats[key] || 0;
@@ -345,115 +342,58 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                 active={filterEstados.includes(key)}
                                 critical={isCritical}
                                 onClick={() => {
-                                    setFilterEstados(prev => prev.includes(key) ? prev.filter(k => k !== key) : [key]);
+                                    updateFilter("estado", filterEstados.includes(key) ? null : [key]);
                                 }}
                             />
                         );
                     })}
                 </div>
 
-                {/* Row 3: Advanced dropdown filters (compact) */}
+                {/* Row 3: Advanced filters (FilterDropdown components) */}
                 <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mr-1"><Filter className="w-3 h-3 inline mr-0.5" />Filtros</span>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
-                                Tipo IP {filterTiposIP.length > 0 && `(${filterTiposIP.length})`}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-[180px] bg-bg-elevated border border-border z-50">
-                            {Object.entries(TIPOS_IP).map(([k, v]) => (
-                                <DropdownMenuCheckboxItem key={k} className="text-xs" checked={filterTiposIP.includes(k)} onCheckedChange={(c) => setFilterTiposIP(p => c ? [...p, k] : p.filter(e => e !== k))}>
-                                    {v}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <FilterDropdown
+                        label="Estado"
+                        options={Object.entries(ESTADOS_DISPONIBLES).map(([k, v]) => ({ id: k, label: v }))}
+                        selected={filterEstados}
+                        onChange={(sel) => updateFilter("estado", sel)}
+                    />
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
-                                P. Calle {filterPeritosCalle.length > 0 && `(${filterPeritosCalle.length})`}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-[180px] bg-bg-elevated border border-border z-50">
-                            {peritos.map((p) => (
-                                <DropdownMenuCheckboxItem key={p.id} className="text-xs" checked={filterPeritosCalle.includes(p.id)} onCheckedChange={(c) => setFilterPeritosCalle(pr => c ? [...pr, p.id] : pr.filter(e => e !== p.id))}>
-                                    {p.nombre} {p.apellido}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <FilterDropdown
+                        label="Tipo IP"
+                        options={Object.entries(TIPOS_IP).map(([k, v]) => ({ id: k, label: v }))}
+                        selected={filterTiposIP}
+                        onChange={(sel) => updateFilter("tipo_ip", sel)}
+                    />
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
-                                P. Carga {filterPeritosCarga.length > 0 && `(${filterPeritosCarga.length})`}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-[180px] bg-bg-elevated border border-border z-50">
-                            {peritos.map((p) => (
-                                <DropdownMenuCheckboxItem key={p.id} className="text-xs" checked={filterPeritosCarga.includes(p.id)} onCheckedChange={(c) => setFilterPeritosCarga(pr => c ? [...pr, p.id] : pr.filter(e => e !== p.id))}>
-                                    {p.nombre} {p.apellido}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <FilterDropdown
+                        label="P. Calle"
+                        options={peritos.map(p => ({ id: p.id, label: `${p.nombre} ${p.apellido}` }))}
+                        selected={filterPeritosCalle}
+                        onChange={(sel) => updateFilter("perito_calle", sel)}
+                    />
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
-                                Gestor {filterGestores.length > 0 && `(${filterGestores.length})`}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-[180px] bg-bg-elevated border border-border z-50">
-                            {gestores.map((g) => (
-                                <DropdownMenuCheckboxItem key={g.id} className="text-xs" checked={filterGestores.includes(g.id)} onCheckedChange={(c) => setFilterGestores(pr => c ? [...pr, g.id] : pr.filter(e => e !== g.id))}>
-                                    {g.nombre}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <FilterDropdown
+                        label="P. Carga"
+                        options={peritos.map(p => ({ id: p.id, label: `${p.nombre} ${p.apellido}` }))}
+                        selected={filterPeritosCarga}
+                        onChange={(sel) => updateFilter("perito_carga", sel)}
+                    />
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] border-dashed px-2 bg-bg-primary">
-                                Fechas {filterDateRange && `(${filterDateRange})`}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-[180px] bg-bg-elevated border border-border z-50">
-                            <DropdownMenuLabel className="text-[10px] text-text-muted">Rápido</DropdownMenuLabel>
-                            <DropdownMenuCheckboxItem checked={filterDateRange === "hoy"} onCheckedChange={(c) => setFilterDateRange(c ? "hoy" : null)} className="text-xs">Hoy</DropdownMenuCheckboxItem>
-                            <DropdownMenuCheckboxItem checked={filterDateRange === "semana"} onCheckedChange={(c) => setFilterDateRange(c ? "semana" : null)} className="text-xs">Esta semana</DropdownMenuCheckboxItem>
-                            <DropdownMenuCheckboxItem checked={filterDateRange === "mes"} onCheckedChange={(c) => setFilterDateRange(c ? "mes" : null)} className="text-xs">Este mes</DropdownMenuCheckboxItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <FilterDropdown
+                        label="Gestor"
+                        options={gestores.map(g => ({ id: g.id, label: g.nombre }))}
+                        selected={filterGestores}
+                        onChange={(sel) => updateFilter("gestor", sel)}
+                    />
 
-                    <div className="flex items-center gap-1.5 bg-bg-primary border border-dashed border-border rounded-md px-2 h-6">
-                        <select
-                            className="bg-transparent text-[10px] text-text-muted outline-none cursor-pointer pr-1 border-none focus:ring-0 appearance-none"
-                            value={filterDateType}
-                            onChange={(e) => setFilterDateType(e.target.value)}
-                        >
-                            <option value="fecha_derivacion">Ingreso</option>
-                            <option value="fecha_inspeccion_programada">Inspección</option>
-                            <option value="fecha_carga_sistema">Carga</option>
-                            <option value="fecha_cierre">Cierre</option>
-                        </select>
-                        <div className="h-3 w-[1px] bg-border" />
-                        <input
-                            type="date"
-                            className="bg-transparent text-[10px] text-text-secondary outline-none w-[90px] cursor-pointer"
-                            value={filterDateExact || ""}
-                            onChange={(e) => setFilterDateExact(e.target.value || null)}
-                        />
-                        {filterDateExact && (
-                            <button onClick={() => setFilterDateExact(null)} className="text-text-muted hover:text-color-danger text-xs">
-                                ×
-                            </button>
-                        )}
-                    </div>
+                    <DateFilter
+                        label="Fecha"
+                        fechaDesde={fechaDesde}
+                        fechaHasta={fechaHasta}
+                        onChange={(desde, hasta) => updateMultipleFilters({ fecha_desde: desde, fecha_hasta: hasta })}
+                    />
                 </div>
             </div>
 
@@ -463,8 +403,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                     <div className="min-w-max w-full flex flex-col pointer-events-auto">
                         {/* THEAD */}
                         <div className="flex sticky top-0 z-20 bg-bg-secondary shadow-[0_1px_0_var(--tw-shadow-color)] shadow-border font-medium text-[11px] text-text-muted uppercase select-none backdrop-blur-md tracking-wider pl-[3px]">
-                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort(filterDateType)}>
-                                {filterDateType === 'fecha_derivacion' ? 'Ingreso' : filterDateType === 'fecha_inspeccion_programada' ? 'IP Prog.' : filterDateType === 'fecha_carga_sistema' ? 'Carga' : 'Cierre'} <ArrowUpDown className="w-3 h-3" />
+                            <div className="w-[90px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('fecha_derivacion')}>
+                                Ingreso <ArrowUpDown className="w-3 h-3" />
                             </div>
                             <div className="w-[130px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1 text-text-primary font-bold" onClick={() => handleSort('numero_siniestro')}>Siniestro <ArrowUpDown className="w-3 h-3" /></div>
                             <div className="w-[100px] shrink-0 px-2 py-2.5 cursor-pointer hover:text-text-primary flex items-center gap-1" onClick={() => handleSort('numero_servicio')}>Servicio <ArrowUpDown className="w-3 h-3" /></div>
@@ -506,7 +446,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
                                     >
                                         <div className="w-[95px] shrink-0 px-2 py-1 flex items-center whitespace-nowrap overflow-hidden text-ellipsis text-[13px] font-medium text-text-muted">
-                                            {formatDateVal(caso[filterDateType as keyof typeof caso] as string | null)}
+                                            {formatDateVal(caso.fecha_derivacion)}
                                         </div>
 
                                         <div className="w-[130px] shrink-0 px-2 py-1 flex items-center group/cell relative">
@@ -780,7 +720,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                             }}>
                                                 <PopoverTrigger asChild>
                                                     <button className="p-1 rounded text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition-colors relative" title="Observaciones rápidas">
-                                                        <SearchIcon className="w-4 h-4" />
+                                                        <Search className="w-4 h-4" />
                                                         {caso.notas_admin && <div className="absolute top-0 right-0 w-[5px] h-[5px] rounded-full bg-brand-primary" />}
                                                     </button>
                                                 </PopoverTrigger>

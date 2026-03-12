@@ -77,20 +77,18 @@ export function AgendaCard({ caso }: AgendaCardProps) {
                     <div className="flex justify-between items-start mb-1 gap-2">
                         <h3 className="font-bold text-lg text-text-primary shrink-0">{caso.numero_siniestro}</h3>
                         <div className="flex flex-wrap items-center justify-end gap-1.5 flex-1 p-0.5">
-                            {caso.tipo_inspeccion === "ip_remota" && (
-                                <button 
-                                    onClick={handleToggleLink}
-                                    disabled={isSendingLink}
-                                    className={`text-[10px] font-bold px-2 py-1 rounded border flex items-center gap-1 transition-colors ${
-                                        caso.link_enviado 
-                                            ? "bg-success/10 text-success border-success/30 hover:bg-success/20" 
-                                            : "bg-color-warning-soft text-color-warning border-color-warning/30 hover:bg-color-warning-soft/80"
-                                    }`}
-                                >
-                                    {isSendingLink ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />}
-                                    {caso.link_enviado ? "LINK ENVIADO" : "ENVIAR LINK"}
-                                </button>
-                            )}
+                            <button 
+                                onClick={handleToggleLink}
+                                disabled={isSendingLink}
+                                className={`text-[10px] font-bold px-2 py-1 rounded border flex items-center gap-1 transition-colors ${
+                                    caso.link_enviado 
+                                        ? "bg-success/10 text-success border-success/30 hover:bg-success/20" 
+                                        : "bg-color-warning-soft text-color-warning border-color-warning/30 hover:bg-color-warning-soft/80"
+                                }`}
+                            >
+                                {isSendingLink ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />}
+                                {caso.link_enviado ? "CONTACTADO ✓" : "CONTACTAR"}
+                            </button>
                             <span className="text-xs font-medium text-brand-secondary bg-brand-primary/10 px-2 py-1 rounded-md border border-brand-primary/20 capitalize shrink-0">
                                 {formatDateLocal(caso.fecha_inspeccion_programada)}
                             </span>

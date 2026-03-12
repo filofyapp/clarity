@@ -866,6 +866,22 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 12/03/2026 (Sprint 3 bis — Fixes verificados)
+QUE SE CAMBIO: (1) Lightbox de fotos de inspección en expediente: agregada navegación con teclado ←/→ y cierre con Escape. (2) "Invalid Date" en fecha_carga_sistema y fecha_cierre: corregido formateo de fechas TIMESTAMPTZ.
+POR QUE: (1) `GaleriaFotosResponsive.tsx` tiene su propio lightbox inline (diferente de `ImageLightbox.tsx` de tareas/comentarios). Este lightbox NO tenía `useEffect` para eventos de teclado — solo botones on-screen. El backdrop-close YA funcionaba (onClick en div exterior + stopPropagation en área de imagen). (2) `EditableField.tsx` hacía `new Date(valorActual + "T12:00:00")` pero cuando `valorActual` ya era un TIMESTAMPTZ completo como `"2026-03-12T17:44:18.123Z"`, se concatenaba a `"2026-03-12T17:44:18.123ZT12:00:00"` = `Invalid Date`.
+COMO: (1) Agregado `useEffect` en `GaleriaFotosResponsive.tsx` que escucha `keydown` cuando `showLightbox=true`, maneja ArrowLeft, ArrowRight y Escape. Se limpia con cleanup function. (2) Reescrita lógica de display en `EditableField.tsx`: nueva función `formatDateDisplay()` extrae la parte `YYYY-MM-DD` del string (sea `2026-03-12` o `2026-03-12T17:44:18Z`), construye Date manualmente vía `new Date(year, month-1, day)` para evitar issues de timezone. Incluye guard contra valores null, undefined o mal formados.
+ARCHIVOS AFECTADOS: `GaleriaFotosResponsive.tsx`, `EditableField.tsx`
+EFECTOS COLATERALES: Ninguno. Los cambios son aditivos (keyboard handler) o reemplazo de lógica de display (formateo de fecha).
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores. Lógica de `cambiarEstadoCaso` verificada: guarda `new Date().toISOString()` correctamente en campos `fecha_carga_sistema` y `fecha_cierre`. `ImageLightbox.tsx` (tareas/comentarios) ya tenía keyboard nav, backdrop close y image-stopPropagation — no requirió cambios.
+
+FECHA: 12/03/2026 (Sprint 3)
+QUE SE CAMBIO: (1) Check "Contactado" visible en TODOS los tipos de inspección, (2) Filtros de Casos reconstruidos 100% — server-side Supabase, URL params, nuevo componente FilterDropdown.
+POR QUE: (1) El check de "Link enviado" solo aparecía para `ip_remota`, pero el perito lo necesita para cualquier tipo de caso como ayuda visual de gestión. (2) Los filtros existentes no funcionaban correctamente, usaban localStorage (no compartible entre pestañas), filtraban en memoria (no escala), y la fecha solo tenía presets predefinidos.
+COMO: (1) Eliminada la condición `caso.tipo_inspeccion === "ip_remota"` en `AgendaCard.tsx`. Label cambiado a "CONTACTADO ✓" / "CONTACTAR". (2) Nuevo `FilterDropdown.tsx` con dos componentes: `FilterDropdown` (multi-select checkboxes con búsqueda, seleccionar/deseleccionar todo, click-fuera cierra) y `DateFilter` (inputs Desde/Hasta + presets rápidos: Hoy, Esta semana, Este mes, Mes anterior, Últimos 3 meses). Modificado `getCasos()` en `actions.ts` para aceptar `CasosFilters` interface y construir query Supabase dinámica con `.in()`, `.gte()`, `.lte()`, `.or()`. `page.tsx` actualizado para leer `searchParams` de Next.js y pasarlos. `CasosTable.tsx` reescrito: eliminado `useLocalStorageState` y filtrado client-side, reemplazado por `useSearchParams` + `router.push` para persistencia vía URL. Debounce de 400ms en búsqueda. Pastillas de estado siguen funcionando e interactúan con el filtro de estado del dropdown.
+ARCHIVOS AFECTADOS: `AgendaCard.tsx`, `FilterDropdown.tsx` (NUEVO), `casos/actions.ts`, `casos/page.tsx`, `CasosTable.tsx`
+EFECTOS COLATERALES: Los filtros ahora se persisten en la URL (no localStorage): abrir en nueva pestaña empieza limpio. La columna dinámica de fecha en la tabla fue reemplazada por "Ingreso" hardcodeado (fecha_derivacion). Las columnas F. Carga y F. Cierre siguen visibles en la tabla.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 FECHA: 12/03/2026 (Sprint 2)
 QUE SE CAMBIO: Sprint de correcciones UI/UX — 7 ítems independientes resueltos.
 POR QUE: Bugs reportados en uso diario: imagen rota en pantalla final de inspección remota, saltos de línea no visibles en observaciones internas, lightbox sin click-fuera y sin teclado, fechas de carga y cierre no se grababan automáticamente, falta de indicador "Link Enviado" en Mi Agenda, y modo claro con colores ilegibles.

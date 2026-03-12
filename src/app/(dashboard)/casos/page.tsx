@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { getCasos, getPeritos, getGestores } from "./actions";
+import { getCasos, getPeritos, getGestores, CasosFilters } from "./actions";
 import { CasosTable } from "@/components/casos/CasosTable";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,7 +10,12 @@ export const metadata = {
     title: "Casos - CLARITY",
 };
 
-export default async function CasosPage() {
+interface PageProps {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function CasosPage({ searchParams }: PageProps) {
+    const params = await searchParams;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -25,7 +30,25 @@ export default async function CasosPage() {
         }
     }
 
-    const [casos, peritos, gestores] = await Promise.all([getCasos(), getPeritos(), getGestores()]);
+    // Parse URL params into CasosFilters
+    const parseArray = (val: string | string[] | undefined): string[] => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        return val.split(",").filter(Boolean);
+    };
+
+    const filters: CasosFilters = {
+        estados: parseArray(params.estado),
+        tipos_ip: parseArray(params.tipo_ip),
+        peritos_calle: parseArray(params.perito_calle),
+        peritos_carga: parseArray(params.perito_carga),
+        gestores: parseArray(params.gestor),
+        fecha_desde: typeof params.fecha_desde === "string" ? params.fecha_desde : undefined,
+        fecha_hasta: typeof params.fecha_hasta === "string" ? params.fecha_hasta : undefined,
+        search: typeof params.search === "string" ? params.search : undefined,
+    };
+
+    const [casos, peritos, gestores] = await Promise.all([getCasos(filters), getPeritos(), getGestores()]);
 
     return (
         <div className="space-y-6">

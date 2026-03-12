@@ -866,6 +866,14 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 12/03/2026 (Sprint 4)
+QUE SE CAMBIO: (1) Lightbox de fotos de inspección: click en costados izq/der ahora cierra el lightbox. (2) Subida de fotos por link de inspección remota: refactor completo a upload progresivo inmediato con compresión y semáforo de 3 concurrentes.
+POR QUE: (1) El contenedor de la imagen tenía `w-full` + `stopPropagation`, los clicks en los costados vacíos no llegaban al overlay de cierre. (2) Con 30-40 fotos de cámara (3-5MB c/u), los 90-200MB de blobs en estado React causan que el navegador mate el tab en celulares con poca RAM. El proceso se reiniciaba perdiendo todo.
+COMO: (1) Reestructurado lightbox en `GaleriaFotosResponsive.tsx`: el wrapper de la imagen ahora es `relative` sin `w-full`, se dimensiona al tamaño de la foto. Solo el wrapper de la imagen tiene `stopPropagation`. Los flechas de navegación son botones absolutos con su propio `stopPropagation`. (2) Refactor completo de `WizardCaptura.tsx`: nueva función `compressImage()` comprime vía Canvas API a 1920px/Q80 (~300-500KB). `FotoCapturada` ya no almacena `Blob`, solo `id, url, uploading, uploaded, error`. `uploadFotoInmediata()` sube cada foto al capturarla con semáforo de max 3 uploads concurrentes via ref-based queue. `handleFinalize()` ahora es liviano: solo verifica que todas las fotos estén uploaded y llama a `/complete`. UI de Resumen muestra spinner/✓/error por foto con botón "Reintentar".
+ARCHIVOS AFECTADOS: `GaleriaFotosResponsive.tsx`, `WizardCaptura.tsx`
+EFECTOS COLATERALES: Ninguno negativo. Las fotos se comprimen antes de subir (reducción ~80% de tamaño), se suben inmediatamente al capturarlas (no se acumulan en RAM), los blobs se liberan tras upload exitoso. La experiencia de usuario no cambia visualmente (el usuario sigue sacando fotos normalmente, los thumbnails pasan de spinner a ✓).
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 FECHA: 12/03/2026 (Sprint 3 bis — Fixes verificados)
 QUE SE CAMBIO: (1) Lightbox de fotos de inspección en expediente: agregada navegación con teclado ←/→ y cierre con Escape. (2) "Invalid Date" en fecha_carga_sistema y fecha_cierre: corregido formateo de fechas TIMESTAMPTZ.
 POR QUE: (1) `GaleriaFotosResponsive.tsx` tiene su propio lightbox inline (diferente de `ImageLightbox.tsx` de tareas/comentarios). Este lightbox NO tenía `useEffect` para eventos de teclado — solo botones on-screen. El backdrop-close YA funcionaba (onClick en div exterior + stopPropagation en área de imagen). (2) `EditableField.tsx` hacía `new Date(valorActual + "T12:00:00")` pero cuando `valorActual` ya era un TIMESTAMPTZ completo como `"2026-03-12T17:44:18.123Z"`, se concatenaba a `"2026-03-12T17:44:18.123ZT12:00:00"` = `Invalid Date`.

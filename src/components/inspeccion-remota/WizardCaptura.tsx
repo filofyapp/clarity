@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { CameraCapture } from "./CameraCapture";
 import { SelectorZonaDanio, ZONAS_MAP } from "./SelectorZonaDanio";
 import {
     Camera, CheckCircle2, ChevronRight, ChevronLeft,
     Car, Loader2, PartyPopper, AlertCircle, Image as ImageIcon,
-    ShieldCheck, FileText, RectangleHorizontal
+    ShieldCheck, FileText, RectangleHorizontal, RefreshCw
 } from "lucide-react";
 
 // ═══ Step definitions ═══
@@ -22,11 +22,14 @@ const PASOS_REGLAMENTARIOS = [
 type WizardStep = "bienvenida" | "reglamentarias" | "zona_danio" | "danios" | "resumen" | "completado";
 
 interface FotoCapturada {
+    id: string;          // unique identifier
     tipo: string;
-    blob: Blob;
-    preview: string;
+    preview: string;     // ObjectURL for thumbnail (revoked after upload)
+    url: string;         // Storage URL after upload
     descripcion?: string;
-    uploaded?: boolean;
+    uploading: boolean;
+    uploaded: boolean;
+    error?: string;
 }
 
 interface Props {
@@ -39,116 +42,184 @@ interface Props {
     maxFotos: number;
 }
 
+// ═══ Image compression via Canvas API ═══
+async function compressImage(file: Blob, maxWidth = 1920, quality = 0.8): Promise<Blob> {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let { width, height } = img;
+
+            if (width > maxWidth) {
+                height = (height * maxWidth) / width;
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d")!;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+                (blob) => resolve(blob || file), // fallback to original if compression fails
+                "image/jpeg",
+                quality
+            );
+            URL.revokeObjectURL(img.src); // free the temporary ObjectURL
+        };
+        img.onerror = () => resolve(file); // fallback
+        img.src = URL.createObjectURL(file);
+    });
+}
+
 export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspeccion, fotosYaSubidas, maxFotos }: Props) {
     const [step, setStep] = useState<WizardStep>("bienvenida");
     const [pasoReglamentario, setPasoReglamentario] = useState(0);
     const [fotosReglamentarias, setFotosReglamentarias] = useState<FotoCapturada[]>([]);
     const [fotosDanios, setFotosDanios] = useState<FotoCapturada[]>([]);
     const [zonasDanio, setZonasDanio] = useState<string[]>([]);
-    const [uploading, setUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
+    const [finalizing, setFinalizing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [cameraActive, setCameraActive] = useState(false);
     const [capturingDamage, setCapturingDamage] = useState(false);
 
-    // Upload a single photo
-    const uploadPhoto = useCallback(async (foto: FotoCapturada, orden: number): Promise<{ ok: boolean; error?: string }> => {
-        try {
-            const formData = new FormData();
-            formData.append("token", token);
-            formData.append("file", foto.blob, `${foto.tipo}_${Date.now()}.jpg`);
-            formData.append("tipo", foto.tipo);
-            formData.append("descripcion", foto.descripcion || "");
-            formData.append("orden", String(orden));
+    // ═══ Semaphore for max 3 concurrent uploads ═══
+    const activeUploads = useRef(0);
+    const uploadQueue = useRef<(() => void)[]>([]);
+    const ordenCounter = useRef(fotosYaSubidas);
 
-            const res = await fetch("/api/inspeccion-remota/upload", { method: "POST", body: formData });
-            const body = await res.json();
-
-            if (!res.ok) {
-                console.error("Upload failed:", res.status, body);
-                return { ok: false, error: body?.error || body?.detail || `Error ${res.status}` };
-            }
-            return { ok: true };
-        } catch (err) {
-            console.error("Upload fetch error:", err);
-            return { ok: false, error: "Error de conexión" };
+    const processQueue = useCallback(() => {
+        while (activeUploads.current < 3 && uploadQueue.current.length > 0) {
+            const next = uploadQueue.current.shift()!;
+            activeUploads.current++;
+            next();
         }
-    }, [token]);
+    }, []);
 
-    // Upload all photos and complete
-    const handleFinalize = useCallback(async () => {
-        setUploading(true);
-        setError(null);
-        console.log("Iniciando subida de fotos. Total:", fotosReglamentarias.length + fotosDanios.length);
-        const allFotos = [...fotosReglamentarias, ...fotosDanios];
-        let successCount = 0;
-        const failedUploads: string[] = [];
-
-        for (let i = 0; i < allFotos.length; i++) {
-            setUploadProgress(Math.round(((i + 1) / allFotos.length) * 100));
-            
-            // Si ya se subió con éxito en un intento anterior, la saltamos
-            if (allFotos[i].uploaded) {
-                successCount++;
-                continue;
-            }
-
-            console.log(`Subiendo foto ${i + 1} de ${allFotos.length} (${allFotos[i].tipo})...`);
-            const result = await uploadPhoto(allFotos[i], i + 1);
-            if (result.ok) {
-                successCount++;
-                // Marcar como subida para futuros reintentos si otra foto falla
-                allFotos[i].uploaded = true;
-                
-                // Liberar memoria para evitar OOM Crash (Safari Recarga la página por límite de memoria RAM)
-                if (allFotos[i].preview) {
-                    URL.revokeObjectURL(allFotos[i].preview);
-                    // Opcional: allFotos[i].preview = ""; pero rompería la UI de "fotos enviadas".
-                }
-                
-                console.log(`Foto ${i + 1} subida con éxito.`);
-            } else {
-                console.error(`Error en foto ${i + 1}:`, result.error);
-                failedUploads.push(`Foto ${i + 1} (${allFotos[i].tipo}): ${result.error}`);
-            }
-        }
-        
-        // Guardar el estado de las fotos actualizadas con sus marcas de 'uploaded'
-        const regulCount = fotosReglamentarias.length;
-        setFotosReglamentarias(allFotos.slice(0, regulCount));
-        setFotosDanios(allFotos.slice(regulCount));
-
-        if (successCount === allFotos.length) {
-            console.log("Todas las fotos subidas. Llamando a complete endpoint...");
-            // Mark as complete
+    // Upload a single photo with semaphore control
+    const uploadFotoInmediata = useCallback(async (
+        blob: Blob,
+        fotoId: string,
+        tipo: string,
+        descripcion: string,
+        setterFn: React.Dispatch<React.SetStateAction<FotoCapturada[]>>
+    ) => {
+        const doUpload = async () => {
             try {
-                const completeRes = await fetch("/api/inspeccion-remota/complete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ token }),
-                });
-                if (!completeRes.ok) {
-                     const errorData = await completeRes.json();
-                     console.error("Complete endpoint falló:", completeRes.status, errorData);
-                } else {
-                     console.log("Complete endpoint exitoso.");
+                // Compress before uploading
+                const compressed = await compressImage(blob);
+                const orden = ++ordenCounter.current;
+
+                const formData = new FormData();
+                formData.append("token", token);
+                formData.append("file", compressed, `${tipo}_${Date.now()}.jpg`);
+                formData.append("tipo", tipo);
+                formData.append("descripcion", descripcion || "");
+                formData.append("orden", String(orden));
+
+                const res = await fetch("/api/inspeccion-remota/upload", { method: "POST", body: formData });
+                const body = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(body?.error || `Error ${res.status}`);
                 }
-            } catch (e) {
-                console.error("Complete endpoint exception:", e);
+
+                // Success: store URL, revoke preview blob to free RAM
+                setterFn(prev => prev.map(f => {
+                    if (f.id !== fotoId) return f;
+                    if (f.preview) URL.revokeObjectURL(f.preview);
+                    return { ...f, uploading: false, uploaded: true, url: body.url, preview: body.url, error: undefined };
+                }));
+            } catch (err: any) {
+                console.error(`Upload failed for ${fotoId}:`, err);
+                setterFn(prev => prev.map(f =>
+                    f.id === fotoId ? { ...f, uploading: false, error: err.message || "Error de conexión" } : f
+                ));
+            } finally {
+                activeUploads.current--;
+                processQueue();
+            }
+        };
+
+        // Enqueue
+        uploadQueue.current.push(doUpload);
+        processQueue();
+    }, [token, processQueue]);
+
+    // Retry a failed upload
+    const retryUpload = useCallback((foto: FotoCapturada, setterFn: React.Dispatch<React.SetStateAction<FotoCapturada[]>>) => {
+        // We can only retry if the preview is still a blob URL (not revoked)
+        // For retries, re-fetch the image from its current preview URL
+        setterFn(prev => prev.map(f =>
+            f.id === foto.id ? { ...f, uploading: true, error: undefined } : f
+        ));
+
+        // Fetch the image from preview to get a blob, then re-upload
+        fetch(foto.preview)
+            .then(r => r.blob())
+            .then(blob => uploadFotoInmediata(blob, foto.id, foto.tipo, foto.descripcion || "", setterFn))
+            .catch(() => {
+                setterFn(prev => prev.map(f =>
+                    f.id === foto.id ? { ...f, uploading: false, error: "No se puede reintentar — la foto se perdió" } : f
+                ));
+            });
+    }, [uploadFotoInmediata]);
+
+    // Handle finalize — lightweight, just call /complete
+    const handleFinalize = useCallback(async () => {
+        const allFotos = [...fotosReglamentarias, ...fotosDanios];
+        const pending = allFotos.filter(f => f.uploading);
+        const failed = allFotos.filter(f => f.error);
+
+        if (pending.length > 0) {
+            setError(`Esperá a que terminen de subir ${pending.length} foto(s)...`);
+            return;
+        }
+        if (failed.length > 0) {
+            setError(`Hay ${failed.length} foto(s) con error. Reintentá cada una antes de enviar.`);
+            return;
+        }
+
+        setFinalizing(true);
+        setError(null);
+
+        try {
+            const completeRes = await fetch("/api/inspeccion-remota/complete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token }),
+            });
+            if (!completeRes.ok) {
+                const errorData = await completeRes.json();
+                throw new Error(errorData?.error || `Error ${completeRes.status}`);
             }
             setStep("completado");
-        } else {
-            console.error(`Subida finalizada con errores. Éxitos: ${successCount}, Fallos: ${failedUploads.length}`);
-            setError(`Oops. Se subieron ${successCount} de ${allFotos.length} fotos.\nDetalles de errores:\n- ${failedUploads.join('\n- ')}\nPor favor, intentá nuevamente enviar las que faltan.`);
+        } catch (e: any) {
+            setError(`Error al completar: ${e.message}`);
         }
-        setUploading(false);
-    }, [fotosReglamentarias, fotosDanios, uploadPhoto, token]);
+        setFinalizing(false);
+    }, [fotosReglamentarias, fotosDanios, token]);
 
-    // Handle regulatory photo capture
+    // Handle regulatory photo capture — upload immediately
     const handleFotoReglamentaria = (blob: Blob, preview: string) => {
         const paso = PASOS_REGLAMENTARIOS[pasoReglamentario];
-        setFotosReglamentarias(prev => [...prev, { tipo: paso.id, blob, preview, descripcion: paso.label }]);
+        const fotoId = `reg_${paso.id}_${Date.now()}`;
+
+        const newFoto: FotoCapturada = {
+            id: fotoId,
+            tipo: paso.id,
+            preview,
+            url: "",
+            descripcion: paso.label,
+            uploading: true,
+            uploaded: false,
+        };
+
+        setFotosReglamentarias(prev => [...prev, newFoto]);
         setCameraActive(false);
+
+        // Start uploading immediately
+        uploadFotoInmediata(blob, fotoId, paso.id, paso.label, setFotosReglamentarias);
 
         if (pasoReglamentario < PASOS_REGLAMENTARIOS.length - 1) {
             setPasoReglamentario(prev => prev + 1);
@@ -157,22 +228,35 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
         }
     };
 
-    // Handle damage photo capture (multiple)
+    // Handle damage photo capture (multiple) — upload each immediately
     const handleFotoDanioMultiple = (fotos: { blob: Blob, preview: string }[]) => {
         const zonasNombres = zonasDanio.map(id => ZONAS_MAP[id] || id).join(", ");
+        const descripcion = `Daños reportados: ${zonasNombres}`;
 
-        const nuevasFotos = fotos.map(f => ({
+        const newFotos: FotoCapturada[] = fotos.map((f, i) => ({
+            id: `dmg_${Date.now()}_${i}`,
             tipo: "danio_detalle",
-            blob: f.blob,
             preview: f.preview,
-            descripcion: `Daños reportados: ${zonasNombres}`,
+            url: "",
+            descripcion,
+            uploading: true,
+            uploaded: false,
         }));
-        setFotosDanios(prev => [...prev, ...nuevasFotos]);
+
+        setFotosDanios(prev => [...prev, ...newFotos]);
         setCameraActive(false);
         setCapturingDamage(false);
+
+        // Start uploading each one immediately (semaphore handles concurrency)
+        fotos.forEach((f, i) => {
+            uploadFotoInmediata(f.blob, newFotos[i].id, "danio_detalle", descripcion, setFotosDanios);
+        });
     };
 
     const totalFotos = fotosReglamentarias.length + fotosDanios.length;
+    const allUploaded = [...fotosReglamentarias, ...fotosDanios].every(f => f.uploaded);
+    const anyUploading = [...fotosReglamentarias, ...fotosDanios].some(f => f.uploading);
+    const anyError = [...fotosReglamentarias, ...fotosDanios].some(f => !!f.error);
 
     // ═══ RENDER ═══
     return (
@@ -288,15 +372,28 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                             {PASOS_REGLAMENTARIOS[pasoReglamentario].desc}
                         </p>
 
-                        {/* Thumbnail of completed steps */}
+                        {/* Thumbnail of completed steps — with upload status */}
                         {fotosReglamentarias.length > 0 && (
                             <div className="flex gap-2 mb-6 flex-wrap justify-center">
-                                {fotosReglamentarias.map((f, i) => (
-                                    <div key={i} className="w-12 h-12 rounded-lg overflow-hidden border-2 border-green-500/50 relative">
-                                        <img src={f.preview} alt={f.tipo} className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
-                                            <CheckCircle2 className="w-4 h-4 text-green-400" />
-                                        </div>
+                                {fotosReglamentarias.map((f) => (
+                                    <div key={f.id} className="w-12 h-12 rounded-lg overflow-hidden border-2 relative"
+                                        style={{ borderColor: f.error ? 'rgba(239,68,68,0.5)' : f.uploaded ? 'rgba(34,197,94,0.5)' : 'rgba(255,255,255,0.2)' }}>
+                                        <img src={f.preview || f.url} alt={f.tipo} className="w-full h-full object-cover" />
+                                        {f.uploading && (
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                <Loader2 className="w-4 h-4 text-white animate-spin" />
+                                            </div>
+                                        )}
+                                        {f.uploaded && (
+                                            <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                                                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                            </div>
+                                        )}
+                                        {f.error && (
+                                            <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
+                                                <AlertCircle className="w-4 h-4 text-red-400" />
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -394,21 +491,51 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
             {/* ─── RESUMEN ─── */}
             {step === "resumen" && (
-                <div className="flex-1 flex flex-col p-6 animate-in fade-in duration-300">
+                <div className="flex-1 flex flex-col p-6 animate-in fade-in duration-300 overflow-y-auto">
                     <h2 className="text-xl font-bold text-[#F5F0F7] mb-2 text-center">Resumen de Fotos</h2>
-                    <p className="text-[#9B8FA6] text-sm mb-6 text-center">
-                        Verificá que todas las fotos estén correctas antes de enviar.
+                    <p className="text-[#9B8FA6] text-sm mb-2 text-center">
+                        Las fotos se suben automáticamente. Esperá a que todas tengan ✓ para enviar.
                     </p>
 
-                    {/* Regulatory photos */}
+                    {/* Upload progress indicator */}
+                    {anyUploading && (
+                        <div className="flex items-center justify-center gap-2 mb-4 text-[#D6006E] text-sm">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Subiendo fotos en segundo plano...</span>
+                        </div>
+                    )}
+
+                    {/* Regulatory photos with status */}
                     <div className="mb-4">
                         <p className="text-xs font-semibold text-[#6B5F78] uppercase tracking-wider mb-2">
                             Fotos Reglamentarias ({fotosReglamentarias.length})
                         </p>
                         <div className="grid grid-cols-3 gap-2">
-                            {fotosReglamentarias.map((f, i) => (
-                                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-white/5">
-                                    <img src={f.preview} alt={f.tipo} className="w-full h-full object-cover" />
+                            {fotosReglamentarias.map((f) => (
+                                <div key={f.id} className="relative aspect-square rounded-lg overflow-hidden border border-white/5">
+                                    <img src={f.preview || f.url} alt={f.tipo} className="w-full h-full object-cover" />
+                                    {/* Upload status overlay */}
+                                    {f.uploading && (
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                            <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                        </div>
+                                    )}
+                                    {f.uploaded && (
+                                        <div className="absolute top-1 right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                                        </div>
+                                    )}
+                                    {f.error && (
+                                        <div className="absolute inset-0 bg-red-500/30 flex flex-col items-center justify-center gap-1">
+                                            <AlertCircle className="w-5 h-5 text-red-400" />
+                                            <button
+                                                onClick={() => retryUpload(f, setFotosReglamentarias)}
+                                                className="text-[10px] text-white bg-red-500/80 px-2 py-0.5 rounded-full flex items-center gap-1"
+                                            >
+                                                <RefreshCw className="w-3 h-3" /> Reintentar
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#0C0A0F]/90 to-transparent p-1.5">
                                         <p className="text-[10px] text-white/80 capitalize">{f.tipo.replace("_", " ")}</p>
                                     </div>
@@ -417,15 +544,36 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                         </div>
                     </div>
 
-                    {/* Damage photos */}
+                    {/* Damage photos with status */}
                     <div className="mb-6">
                         <p className="text-xs font-semibold text-[#6B5F78] uppercase tracking-wider mb-2">
                             Fotos de Daños ({fotosDanios.length})
                         </p>
                         <div className="grid grid-cols-3 gap-2">
-                            {fotosDanios.map((f, i) => (
-                                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-[#D6006E]/30">
-                                    <img src={f.preview} alt="daño" className="w-full h-full object-cover" />
+                            {fotosDanios.map((f) => (
+                                <div key={f.id} className="relative aspect-square rounded-lg overflow-hidden border border-[#D6006E]/30">
+                                    <img src={f.preview || f.url} alt="daño" className="w-full h-full object-cover" />
+                                    {f.uploading && (
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                            <Loader2 className="w-6 h-6 text-white animate-spin" />
+                                        </div>
+                                    )}
+                                    {f.uploaded && (
+                                        <div className="absolute top-1 right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                                        </div>
+                                    )}
+                                    {f.error && (
+                                        <div className="absolute inset-0 bg-red-500/30 flex flex-col items-center justify-center gap-1">
+                                            <AlertCircle className="w-5 h-5 text-red-400" />
+                                            <button
+                                                onClick={() => retryUpload(f, setFotosDanios)}
+                                                className="text-[10px] text-white bg-red-500/80 px-2 py-0.5 rounded-full flex items-center gap-1"
+                                            >
+                                                <RefreshCw className="w-3 h-3" /> Reintentar
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -438,26 +586,25 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                     )}
 
                     <div className="mt-auto space-y-3">
-                        {uploading ? (
-                            <div className="space-y-3">
-                                <div className="h-3 bg-[#16131B] rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-[#D6006E] to-[#A8005A] rounded-full transition-all duration-300"
-                                        style={{ width: `${uploadProgress}%` }}
-                                    />
-                                </div>
-                                <p className="text-center text-[#9B8FA6] text-sm flex items-center justify-center gap-2">
-                                    <Loader2 className="w-4 h-4 text-[#D6006E] animate-spin" /> Subiendo fotos... {uploadProgress}%
-                                </p>
+                        {finalizing ? (
+                            <div className="flex items-center justify-center gap-2 py-4 text-[#9B8FA6]">
+                                <Loader2 className="w-5 h-5 animate-spin text-[#2DD4A0]" />
+                                <span>Completando inspección...</span>
                             </div>
                         ) : (
                             <>
                                 <button
                                     onClick={handleFinalize}
-                                    className="w-full bg-[#2DD4A0] hover:brightness-110 text-[#0C0A0F] font-bold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(45,212,160,0.2)] active:scale-[0.98] flex items-center justify-center gap-2"
+                                    disabled={!allUploaded || anyError || anyUploading}
+                                    className="w-full bg-[#2DD4A0] hover:brightness-110 disabled:opacity-40 disabled:grayscale text-[#0C0A0F] font-bold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(45,212,160,0.2)] active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
-                                    <CheckCircle2 className="w-5 h-5" /> 
-                                    {error ? `Reintentar ${[...fotosReglamentarias, ...fotosDanios].filter(f => !f.uploaded).length} fotos pendientes` : `Enviar ${totalFotos} fotos`}
+                                    <CheckCircle2 className="w-5 h-5" />
+                                    {anyUploading
+                                        ? `Subiendo... ${[...fotosReglamentarias, ...fotosDanios].filter(f => f.uploaded).length}/${totalFotos}`
+                                        : anyError
+                                            ? `${[...fotosReglamentarias, ...fotosDanios].filter(f => f.error).length} fotos con error`
+                                            : `Enviar ${totalFotos} fotos`
+                                    }
                                 </button>
                                 <button
                                     onClick={() => setStep("zona_danio")}

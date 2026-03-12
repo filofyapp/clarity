@@ -372,28 +372,52 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
                         </div>
                     </div>
 
-                    {/* Image — zoomable + pannable */}
+                    {/* Image area — clicks on dark sides close lightbox */}
                     <div
-                        className="flex-1 min-h-0 w-full flex items-center justify-center px-4 overflow-hidden select-none"
-                        onClick={e => e.stopPropagation()}
-                        onWheel={handleWheel}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                        onDoubleClick={handleDoubleClick}
-                        style={{ cursor: zoom > 1 ? (dragging ? "grabbing" : "grab") : "zoom-in" }}
+                        className="flex-1 min-h-0 w-full flex items-center justify-center overflow-hidden select-none relative"
                     >
-                        <img
-                            src={filteredFotos[lightboxIndex].url}
-                            alt={filteredFotos[lightboxIndex].tipo}
-                            className="max-w-full max-h-[calc(100vh-140px)] object-contain rounded-lg transition-all duration-150"
-                            style={{
-                                transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
-                                filter: activeFilter ? FILTER_PRESETS.find(f => f.id === activeFilter)?.css : "none",
-                            }}
-                            draggable={false}
-                        />
+                        {/* Nav arrows — positioned on overlay, stopPropagation so they don't close */}
+                        {filteredFotos.length > 1 && (
+                            <>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); changePhoto(Math.max(0, lightboxIndex - 1)); }}
+                                    disabled={lightboxIndex === 0}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 transition-all"
+                                >
+                                    <ChevronLeft className="w-6 h-6" />
+                                </button>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); changePhoto(Math.min(filteredFotos.length - 1, lightboxIndex + 1)); }}
+                                    disabled={lightboxIndex === filteredFotos.length - 1}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 transition-all"
+                                >
+                                    <ChevronRight className="w-6 h-6" />
+                                </button>
+                            </>
+                        )}
+                        {/* Image wrapper — only this blocks close. Sized to the image, not full width */}
+                        <div
+                            className="relative"
+                            onClick={e => e.stopPropagation()}
+                            onWheel={handleWheel}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                            onDoubleClick={handleDoubleClick}
+                            style={{ cursor: zoom > 1 ? (dragging ? "grabbing" : "grab") : "default" }}
+                        >
+                            <img
+                                src={filteredFotos[lightboxIndex].url}
+                                alt={filteredFotos[lightboxIndex].tipo}
+                                className="max-w-[90vw] max-h-[calc(100vh-140px)] object-contain rounded-lg transition-all duration-150"
+                                style={{
+                                    transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                                    filter: activeFilter ? FILTER_PRESETS.find(f => f.id === activeFilter)?.css : "none",
+                                }}
+                                draggable={false}
+                            />
+                        </div>
                     </div>
 
                     {/* Bottom bar: nav + thumbnails */}

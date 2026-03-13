@@ -519,7 +519,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                                 <>
                                                     <div className="flex items-center gap-1.5 min-w-0">
                                                         <Link href={`/casos/${caso.id}`} className={`truncate font-mono font-black hover:underline hover:brightness-125 transition-all text-[15px] tracking-tight ${textPrimary}`}>{caso.numero_siniestro}</Link>
-                                                        {caso.tiene_respuesta_gestor && (
+                                                        {/* DESACTIVADO TEMPORALMENTE — Indicador respuesta gestor */}
+                                                        {false && caso.tiene_respuesta_gestor && (
                                                             <span title="Respuesta del gestor sin leer">
                                                                 <Mail size={14} className="text-[#D6006E] shrink-0" />
                                                             </span>
@@ -841,7 +842,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                         <div className="flex flex-col min-w-0">
                                             <div className="flex items-center gap-1.5">
                                                 <span className={`font-mono font-bold text-sm truncate ${textPrimary}`}>{caso.numero_siniestro}</span>
-                                                {caso.tiene_respuesta_gestor && (
+                                                {/* DESACTIVADO TEMPORALMENTE — Indicador respuesta gestor */}
+                                                {false && caso.tiene_respuesta_gestor && (
                                                     <span title="Respuesta del gestor sin leer">
                                                         <Mail size={14} className="text-[#D6006E] shrink-0" />
                                                     </span>

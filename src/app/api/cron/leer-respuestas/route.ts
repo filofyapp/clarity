@@ -11,118 +11,13 @@ export async function GET(req: NextRequest) {
     let gestorResult: Record<string, any> = {};
     let migracionesDetectadas = 0;
 
-    // ═══ BLOCK 1: Gestor reply detection (existing logic) ═══
-    try {
-        const supabase = createAdminClient();
-        console.log("[Cron] Iniciando lectura de respuestas...");
-
-        const token = await getGmailAccessToken();
-        const fromEmail = process.env.GMAIL_USER_EMAIL || "gestionsancoraomsiniestros@gmail.com";
-
-        if (!token) {
-            gestorResult = { error_gestores: "No Gmail Token" };
-        } else {
-            const { data: casos, error: casosError } = await supabase
-                .from("casos")
-                .select("id, numero_siniestro, gmail_thread_id, tiene_respuesta_gestor, gestor_id")
-                .not("gmail_thread_id", "is", null);
-
-            if (casosError || !casos || casos.length === 0) {
-                gestorResult = { message_gestores: "No hay casos con hilos activos." };
-            } else {
-                let totalRespuestasNuevas = 0;
-
-                for (const caso of casos) {
-                    const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${caso.gmail_thread_id}`, {
-                        headers: { "Authorization": `Bearer ${token}` }
-                    });
-
-                    if (!res.ok) {
-                        console.warn(`[Cron] Error fetching thread ${caso.gmail_thread_id}:`, await res.text());
-                        continue;
-                    }
-
-                    const threadData = await res.json();
-                    const messages = threadData.messages || [];
-
-                    for (const msg of messages) {
-                        const headers = msg.payload?.headers || [];
-                        const fromHeader = headers.find((h: any) => h.name.toLowerCase() === "from")?.value || "";
-
-                        if (fromHeader.toLowerCase().includes(fromEmail.toLowerCase())) continue;
-
-                        const { data: exists } = await supabase
-                            .from("respuestas_gestor")
-                            .select("id")
-                            .eq("gmail_message_id", msg.id)
-                            .maybeSingle();
-
-                        if (exists) continue;
-
-                        totalRespuestasNuevas++;
-                        console.log(`[Cron] Nueva respuesta detectada en siniestro ${caso.numero_siniestro}`);
-
-                        let bodyText = "Contenido no disponible";
-                        if (msg.payload?.parts) {
-                            const textPart = msg.payload.parts.find((p: any) => p.mimeType === "text/plain");
-                            if (textPart && textPart.body && textPart.body.data) {
-                                bodyText = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
-                            }
-                        } else if (msg.payload?.body?.data) {
-                            bodyText = Buffer.from(msg.payload.body.data, 'base64').toString('utf-8');
-                        }
-
-                        let remitenteNombre = fromHeader;
-                        let remitenteEmail = fromHeader;
-                        const match = fromHeader.match(/(.*)<(.*)>/);
-                        if (match) {
-                            remitenteNombre = match[1].trim() || match[2].trim();
-                            remitenteEmail = match[2].trim();
-                        }
-
-                        await supabase.from("respuestas_gestor").insert({
-                            caso_id: caso.id,
-                            gmail_message_id: msg.id,
-                            remitente_nombre: remitenteNombre.replace(/["']/g, ''),
-                            remitente_email: remitenteEmail,
-                            contenido: bodyText
-                        });
-
-                        if (!caso.tiene_respuesta_gestor) {
-                            await supabase.from("casos")
-                                .update({ tiene_respuesta_gestor: true })
-                                .eq("id", caso.id);
-                        }
-
-                        const { data: admins } = await supabase
-                            .from("usuarios")
-                            .select("id")
-                            .eq("rol", "admin")
-                            .eq("activo", true);
-
-                        if (admins) {
-                            const notifs = admins.map(admin => ({
-                                usuario_destino_id: admin.id,
-                                tipo: "mensaje_gestor",
-                                caso_id: caso.id,
-                                mensaje: `Nueva respuesta del gestor en Siniestro ${caso.numero_siniestro}`,
-                                leida: false
-                            }));
-                            await supabase.from("notificaciones").insert(notifs);
-                        }
-                    }
-                }
-
-                gestorResult = {
-                    hilos_revisados: casos.length,
-                    nuevas_respuestas: totalRespuestasNuevas,
-                };
-            }
-        }
-    } catch (e: any) {
-        console.error("[Cron] Error in gestor replies block:", e);
-        gestorResult = { error_gestores: e.message };
-    }
+    // DESACTIVADO TEMPORALMENTE — Detección de respuestas de gestores
+    // Reactivar cuando se decida implementar la UI completa
+    // El código original de Block 1 revisaba gmail_thread_id en los casos,
+    // detectaba respuestas de gestores, las insertaba en respuestas_gestor,
+    // seteaba tiene_respuesta_gestor = true, y creaba notificaciones.
+    gestorResult = { gestores: "desactivado_temporalmente" };
+    console.log("[Cron] Block 1 (respuestas gestores) DESACTIVADO temporalmente");
 
     // ═══ BLOCK 2: Migration thread replies (independent try/catch) ═══
     try {

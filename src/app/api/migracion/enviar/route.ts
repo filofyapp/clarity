@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
 
         // 5. Update caso: estado + thread tracking
         const estadoAnterior = caso.estado;
-        await supabase
+        console.log(`[Migración] Guardando threadId=${result.threadId}, messageId=${result.messageId} para caso ${caso.id}`);
+        const { error: updateErr } = await supabase
             .from("casos")
             .update({
                 estado: "en_consulta_cia",
@@ -83,6 +84,18 @@ export async function POST(req: NextRequest) {
                 gmail_migracion_message_id: result.messageId,
             })
             .eq("id", caso.id);
+
+        if (updateErr) {
+            console.error(`[Migración] Error guardando threadId:`, updateErr);
+        }
+
+        // Verify it was saved
+        const { data: check } = await supabase
+            .from("casos")
+            .select("gmail_migracion_thread_id")
+            .eq("id", caso.id)
+            .single();
+        console.log(`[Migración] Verificación: threadId guardado = ${check?.gmail_migracion_thread_id}`);
 
         // 6. Historial
         await supabase.from("historial_estados").insert({
@@ -118,7 +131,7 @@ export async function POST(req: NextRequest) {
             await supabase.from("notificaciones").insert(notifs);
         }
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ ok: true, threadId: result.threadId, messageId: result.messageId });
     } catch (err: any) {
         console.error("[Migración] Error:", err);
         return NextResponse.json({ error: "Error interno" }, { status: 500 });

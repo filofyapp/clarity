@@ -138,21 +138,25 @@ export async function GET(req: NextRequest) {
                 .select("id, numero_siniestro, gmail_migracion_thread_id, perito_carga_id")
                 .not("gmail_migracion_thread_id", "is", null)
                 .eq("estado", "en_consulta_cia");
+            console.log(`[Cron/Migración] Encontrados ${casosMigracion?.length || 0} casos con gmail_migracion_thread_id en estado en_consulta_cia`);
 
             if (casosMigracion && casosMigracion.length > 0) {
                 for (const caso of casosMigracion) {
+                    console.log(`[Cron/Migración] Revisando caso ${caso.numero_siniestro} — threadId: ${caso.gmail_migracion_thread_id}`);
                     try {
                         const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/${fromEmail}/threads/${caso.gmail_migracion_thread_id}`, {
                             headers: { "Authorization": `Bearer ${token}` }
                         });
 
                         if (!res.ok) {
-                            console.warn(`[Cron] Error fetching migration thread ${caso.gmail_migracion_thread_id}:`, await res.text());
+                            const errText = await res.text();
+                            console.warn(`[Cron/Migración] Error fetching thread ${caso.gmail_migracion_thread_id}: status=${res.status} body=${errText}`);
                             continue;
                         }
 
                         const threadData = await res.json();
                         const messages = threadData.messages || [];
+                        console.log(`[Cron/Migración] Thread ${caso.gmail_migracion_thread_id} tiene ${messages.length} mensaje(s)`);
 
                         let hasExternalReply = false;
                         let replyBody = "";
@@ -160,6 +164,8 @@ export async function GET(req: NextRequest) {
                         for (const msg of messages) {
                             const headers = msg.payload?.headers || [];
                             const fromHeader = headers.find((h: any) => h.name.toLowerCase() === "from")?.value || "";
+
+                            console.log(`[Cron/Migración] Mensaje ${msg.id}: from="${fromHeader}", esNuestro=${fromHeader.toLowerCase().includes(fromEmail.toLowerCase())}`);
 
                             if (fromHeader.toLowerCase().includes(fromEmail.toLowerCase())) continue;
 
@@ -175,7 +181,10 @@ export async function GET(req: NextRequest) {
                             break;
                         }
 
-                        if (!hasExternalReply) continue;
+                        if (!hasExternalReply) {
+                            console.log(`[Cron/Migración] No se encontró respuesta externa en thread ${caso.gmail_migracion_thread_id}`);
+                            continue;
+                        }
 
                         migracionesDetectadas++;
                         console.log(`[Cron] Migración confirmada para siniestro ${caso.numero_siniestro}`);

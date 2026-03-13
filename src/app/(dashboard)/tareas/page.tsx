@@ -27,11 +27,8 @@ export default async function TareasDashboard() {
         asignado:usuarios!tareas_asignado_id_fkey(nombre, apellido),
         caso:casos(id, numero_siniestro, marca, compania:companias(nombre), nombre_asegurado, telefono_asegurado, dominio, estado),
         comentarios_tarea(usuario_id, created_at)
+    // Todos los usuarios autenticados ven TODAS las tareas
     `).order("created_at", { ascending: false });
-
-    if (usuarioData.rol !== "admin") {
-        query = query.or(`creador_id.eq.${usuarioData.id},asignado_id.eq.${usuarioData.id}`);
-    }
 
     const { data: tareas, error } = await query;
 

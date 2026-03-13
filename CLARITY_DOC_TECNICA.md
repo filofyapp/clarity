@@ -866,6 +866,14 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 13/03/2026 (Sprint 8)
+QUE SE CAMBIO: (1) Tablero de Tareas visible para todos los usuarios autenticados. (2) Detección de rol multi-role en CasoDetail. (3) DateFilter con formato DD/MM/AA. (4) Perito de carga con acceso completo a estados y tipo IP. (5) Buscador no auto-filtra, Enter hace GoTo. (6) Highlight persistente hasta hover.
+POR QUE: (1) Admin y carga veían tareas diferentes — carga solo veía tareas donde era creador o asignado. (2) `CasoDetail.tsx` usaba solo `usuario.rol` (legacy), ignorando `roles[]`. (3) `type="date"` del navegador se bugueaba al 3er dígito del año. (4) Carga estaba limitado a 5 estados en el expediente. (5) El buscador filtraba server-side mientras escribías. (6) El highlight se desvanecía en 2.5s, el usuario lo quiere persistente.
+COMO: (1) Migración SQL `023_tareas_visibilidad_total.sql`: `DROP POLICY tareas_visibilidad` + nueva con `auth.role() = 'authenticated'`. Removido filtro `or(creador_id/asignado_id)` en `tareas/page.tsx`. (2) CasoDetail ahora lee `roles[]` con prioridad admin>carga>calle. (3) Inputs `type="text"` con máscara DD/MM/AA, auto-formato, internamente sigue YYYY-MM-DD. (4) SelectorEstado: `carga` obtiene todos los estados. CasoDetail: TipoIP editable para carga/admin. (5) Removido debounce de búsqueda, Enter ejecuta `handleGoTo()`. (6) `onMouseEnter` limpia highlight en vez de timer.
+ARCHIVOS AFECTADOS: `023_tareas_visibilidad_total.sql`, `tareas/page.tsx`, `CasoDetail.tsx`, `SelectorEstado.tsx`, `FilterDropdown.tsx`, `CasosTable.tsx`
+EFECTOS COLATERALES: La migración SQL debe ejecutarse en Supabase para que surta efecto.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 FECHA: 13/03/2026 (Sprint 7)
 QUE SE CAMBIO: Filtros de fecha rediseñados — ahora hay 4 filtros de fecha independientes (Ingreso, Fecha IP, F. Carga, F. Cierre), cada uno con su propio rango Desde/Hasta. Reemplaza el selector único que no permitía filtrar por dos fechas al mismo tiempo.
 POR QUE: El selector anterior (un dropdown que elegía "qué fecha filtrar") solo permitía filtrar por UNA fecha a la vez. El usuario necesita cruzar filtros, ej: "Ingreso = 12/3 Y Carga = 13/3".

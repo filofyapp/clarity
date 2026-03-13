@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
     Clock, Car, Building2, Hash, User, ChevronRight,
     Loader2, Send, FileCheck, XCircle, AlertTriangle, ShieldCheck,
-    MoreVertical
+    MoreVertical, ArrowRightLeft, Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +66,25 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
     const router = useRouter();
     const supabase = createClient();
 
+    // ═══ Migration config (loaded from DB) ═══
+    const [migConfig, setMigConfig] = useState({ to: "rcardozo@sancorseguros.com", cc: ["MCossa@sancorseguros.com", "SGuzman@sancorseguros.com"], usuario: "ALFREDO MIÑO" });
+    const [migracionDialog, setMigracionDialog] = useState<{ id: string; siniestro: string; marca?: string; dominio?: string } | null>(null);
+    const [migracionSending, setMigracionSending] = useState(false);
+
+    useEffect(() => {
+        supabase.from("configuracion").select("clave, valor").in("clave", ["migracion_email_to", "migracion_email_cc", "migracion_usuario_destino"]).then(({ data }) => {
+            if (!data) return;
+            const m: Record<string, any> = {};
+            data.forEach(r => { m[r.clave] = r.valor; });
+            setMigConfig({
+                to: (typeof m.migracion_email_to === "string" ? m.migracion_email_to : migConfig.to).replace(/"/g, ""),
+                cc: Array.isArray(m.migracion_email_cc) ? m.migracion_email_cc : migConfig.cc,
+                usuario: (typeof m.migracion_usuario_destino === "string" ? m.migracion_usuario_destino : migConfig.usuario).replace(/"/g, ""),
+            });
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Sort by antiquity descending (oldest first)
     const sorted = [...casos].sort((a, b) =>
         new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
@@ -91,6 +110,32 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
             }
             setConfirmDialog(null);
         });
+    };
+
+    // Migration handler — sends email immediately, NOT via queue
+    const handleMigracion = async () => {
+        if (!migracionDialog) return;
+        setMigracionSending(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch("/api/migracion/enviar", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify({ casoId: migracionDialog.id }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body?.error || `Error ${res.status}`);
+            toast.success("Solicitud de migración enviada");
+            setCasos(prev => prev.filter(c => c.id !== migracionDialog.id));
+            router.refresh();
+        } catch (err: any) {
+            toast.error("Error: " + (err.message || "No se pudo enviar"));
+        }
+        setMigracionSending(false);
+        setMigracionDialog(null);
     };
 
     if (casos.length === 0) {
@@ -225,6 +270,22 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
                                                     <p className="text-[11px] text-text-muted pl-6">{accion.description}</p>
                                                 </DropdownMenuItem>
                                             ))}
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onClick={() => setMigracionDialog({
+                                                    id: caso.id,
+                                                    siniestro: caso.numero_siniestro,
+                                                    marca: caso.marca,
+                                                    dominio: caso.dominio,
+                                                })}
+                                                className="flex flex-col items-start gap-0.5 py-2.5 cursor-pointer"
+                                            >
+                                                <div className="flex items-center gap-2 font-medium text-indigo-500">
+                                                    <ArrowRightLeft className="w-4 h-4" />
+                                                    Pedir Migración
+                                                </div>
+                                                <p className="text-[11px] text-text-muted pl-6">Solicitar migración del siniestro al usuario de {migConfig.usuario}</p>
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
 
@@ -262,6 +323,71 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
                         >
                             {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                             Confirmar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Migration Preview Dialog */}
+            <Dialog open={!!migracionDialog} onOpenChange={(open) => !open && setMigracionDialog(null)}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Mail className="w-5 h-5 text-indigo-500" /> Pedir Migración
+                        </DialogTitle>
+                        <DialogDescription>
+                            Se enviará el siguiente mail:
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3 text-sm">
+                        {/* Recipients */}
+                        <div className="bg-bg-tertiary/50 border border-border rounded-lg p-3 space-y-1.5">
+                            <div className="flex gap-2">
+                                <span className="text-text-muted w-8 shrink-0">Para:</span>
+                                <span className="text-text-primary font-medium">{migConfig.to}</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <span className="text-text-muted w-8 shrink-0">CC:</span>
+                                <span className="text-text-secondary">{migConfig.cc.join(", ")}</span>
+                            </div>
+                            <div className="flex gap-2 pt-1 border-t border-border/50 mt-1">
+                                <span className="text-text-muted shrink-0">Asunto:</span>
+                                <span className="text-text-primary font-semibold">PEDIDO DE MIGRACION STRO {migracionDialog?.siniestro}</span>
+                            </div>
+                        </div>
+
+                        {/* Body preview */}
+                        <div className="bg-white dark:bg-bg-secondary border border-border rounded-lg p-4 text-text-primary leading-relaxed">
+                            <p>Buenos días estimados, los molesto para migrar el siguiente siniestro al usuario de {migConfig.usuario}:</p>
+                            <div className="mt-3 space-y-1">
+                                <p><strong>Siniestro:</strong> {migracionDialog?.siniestro}</p>
+                                <p><strong>Vehículo:</strong> {migracionDialog?.marca || "—"}</p>
+                                <p><strong>Dominio:</strong> {migracionDialog?.dominio || "—"}</p>
+                            </div>
+                            <p className="mt-3">¡Muchas gracias!</p>
+                        </div>
+
+                        {/* State change note */}
+                        <div className="flex items-start gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-3 text-xs text-indigo-400">
+                            <ArrowRightLeft className="w-4 h-4 shrink-0 mt-0.5" />
+                            <div>
+                                El caso pasará a <strong>"En Consulta con Cía"</strong> y volverá a <strong>"Pdte. de Carga"</strong> automáticamente cuando respondan.
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setMigracionDialog(null)} disabled={migracionSending}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            onClick={handleMigracion}
+                            disabled={migracionSending}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                        >
+                            {migracionSending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                            Enviar solicitud
                         </Button>
                     </DialogFooter>
                 </DialogContent>

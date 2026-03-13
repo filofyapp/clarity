@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Users, Shield, UserPlus } from "lucide-react";
+import { MigracionConfigEditor } from "@/components/configuracion/MigracionConfigEditor";
 
 export const metadata = { title: "Configuración - CLARITY" };
 
@@ -111,6 +112,33 @@ export default async function ConfiguracionPage() {
                     )}
                 </div>
             </div>
+
+            {/* Migración Config */}
+            {await (async () => {
+                const { data: migConfigs } = await supabase
+                    .from("configuracion")
+                    .select("clave, valor")
+                    .in("clave", ["migracion_email_to", "migracion_email_cc", "migracion_usuario_destino"]);
+
+                const cfgMap: Record<string, any> = {};
+                (migConfigs || []).forEach((c: any) => { cfgMap[c.clave] = c.valor; });
+
+                const initialTo = (typeof cfgMap.migracion_email_to === "string" ? cfgMap.migracion_email_to : "rcardozo@sancorseguros.com").replace(/"/g, "");
+                const initialCc = Array.isArray(cfgMap.migracion_email_cc)
+                    ? cfgMap.migracion_email_cc.join(", ")
+                    : "MCossa@sancorseguros.com, SGuzman@sancorseguros.com";
+                const initialUsuario = (typeof cfgMap.migracion_usuario_destino === "string" ? cfgMap.migracion_usuario_destino : "ALFREDO MIÑO").replace(/"/g, "");
+
+                return (
+                    <div className="bg-card border border-border rounded-lg p-6">
+                        <MigracionConfigEditor
+                            initialTo={initialTo}
+                            initialCc={initialCc}
+                            initialUsuario={initialUsuario}
+                        />
+                    </div>
+                );
+            })()}
 
             {/* Links a sublocalidades */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">

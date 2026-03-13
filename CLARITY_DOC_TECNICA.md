@@ -866,6 +866,14 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 13/03/2026 (Sprint 8.3)
+QUE SE CAMBIO: Acción "Pedir Migración" en la Cola de Carga. Al ejecutarla, envía un mail automático vía Gmail API pidiendo la migración del siniestro, transiciona el caso a `en_consulta_cia`, y cuando responden el mail detectado por el cron `leer-respuestas`, el caso vuelve automáticamente a `pendiente_carga` con notificación.
+POR QUE: El estudio necesita solicitar la migración de siniestros al usuario de Alfredo Miño en Sancor, con tracking automático de la respuesta.
+COMO: (1) Migración SQL `025_migracion_feature.sql`: columnas `gmail_migracion_thread_id` y `gmail_migracion_message_id` en `casos`, 3 rows en `configuracion` con destinatarios editables. (2) `gmail.ts`: soporte de CC (`ccEmails?: string[]` en `SendEmailParams`, header `Cc:` en RFC 2822). (3) API `/api/migracion/enviar/route.ts`: envía el mail inmediatamente (no vía cola), guarda threadId, transiciona estado, crea historial + nota + notificación. (4) `ColaDeCargaBoard.tsx`: 4ª opción "Pedir Migración" con ícono índigo (`ArrowRightLeft`), separador visual, diálogo de preview que muestra Para/CC/Asunto/Cuerpo con datos reales + nota de estado automático. (5) `leer-respuestas/route.ts`: reescrito con 2 bloques try/catch independientes al nivel de función: Bloque 1 (gestores, existente) y Bloque 2 (migración, nuevo). Error en uno no afecta al otro. Cada caso de migración tiene su propio try/catch interno. Respuesta → `pendiente_carga` + historial + nota con contenido de respuesta + notificación a admins y perito_carga. (6) `MigracionConfigEditor.tsx`: editor de destinatarios en Configuración (3 campos, upsert a `configuracion`). (7) Integrado en `configuracion/page.tsx`.
+ARCHIVOS AFECTADOS: `025_migracion_feature.sql` (NUEVO), `gmail.ts`, `migracion/enviar/route.ts` (NUEVO), `ColaDeCargaBoard.tsx`, `leer-respuestas/route.ts`, `MigracionConfigEditor.tsx` (NUEVO), `configuracion/page.tsx`
+EFECTOS COLATERALES: `sendEmail` ahora acepta `ccEmails` opcional (backwards compatible). El cron `leer-respuestas` ahora revisa tanto hilos de gestores como de migración. La migración SQL debe ejecutarse en Supabase.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores. Bloques try/catch independientes verificados en código.
+
 FECHA: 13/03/2026 (Sprint 8.2)
 QUE SE CAMBIO: Nueva sección "Observaciones de la Pericia" en inspección remota + expediente del caso. Permite al usuario agregar texto y/o audio desde el resumen pre-envío. Las observaciones se visualizan en el expediente con reproductor de audio custom y controles de velocidad.
 POR QUE: El perito/taller necesita poder comunicar daños que no se ven en las fotos, detalles mecánicos, o cualquier dato relevante que no se puede capturar fotográficamente.

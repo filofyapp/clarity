@@ -56,13 +56,14 @@ function encodeMimeHeader(text: string): string {
 interface SendEmailParams {
     toEmail: string;
     toName?: string;
+    ccEmails?: string[];     // Emails en copia
     subject: string;
     htmlBody: string;
     threadId?: string;       // Si es respuesta a un hilo
     inReplyToRef?: string;   // El Message-ID del mensaje al que respondemos
 }
 
-export async function sendEmail({ toEmail, toName, subject, htmlBody, threadId, inReplyToRef }: SendEmailParams) {
+export async function sendEmail({ toEmail, toName, ccEmails, subject, htmlBody, threadId, inReplyToRef }: SendEmailParams) {
     const accessToken = await getGmailAccessToken();
     const fromEmail = process.env.GMAIL_USER_EMAIL || "gestionsancoraomsiniestros@gmail.com";
     const fromName = "Estudio AOM Siniestros · CLARITY"; // We can fetch this from settings later
@@ -81,6 +82,9 @@ export async function sendEmail({ toEmail, toName, subject, htmlBody, threadId, 
 
     let rawStr = `From: "${safeFromName}" <${fromEmail}>\r\n`;
     rawStr += `To: ${to}\r\n`;
+    if (ccEmails && ccEmails.length > 0) {
+        rawStr += `Cc: ${ccEmails.join(", ")}\r\n`;
+    }
     rawStr += `Subject: ${encodeMimeHeader(subject)}\r\n`;
     rawStr += `MIME-Version: 1.0\r\n`;
     rawStr += `Content-Type: text/html; charset=utf-8\r\n`;

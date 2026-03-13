@@ -20,7 +20,7 @@ import { TipoIPBadge } from "./TipoIPBadge";
 import { FilterDropdown, DateFilter } from "./FilterDropdown";
 import {
     ChevronRight, ArrowUpDown, Filter, Edit2, Search,
-    LayoutList, LayoutGrid, Copy, Trash2, Mail, MessageSquare
+    LayoutList, LayoutGrid, Copy, Trash2, Mail, MessageSquare, Crosshair
 } from "lucide-react";
 import { toast } from "sonner";
 import { cambiarEstadoCaso } from "@/app/(dashboard)/casos/[id]/actions";
@@ -252,8 +252,6 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
             updateFilter("search", val || null);
         }, 400);
     };
-
-
     // Virtualizer
     const parentRef = useRef<HTMLDivElement>(null);
     const rowVirtualizer = useVirtualizer({
@@ -263,6 +261,33 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         overscan: 20,
     });
 
+    // GoTo Search: highlight + scroll without filtering
+    const [highlightCasoId, setHighlightCasoId] = useState<string | null>(null);
+    const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleGoTo = useCallback(() => {
+        const q = localSearch.trim().toLowerCase();
+        if (!q) { toast.error("Escribí un siniestro o patente para buscar."); return; }
+
+        const idx = procesados.findIndex(c =>
+            c.numero_siniestro?.toLowerCase().includes(q) ||
+            c.dominio?.toLowerCase().includes(q) ||
+            c.numero_servicio?.toLowerCase().includes(q)
+        );
+
+        if (idx === -1) {
+            toast.error("No se encontró el caso en los resultados actuales.");
+            return;
+        }
+
+        // Scroll to the row
+        rowVirtualizer.scrollToIndex(idx, { align: "center", behavior: "smooth" });
+
+        // Highlight the row
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        setHighlightCasoId(procesados[idx].id);
+        highlightTimerRef.current = setTimeout(() => setHighlightCasoId(null), 2500);
+    }, [localSearch, procesados, rowVirtualizer]);
 
 
     const formatDays = (dateStr: string) => {
@@ -301,15 +326,25 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
             <div className="flex flex-col gap-2 p-3 border-b border-border bg-bg-secondary/50">
                 {/* Row 1: Search + View Toggle + Clear */}
                 <div className="flex items-center gap-3">
-                    <div className="relative flex-1 max-w-sm">
-                        <Search className="absolute left-2.5 top-2 h-4 w-4 text-text-muted" />
-                        <Input
-                            type="search"
-                            placeholder="Buscar siniestro, patente, marca..."
-                            className="pl-9 bg-bg-primary border-border focus-visible:ring-brand-primary h-8 w-full text-xs shadow-none"
-                            value={localSearch}
-                            onChange={(e) => handleSearchChange(e.target.value)}
-                        />
+                    <div className="relative flex-1 max-w-sm flex items-center gap-1">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-2 h-4 w-4 text-text-muted" />
+                            <Input
+                                type="search"
+                                placeholder="Buscar siniestro, patente, marca..."
+                                className="pl-9 bg-bg-primary border-border focus-visible:ring-brand-primary h-8 w-full text-xs shadow-none"
+                                value={localSearch}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); handleGoTo(); } }}
+                            />
+                        </div>
+                        <button
+                            onClick={handleGoTo}
+                            title="Ir al caso (Ctrl+Enter) — Busca y resalta sin filtrar"
+                            className="h-8 w-8 shrink-0 flex items-center justify-center rounded-md border border-border bg-bg-primary hover:bg-bg-tertiary text-text-muted hover:text-brand-primary transition-colors"
+                        >
+                            <Crosshair className="w-3.5 h-3.5" />
+                        </button>
                     </div>
 
                     <div className="flex items-center gap-1.5 bg-bg-tertiary p-0.5 rounded-md border border-border">
@@ -468,7 +503,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                 return (
                                     <div
                                         key={caso.id}
-                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor} ${isFacturada ? "opacity-75 grayscale" : ""} ${caso.notas_admin ? "border-l-[3px] border-l-brand-primary" : "border-l-[3px] border-l-transparent"}`}
+                                        data-caso-id={caso.id}
+                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor} ${isFacturada ? "opacity-75 grayscale" : ""} ${caso.notas_admin ? "border-l-[3px] border-l-brand-primary" : "border-l-[3px] border-l-transparent"} ${highlightCasoId === caso.id ? "ring-2 ring-amber-400/60 bg-amber-500/15 animate-[highlight-flash_2.5s_ease-out_forwards]" : ""}`}
                                         style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
                                     >
                                         <div className="w-[95px] shrink-0 px-2 py-1 flex items-center whitespace-nowrap overflow-hidden text-ellipsis text-[13px] font-medium text-text-muted">

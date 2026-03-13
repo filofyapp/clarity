@@ -310,3 +310,10 @@
   --shadow-glow: 0 0 20px rgba(214, 0, 110, 0.15);
   --text-on-brand: #ffffff;
 }
+
+/* GoTo Search highlight flash animation */
+@keyframes highlight-flash {
+  0% { background-color: rgba(245, 158, 11, 0.2); box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.5); }
+  70% { background-color: rgba(245, 158, 11, 0.08); box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2); }
+  100% { background-color: transparent; box-shadow: none; }
+}

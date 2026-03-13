@@ -866,6 +866,14 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 12/03/2026 (Sprint 6)
+QUE SE CAMBIO: (1) Fix de archivos no guardados al crear caso — los File objects se perdían dentro de `startTransition()` porque `resetForm()` limpiaba el state `archivos` antes de que los uploads terminaran. (2) Nuevo botón "Ir a" en el buscador de casos — permite hacer scroll hasta un caso específico sin filtrar la tabla, resaltando la fila con un flash ámbar.
+POR QUE: (1) Los archivos seleccionados en el formulario de creación de caso nunca llegaban a Supabase Storage porque la referencia a los `File` objects se invalidaba al limpiar el state. (2) Los usuarios necesitan encontrar un caso concreto rápidamente sin perder la vista completa de la planilla, como Ctrl+F de Excel.
+COMO: (1) En `CasoForm.tsx`, se guarda `const filesToUpload = [...archivos]` ANTES de `startTransition()`. Dentro del transition se usa `filesToUpload` en vez de `archivos`. Se agregó toast de error si algún upload falla. (2) En `CasosTable.tsx`: nuevo icon `Crosshair` de lucide, state `highlightCasoId`, función `handleGoTo()` que busca en `procesados` por siniestro/dominio/servicio y usa `rowVirtualizer.scrollToIndex()`. La fila encontrada se resalta con `ring-amber-400` + animación `highlight-flash` (definida en `globals.css`) que se desvanece en 2.5s. Ctrl+Enter en el buscador activa GoTo directamente.
+ARCHIVOS AFECTADOS: `CasoForm.tsx`, `CasosTable.tsx`, `globals.css`
+EFECTOS COLATERALES: Ninguno. El buscador existente (filtrado por URL) sigue igual.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 FECHA: 12/03/2026 (Sprint 5)
 QUE SE CAMBIO: (1) Filtros de fecha: nuevo selector de tipo de fecha (Ingreso, Fecha IP, Carga, Cierre) que permite filtrar por cualquiera de los 4 campos de fecha del caso. (2) Bug crítico de comentarios de tareas: el contenido del comentario se insertaba vacío/incorrecto en la BD por una referencia a estado React ya limpiado.
 POR QUE: (1) Solo se podía filtrar por fecha_derivacion. Los usuarios necesitan filtrar por fecha_inspeccion_programada, fecha_carga_sistema y fecha_cierre. (2) `handleEnviar` en `ComentariosTarea.tsx` hacía `setNuevoComentario("")` en línea 222, y luego en línea 298 usaba `contenido: nuevoComentario.trim()`. Después de awaits intermedios (subida de archivos), React puede re-renderizar y el closure captura el estado vacío. El contenido se guardaba vacío o con el valor de otro comentario, dando la impresión de que el comentario aparecía en la tarea equivocada.

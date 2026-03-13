@@ -127,6 +127,9 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
             return;
         }
 
+        // Save file references BEFORE the transition — resetForm() clears archivos state
+        const filesToUpload = [...archivos];
+
         startTransition(async () => {
             const result = await crearCaso({
                 numero_siniestro: numSiniestro,
@@ -150,10 +153,10 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                 toast.error(result.error);
             } else {
                 // Upload archivos al bucket caso-archivos/{casoId}/
-                if (archivos.length > 0 && result.casoId) {
+                if (filesToUpload.length > 0 && result.casoId) {
                     const supabase = createClient();
                     let uploadedCount = 0;
-                    for (const file of archivos) {
+                    for (const file of filesToUpload) {
                         const fileName = `${Date.now()}_${file.name}`;
                         const { error: uploadErr } = await supabase.storage
                             .from("caso-archivos")
@@ -163,6 +166,9 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                     }
                     if (uploadedCount > 0) {
                         toast.success(`${uploadedCount} archivo${uploadedCount > 1 ? "s" : ""} adjuntado${uploadedCount > 1 ? "s" : ""}`);
+                    }
+                    if (uploadedCount < filesToUpload.length) {
+                        toast.error(`${filesToUpload.length - uploadedCount} archivo(s) no se pudieron subir. Verificá que el bucket "caso-archivos" exista en Supabase Storage.`);
                     }
                 }
 

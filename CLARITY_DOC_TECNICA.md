@@ -866,6 +866,14 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 13/03/2026 (Sprint 7)
+QUE SE CAMBIO: Filtros de fecha rediseñados — ahora hay 4 filtros de fecha independientes (Ingreso, Fecha IP, F. Carga, F. Cierre), cada uno con su propio rango Desde/Hasta. Reemplaza el selector único que no permitía filtrar por dos fechas al mismo tiempo.
+POR QUE: El selector anterior (un dropdown que elegía "qué fecha filtrar") solo permitía filtrar por UNA fecha a la vez. El usuario necesita cruzar filtros, ej: "Ingreso = 12/3 Y Carga = 13/3".
+COMO: `CasosFilters` ahora tiene 8 campos independientes: `ingreso_desde/hasta`, `ip_desde/hasta`, `carga_desde/hasta`, `cierre_desde/hasta`. `getCasos()` aplica cada rango como filtro AND independiente. `CasosTable.tsx` muestra 4 componentes `DateFilter` separados en la barra de filtros. URL params persisten cada filtro individualmente.
+ARCHIVOS AFECTADOS: `actions.ts`, `page.tsx`, `CasosTable.tsx`
+EFECTOS COLATERALES: Ninguno. Los demás filtros (Estado, Tipo IP, Peritos, Gestor, Buscador) no cambiaron.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 FECHA: 12/03/2026 (Sprint 6)
 QUE SE CAMBIO: (1) Fix de archivos no guardados al crear caso — los File objects se perdían dentro de `startTransition()` porque `resetForm()` limpiaba el state `archivos` antes de que los uploads terminaran. (2) Nuevo botón "Ir a" en el buscador de casos — permite hacer scroll hasta un caso específico sin filtrar la tabla, resaltando la fila con un flash ámbar.
 POR QUE: (1) Los archivos seleccionados en el formulario de creación de caso nunca llegaban a Supabase Storage porque la referencia a los `File` objects se invalidaba al limpiar el state. (2) Los usuarios necesitan encontrar un caso concreto rápidamente sin perder la vista completa de la planilla, como Ctrl+F de Excel.

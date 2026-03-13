@@ -43,9 +43,14 @@ export default async function CasosPage({ searchParams }: PageProps) {
         peritos_calle: parseArray(params.perito_calle),
         peritos_carga: parseArray(params.perito_carga),
         gestores: parseArray(params.gestor),
-        fecha_campo: typeof params.fecha_campo === "string" ? params.fecha_campo : undefined,
-        fecha_desde: typeof params.fecha_desde === "string" ? params.fecha_desde : undefined,
-        fecha_hasta: typeof params.fecha_hasta === "string" ? params.fecha_hasta : undefined,
+        ingreso_desde: typeof params.ingreso_desde === "string" ? params.ingreso_desde : undefined,
+        ingreso_hasta: typeof params.ingreso_hasta === "string" ? params.ingreso_hasta : undefined,
+        ip_desde: typeof params.ip_desde === "string" ? params.ip_desde : undefined,
+        ip_hasta: typeof params.ip_hasta === "string" ? params.ip_hasta : undefined,
+        carga_desde: typeof params.carga_desde === "string" ? params.carga_desde : undefined,
+        carga_hasta: typeof params.carga_hasta === "string" ? params.carga_hasta : undefined,
+        cierre_desde: typeof params.cierre_desde === "string" ? params.cierre_desde : undefined,
+        cierre_hasta: typeof params.cierre_hasta === "string" ? params.cierre_hasta : undefined,
         search: typeof params.search === "string" ? params.search : undefined,
     };
 

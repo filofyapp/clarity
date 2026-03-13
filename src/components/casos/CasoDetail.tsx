@@ -98,6 +98,18 @@ export async function CasoDetail({ id }: { id: string }) {
 
     const opcionesTalleres = (talleres || []).map((t: any) => ({ value: t.id, label: t.nombre }));
     const opcionesGestores = (gestores || []).map((g: any) => ({ value: g.id, label: `${g.nombre}${g.sector ? ` (${g.sector})` : ""}` }));
+    const opcionesTipoIP = [
+        { value: "ip_con_orden", label: "IP con Orden" },
+        { value: "posible_dt", label: "Posible DT" },
+        { value: "ip_sin_orden", label: "IP sin Orden" },
+        { value: "ampliacion", label: "Ampliación" },
+        { value: "ausente", label: "Ausente" },
+        { value: "terceros", label: "Terceros" },
+        { value: "ip_camiones", label: "IP Camiones" },
+        { value: "ip_remota", label: "IP Remota" },
+        { value: "sin_honorarios", label: "Sin Honorarios" },
+        { value: "ip_final_intermedia", label: "IP Final/Intermedia" },
+    ];
 
     return (
         <div className="space-y-8">
@@ -108,7 +120,19 @@ export async function CasoDetail({ id }: { id: string }) {
                         Siniestro: {caso.numero_siniestro} — Vehículo: {caso.marca} {caso.modelo} {caso.dominio ? `(${caso.dominio})` : ''}
                     </h1>
                     <div className="flex items-center gap-2 flex-wrap text-sm text-text-muted">
-                        <TipoIPBadge tipo={caso.tipo_inspeccion} />
+                        {rol === "admin" || rol === "carga" ? (
+                            <EditableField
+                                casoId={caso.id}
+                                campo="tipo_inspeccion"
+                                valorActual={caso.tipo_inspeccion}
+                                tipo="select"
+                                opciones={opcionesTipoIP}
+                                placeholder="Tipo IP"
+                                textClassName="font-medium text-xs"
+                            />
+                        ) : (
+                            <TipoIPBadge tipo={caso.tipo_inspeccion} />
+                        )}
                         <span className="text-border">•</span>
                         <span>Sancor Seguros</span>
                         <span className="text-border">•</span>

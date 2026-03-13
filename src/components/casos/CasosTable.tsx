@@ -240,15 +240,10 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         return counts;
     }, [casos]);
 
-    // Search input debounce
-    const [localSearch, setLocalSearch] = useState(searchQuery);
-    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Search input (local only, no auto-filter — Enter triggers GoTo)
+    const [localSearch, setLocalSearch] = useState("");
     const handleSearchChange = (val: string) => {
         setLocalSearch(val);
-        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        searchTimerRef.current = setTimeout(() => {
-            updateFilter("search", val || null);
-        }, 400);
     };
     // Virtualizer
     const parentRef = useRef<HTMLDivElement>(null);
@@ -333,7 +328,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                 className="pl-9 bg-bg-primary border-border focus-visible:ring-brand-primary h-8 w-full text-xs shadow-none"
                                 value={localSearch}
                                 onChange={(e) => handleSearchChange(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); handleGoTo(); } }}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleGoTo(); } }}
                             />
                         </div>
                         <button

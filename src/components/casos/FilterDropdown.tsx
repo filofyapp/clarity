@@ -145,9 +145,43 @@ interface DateFilterProps {
     onChange: (desde: string | null, hasta: string | null) => void;
 }
 
+// Convert YYYY-MM-DD → DD/MM/YY for display
+function toDisplayDDMMYY(isoDate: string | null): string {
+    if (!isoDate) return "";
+    const [y, m, d] = isoDate.split("-");
+    return `${d}/${m}/${y.slice(-2)}`;
+}
+
+// Parse DD/MM/YY → YYYY-MM-DD for internal storage
+function parseDDMMYY(display: string): string | null {
+    const clean = display.replace(/[^\d]/g, "");
+    if (clean.length < 6) return null;
+    const day = clean.slice(0, 2);
+    const month = clean.slice(2, 4);
+    const yearShort = clean.slice(4, 6);
+    const year = `20${yearShort}`;
+    const d = parseInt(day), m = parseInt(month);
+    if (d < 1 || d > 31 || m < 1 || m > 12) return null;
+    return `${year}-${month}-${day}`;
+}
+
+// Auto-format raw input as DD/MM/YY with separators
+function formatDateInput(raw: string): string {
+    const digits = raw.replace(/[^\d]/g, "").slice(0, 6);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
 export function DateFilter({ label, fechaDesde, fechaHasta, onChange }: DateFilterProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [desdeText, setDesdeText] = useState(toDisplayDDMMYY(fechaDesde));
+    const [hastaText, setHastaText] = useState(toDisplayDDMMYY(fechaHasta));
+
+    // Sync external props → local text
+    useEffect(() => { setDesdeText(toDisplayDDMMYY(fechaDesde)); }, [fechaDesde]);
+    useEffect(() => { setHastaText(toDisplayDDMMYY(fechaHasta)); }, [fechaHasta]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -170,6 +204,28 @@ export function DateFilter({ label, fechaDesde, fechaHasta, onChange }: DateFilt
         if (fechaDesde && fechaHasta) return `${fmtDate(fechaDesde)} — ${fmtDate(fechaHasta)}`;
         if (fechaDesde) return `Desde ${fmtDate(fechaDesde)}`;
         return `Hasta ${fmtDate(fechaHasta!)}`;
+    };
+
+    const handleDesdeChange = (val: string) => {
+        const formatted = formatDateInput(val);
+        setDesdeText(formatted);
+        if (formatted.length === 8) { // DD/MM/YY complete
+            const iso = parseDDMMYY(formatted);
+            if (iso) onChange(iso, fechaHasta);
+        } else if (formatted === "") {
+            onChange(null, fechaHasta);
+        }
+    };
+
+    const handleHastaChange = (val: string) => {
+        const formatted = formatDateInput(val);
+        setHastaText(formatted);
+        if (formatted.length === 8) {
+            const iso = parseDDMMYY(formatted);
+            if (iso) onChange(fechaDesde, iso);
+        } else if (formatted === "") {
+            onChange(fechaDesde, null);
+        }
     };
 
     const setPreset = (desde: string, hasta: string) => {
@@ -205,19 +261,25 @@ export function DateFilter({ label, fechaDesde, fechaHasta, onChange }: DateFilt
                         <div>
                             <label className="text-[10px] text-text-muted block mb-1">Desde</label>
                             <input
-                                type="date"
-                                className="w-full text-[11px] px-2 py-1.5 rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-brand-primary"
-                                value={fechaDesde || ""}
-                                onChange={(e) => onChange(e.target.value || null, fechaHasta)}
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="DD/MM/AA"
+                                className="w-full text-[11px] px-2 py-1.5 rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-brand-primary font-mono"
+                                value={desdeText}
+                                onChange={(e) => handleDesdeChange(e.target.value)}
+                                maxLength={8}
                             />
                         </div>
                         <div>
                             <label className="text-[10px] text-text-muted block mb-1">Hasta</label>
                             <input
-                                type="date"
-                                className="w-full text-[11px] px-2 py-1.5 rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-brand-primary"
-                                value={fechaHasta || ""}
-                                onChange={(e) => onChange(fechaDesde, e.target.value || null)}
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="DD/MM/AA"
+                                className="w-full text-[11px] px-2 py-1.5 rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-brand-primary font-mono"
+                                value={hastaText}
+                                onChange={(e) => handleHastaChange(e.target.value)}
+                                maxLength={8}
                             />
                         </div>
                     </div>

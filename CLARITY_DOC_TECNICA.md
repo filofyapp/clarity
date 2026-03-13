@@ -866,6 +866,22 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 13/03/2026 (Sprint 8.2)
+QUE SE CAMBIO: Nueva sección "Observaciones de la Pericia" en inspección remota + expediente del caso. Permite al usuario agregar texto y/o audio desde el resumen pre-envío. Las observaciones se visualizan en el expediente con reproductor de audio custom y controles de velocidad.
+POR QUE: El perito/taller necesita poder comunicar daños que no se ven en las fotos, detalles mecánicos, o cualquier dato relevante que no se puede capturar fotográficamente.
+COMO: (1) Migración SQL `024_observaciones_pericia.sql`: 2 columnas nuevas `observaciones_pericia TEXT` y `audio_pericia_url TEXT` en `casos`. (2) API `/api/inspeccion-remota/upload-audio/route.ts`: sube audio al storage inmediatamente al grabar. (3) API `/api/inspeccion-remota/complete/route.ts`: acepta `observaciones_pericia` y `audio_pericia_url`, los guarda en `casos`. (4) `WizardCaptura.tsx`: sección colapsable en paso "resumen" con textarea (2000 chars, auto-resize), grabador de audio (MediaRecorder, 120s máx, WebM/MP4 según navegador), mini reproductor con play/pause/delete, upload inmediato con spinner/✓/error+reintentar. Botón enviar muestra "Subiendo audio..." si el audio está subiendo. (5) `ObservacionesPericia.tsx`: componente cliente para el expediente con texto (white-space: pre-wrap), reproductor de audio custom (play/pause, barra seekable, tiempo, 4 botones de velocidad 1x/1.25x/1.5x/2x, descarga). Solo se renderiza si hay datos. Badge "Desde inspección remota". (6) `CasoDetail.tsx`: integra `ObservacionesPericia` después de la galería de fotos.
+ARCHIVOS AFECTADOS: `024_observaciones_pericia.sql`, `upload-audio/route.ts` (NUEVO), `complete/route.ts`, `WizardCaptura.tsx`, `ObservacionesPericia.tsx` (NUEVO), `CasoDetail.tsx`
+EFECTOS COLATERALES: Ninguno. El flujo de fotos no se modifica. Si la sección está vacía, no se envía nada extra ni se muestra en el expediente. La migración SQL debe ejecutarse en Supabase.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+FECHA: 13/03/2026 (Sprint 8.1)
+QUE SE CAMBIO: Conversión automática HEIC → JPEG en el módulo de inspección remota. iPhones que entregan fotos en formato HEIC (especialmente desde la galería) ahora se convierten a JPEG antes de comprimir y subir.
+POR QUE: Fotos HEIC de iPhone no se podían procesar ni subir correctamente. El canvas de compresión no soporta HEIC nativo.
+COMO: (1) Se instaló `heic2any` (~400KB, cargada con dynamic import solo cuando se necesita). (2) `WizardCaptura.tsx`: nueva función `convertirSiEsHeic()` con detección por MIME type, extensión, y MIME vacío (caso iOS). Wrapper `procesarImagen()` con timeout de 30s que ejecuta conversión + compresión. Se reemplazó `compressImage(blob)` por `procesarImagen(blob)` en `uploadFotoInmediata`. (3) `CameraCapture.tsx`: `handleFileSelect` ahora convierte HEIC a JPEG antes de pasar al wizard. Inputs de cámara usan `accept="image/jpeg,image/png"`, galería acepta también `image/heic,image/heif`. (4) `CamaraCaptura.tsx` (admin): `accept` actualizado a `image/jpeg,image/png`.
+ARCHIVOS AFECTADOS: `WizardCaptura.tsx`, `CameraCapture.tsx`, `CamaraCaptura.tsx`, `package.json`
+EFECTOS COLATERALES: Ninguno. Archivos JPEG pasan de largo sin conversión. La falla de conversión devuelve el archivo original (fallback seguro). La carga parcial detectada sigue funcionando igual.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores. Import dinámico verificado.
+
 FECHA: 13/03/2026 (Sprint 8)
 QUE SE CAMBIO: (1) Tablero de Tareas visible para todos los usuarios autenticados. (2) Detección de rol multi-role en CasoDetail. (3) DateFilter con formato DD/MM/AA. (4) Perito de carga con acceso completo a estados y tipo IP. (5) Buscador no auto-filtra, Enter hace GoTo. (6) Highlight persistente hasta hover.
 POR QUE: (1) Admin y carga veían tareas diferentes — carga solo veía tareas donde era creador o asignado. (2) `CasoDetail.tsx` usaba solo `usuario.rol` (legacy), ignorando `roles[]`. (3) `type="date"` del navegador se bugueaba al 3er dígito del año. (4) Carga estaba limitado a 5 estados en el expediente. (5) El buscador filtraba server-side mientras escribías. (6) El highlight se desvanecía en 2.5s, el usuario lo quiere persistente.

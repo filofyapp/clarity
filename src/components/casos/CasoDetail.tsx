@@ -13,6 +13,7 @@ import { SelectorEstado } from "./SelectorEstado";
 import { ZonaArchivos } from "./ZonaArchivos";
 import { TimelineExpediente } from "./TimelineExpediente";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ObservacionesPericia } from "./ObservacionesPericia";
 import { Car, MapPin, ClipboardList, Users, ClipboardType, FileText, Calendar, CheckCircle } from "lucide-react";
 import { EditableLinkOrion } from "./EditableLinkOrion";
 import { GenerarLinkInspeccion } from "./GenerarLinkInspeccion";
@@ -427,6 +428,7 @@ export async function CasoDetail({ id }: { id: string }) {
                     {/* Galería Fotográfica Unificada */}
                     <div className="mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
                         <GaleriaFotosResponsive casoId={caso.id} />
+                        <ObservacionesPericia texto={caso.observaciones_pericia} audioUrl={caso.audio_pericia_url} />
                     </div>
 
                     {/* F1.9: Zona de Archivos */}

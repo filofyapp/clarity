@@ -163,19 +163,42 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
         }, "image/jpeg", 0.85);
     };
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (files.length === 0) return;
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawFiles = Array.from(e.target.files || []);
+        if (rawFiles.length === 0) return;
+
+        // Convert HEIC files to JPEG before processing
+        const processedFiles: { blob: Blob; preview: string }[] = [];
+        for (const file of rawFiles) {
+            let processedBlob: Blob = file;
+            const esHeic =
+                file.type === 'image/heic' ||
+                file.type === 'image/heif' ||
+                /\.(heic|heif)$/i.test(file.name) ||
+                file.type === ''; // iOS sometimes omits MIME type
+
+            if (esHeic) {
+                try {
+                    const heic2any = (await import('heic2any')).default;
+                    const converted = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.85,
+                    });
+                    processedBlob = Array.isArray(converted) ? converted[0] : converted;
+                } catch {
+                    // Not actually HEIC or conversion failed — use original
+                    processedBlob = file;
+                }
+            }
+            processedFiles.push({ blob: processedBlob, preview: URL.createObjectURL(processedBlob) });
+        }
 
         if (allowMultiple) {
-            const newPhotos = files.map(file => ({
-                blob: file,
-                preview: URL.createObjectURL(file)
-            }));
-            setCapturedReel(prev => [...prev, ...newPhotos]);
+            setCapturedReel(prev => [...prev, ...processedFiles]);
         } else {
-            setCaptured(URL.createObjectURL(files[0]));
-            setCapturedBlob(files[0]);
+            setCaptured(processedFiles[0].preview);
+            setCapturedBlob(processedFiles[0].blob);
         }
 
         // Clear input to allow re-selection
@@ -306,8 +329,8 @@ export function CameraCapture({ tipo, label, onCapture, allowMultiple = false, o
                 </div>
 
                 {/* DOM Inputs - Strictly Separated */}
-                <input ref={fileInputRefCamera} type="file" accept="image/*" capture="environment" onChange={handleFileSelect} className="hidden" />
-                <input ref={fileInputRefGallery} type="file" accept="image/*" multiple={allowMultiple} onChange={handleFileSelect} className="hidden" />
+                <input ref={fileInputRefCamera} type="file" accept="image/jpeg,image/png" capture="environment" onChange={handleFileSelect} className="hidden" />
+                <input ref={fileInputRefGallery} type="file" accept="image/jpeg,image/png,image/heic,image/heif" multiple={allowMultiple} onChange={handleFileSelect} className="hidden" />
             </div>
         );
     }

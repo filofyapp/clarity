@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { CameraCapture } from "./CameraCapture";
 import { SelectorZonaDanio, ZONAS_MAP } from "./SelectorZonaDanio";
 import {
     Camera, CheckCircle2, ChevronRight, ChevronLeft,
     Car, Loader2, PartyPopper, AlertCircle, Image as ImageIcon,
-    ShieldCheck, FileText, RectangleHorizontal, RefreshCw
+    ShieldCheck, FileText, RectangleHorizontal, RefreshCw,
+    Mic, Square, Play, Pause, Trash2, ChevronDown, ChevronUp
 } from "lucide-react";
 
 // ═══ Step definitions ═══
@@ -40,6 +41,43 @@ interface Props {
     tipoInspeccion: string;
     fotosYaSubidas: number;
     maxFotos: number;
+}
+
+// ═══ HEIC → JPEG conversion (dynamic import, only loads when needed ~400KB) ═══
+async function convertirSiEsHeic(file: Blob): Promise<Blob> {
+    const esHeic =
+        file.type === 'image/heic' ||
+        file.type === 'image/heif' ||
+        (file instanceof File && /\.(heic|heif)$/i.test((file as File).name)) ||
+        file.type === ''; // iOS sometimes doesn't set MIME type for HEIC from gallery
+
+    if (!esHeic) return file;
+
+    try {
+        const heic2any = (await import('heic2any')).default;
+        const jpegBlob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.85,
+        });
+        return Array.isArray(jpegBlob) ? jpegBlob[0] : jpegBlob;
+    } catch (error) {
+        console.error('HEIC conversion failed (may not be HEIC):', error);
+        return file; // Return original — browser may still handle it
+    }
+}
+
+// Wrapper with timeout for conversion + compression pipeline
+async function procesarImagen(file: Blob, timeoutMs = 30000): Promise<Blob> {
+    return Promise.race([
+        (async () => {
+            const converted = await convertirSiEsHeic(file);
+            return compressImage(converted);
+        })(),
+        new Promise<Blob>((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout procesando imagen (30s)')), timeoutMs)
+        ),
+    ]);
 }
 
 // ═══ Image compression via Canvas API ═══
@@ -83,6 +121,108 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
     const [cameraActive, setCameraActive] = useState(false);
     const [capturingDamage, setCapturingDamage] = useState(false);
 
+    // ═══ Observations state ═══
+    const [observacionesOpen, setObservacionesOpen] = useState(false);
+    const [observacionesTexto, setObservacionesTexto] = useState("");
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [audioUploading, setAudioUploading] = useState(false);
+    const [audioError, setAudioError] = useState<string | null>(null);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [audioLocalUrl, setAudioLocalUrl] = useState<string | null>(null);
+    const [audioPlaying, setAudioPlaying] = useState(false);
+    const [mediaRecorderSupported, setMediaRecorderSupported] = useState(false);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+    // Check MediaRecorder support on mount
+    useEffect(() => {
+        setMediaRecorderSupported(typeof window !== "undefined" && !!window.MediaRecorder);
+    }, []);
+
+    // Audio recording functions
+    const startRecording = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Try preferred MIME types in order
+            const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+            let mimeType = '';
+            for (const mt of mimeTypes) {
+                if (MediaRecorder.isTypeSupported(mt)) { mimeType = mt; break; }
+            }
+            const recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecondRate: 64000 } as any : undefined);
+            audioChunksRef.current = [];
+            recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+            recorder.onstop = () => {
+                stream.getTracks().forEach(t => t.stop());
+                const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+                setAudioBlob(blob);
+                const localUrl = URL.createObjectURL(blob);
+                setAudioLocalUrl(localUrl);
+                setIsRecording(false);
+                if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+                // Upload immediately
+                uploadAudio(blob);
+            };
+            mediaRecorderRef.current = recorder;
+            recorder.start(1000);
+            setIsRecording(true);
+            setRecordingTime(0);
+            setAudioBlob(null);
+            setAudioLocalUrl(null);
+            setAudioUrl(null);
+            setAudioError(null);
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingTime(prev => {
+                    if (prev >= 119) {
+                        mediaRecorderRef.current?.stop();
+                        return 120;
+                    }
+                    return prev + 1;
+                });
+            }, 1000);
+        } catch {
+            setAudioError("No se pudo acceder al micrófono");
+        }
+    }, []);
+
+    const stopRecording = useCallback(() => {
+        mediaRecorderRef.current?.stop();
+    }, []);
+
+    const uploadAudio = useCallback(async (blob: Blob) => {
+        setAudioUploading(true);
+        setAudioError(null);
+        try {
+            const formData = new FormData();
+            formData.append("token", token);
+            const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+            formData.append("file", blob, `audio_pericia.${ext}`);
+            const res = await fetch("/api/inspeccion-remota/upload-audio", { method: "POST", body: formData });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body?.error || `Error ${res.status}`);
+            setAudioUrl(body.url);
+        } catch (err: any) {
+            setAudioError(err.message || "Error subiendo audio");
+        }
+        setAudioUploading(false);
+    }, [token]);
+
+    const deleteAudio = useCallback(() => {
+        if (audioLocalUrl) URL.revokeObjectURL(audioLocalUrl);
+        setAudioBlob(null);
+        setAudioLocalUrl(null);
+        setAudioUrl(null);
+        setAudioError(null);
+        setAudioPlaying(false);
+        setRecordingTime(0);
+    }, [audioLocalUrl]);
+
+    const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
     // ═══ Semaphore for max 3 concurrent uploads ═══
     const activeUploads = useRef(0);
     const uploadQueue = useRef<(() => void)[]>([]);
@@ -106,8 +246,8 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
     ) => {
         const doUpload = async () => {
             try {
-                // Compress before uploading
-                const compressed = await compressImage(blob);
+                // Convert HEIC if needed + compress (with 30s timeout)
+                const compressed = await procesarImagen(blob);
                 const orden = ++ordenCounter.current;
 
                 const formData = new FormData();
@@ -184,10 +324,18 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
         setError(null);
 
         try {
+            const bodyData: Record<string, any> = { token };
+            if (observacionesTexto.trim()) {
+                bodyData.observaciones_pericia = observacionesTexto;
+            }
+            if (audioUrl) {
+                bodyData.audio_pericia_url = audioUrl;
+            }
+
             const completeRes = await fetch("/api/inspeccion-remota/complete", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token }),
+                body: JSON.stringify(bodyData),
             });
             if (!completeRes.ok) {
                 const errorData = await completeRes.json();
@@ -198,7 +346,7 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
             setError(`Error al completar: ${e.message}`);
         }
         setFinalizing(false);
-    }, [fotosReglamentarias, fotosDanios, token]);
+    }, [fotosReglamentarias, fotosDanios, token, observacionesTexto, audioUrl]);
 
     // Handle regulatory photo capture — upload immediately
     const handleFotoReglamentaria = (blob: Blob, preview: string) => {
@@ -579,6 +727,103 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                         </div>
                     </div>
 
+                    {/* ─── OBSERVACIONES COLAPSABLE ─── */}
+                    <div className="border-t border-white/5 pt-4 mb-4">
+                        <button
+                            onClick={() => setObservacionesOpen(prev => !prev)}
+                            className="w-full flex items-center justify-between py-3 px-4 rounded-xl bg-[#16131B] border border-[#D6006E]/10 hover:border-[#D6006E]/25 transition-colors text-left"
+                        >
+                            <div>
+                                <div className="flex items-center gap-2 text-[#F5F0F7] text-sm font-semibold">
+                                    <span>📝</span> Observaciones de la pericia
+                                </div>
+                                <p className="text-[10px] text-[#6B5F78] mt-0.5">Opcional · Detalles adicionales</p>
+                            </div>
+                            {observacionesOpen ? <ChevronUp className="w-4 h-4 text-[#6B5F78]" /> : <ChevronDown className="w-4 h-4 text-[#6B5F78]" />}
+                        </button>
+
+                        <div className={`overflow-hidden transition-all duration-300 ${observacionesOpen ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                            {/* Textarea */}
+                            <div className="relative mb-4">
+                                <textarea
+                                    value={observacionesTexto}
+                                    onChange={(e) => { if (e.target.value.length <= 2000) setObservacionesTexto(e.target.value); }}
+                                    placeholder="Indicá daños que no se vean en las fotos, detalles del vehículo o cualquier dato relevante para la pericia..."
+                                    className="w-full bg-[#16131B] border border-white/10 rounded-xl p-3.5 text-sm text-[#F5F0F7] placeholder:text-[#6B5F78] focus:border-[#D6006E]/40 focus:outline-none resize-none custom-scrollbar"
+                                    style={{ minHeight: 80, maxHeight: 150, overflowY: 'auto' }}
+                                    onInput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 150) + 'px'; }}
+                                />
+                                {observacionesTexto.length > 0 && (
+                                    <span className="absolute bottom-2 right-3 text-[10px] text-[#6B5F78]">{observacionesTexto.length}/2000</span>
+                                )}
+                            </div>
+
+                            {/* Audio Recorder */}
+                            {mediaRecorderSupported && (
+                                <div className="space-y-2">
+                                    {!audioBlob && !isRecording && (
+                                        <button
+                                            onClick={startRecording}
+                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#D6006E]/10 border border-[#D6006E]/20 text-[#D6006E] text-sm font-medium hover:bg-[#D6006E]/15 transition-colors"
+                                        >
+                                            <Mic className="w-4 h-4" /> Grabar audio
+                                        </button>
+                                    )}
+
+                                    {isRecording && (
+                                        <div className="flex items-center gap-3 py-3 px-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                                            <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                                            <span className="text-red-400 text-sm font-mono flex-1">{formatTime(recordingTime)}</span>
+                                            {recordingTime >= 115 && <span className="text-red-400/60 text-[10px]">Máx 2:00</span>}
+                                            <button onClick={stopRecording} className="p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 transition-colors">
+                                                <Square className="w-4 h-4 text-red-400" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {audioBlob && !isRecording && (
+                                        <div className="rounded-xl bg-[#16131B] border border-white/10 p-3 space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => {
+                                                        if (!audioPlayerRef.current) return;
+                                                        if (audioPlaying) { audioPlayerRef.current.pause(); setAudioPlaying(false); }
+                                                        else { audioPlayerRef.current.play(); setAudioPlaying(true); }
+                                                    }}
+                                                    className="w-9 h-9 rounded-full bg-[#D6006E]/15 border border-[#D6006E]/20 flex items-center justify-center shrink-0"
+                                                >
+                                                    {audioPlaying ? <Pause className="w-4 h-4 text-[#D6006E]" /> : <Play className="w-4 h-4 text-[#D6006E] ml-0.5" />}
+                                                </button>
+                                                <div className="flex-1">
+                                                    <div className="text-xs text-[#9B8FA6]">Audio grabado · {formatTime(recordingTime)}</div>
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        {audioUploading && <><Loader2 className="w-3 h-3 text-[#D6006E] animate-spin" /><span className="text-[10px] text-[#D6006E]">Subiendo...</span></>}
+                                                        {audioUrl && <><CheckCircle2 className="w-3 h-3 text-green-500" /><span className="text-[10px] text-green-500">Subido</span></>}
+                                                        {audioError && <><AlertCircle className="w-3 h-3 text-red-400" /><span className="text-[10px] text-red-400">{audioError}</span></>}
+                                                    </div>
+                                                </div>
+                                                {audioError && (
+                                                    <button onClick={() => audioBlob && uploadAudio(audioBlob)} className="text-[10px] text-[#D6006E] border border-[#D6006E]/20 px-2 py-1 rounded-lg hover:bg-[#D6006E]/10">
+                                                        <RefreshCw className="w-3 h-3 inline mr-0.5" /> Reintentar
+                                                    </button>
+                                                )}
+                                                <button onClick={deleteAudio} className="p-2 rounded-lg hover:bg-red-500/10 transition-colors">
+                                                    <Trash2 className="w-4 h-4 text-[#6B5F78] hover:text-red-400" />
+                                                </button>
+                                            </div>
+                                            <audio
+                                                ref={audioPlayerRef}
+                                                src={audioLocalUrl || undefined}
+                                                onEnded={() => setAudioPlaying(false)}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {error && (
                         <div className="bg-[#EF4444]/10 border border-[#EF4444]/20 rounded-lg p-3 mb-4 flex items-start gap-2 text-[#EF4444] text-sm whitespace-pre-line text-left">
                             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> <div>{error}</div>
@@ -595,11 +840,13 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                             <>
                                 <button
                                     onClick={handleFinalize}
-                                    disabled={!allUploaded || anyError || anyUploading}
+                                    disabled={!allUploaded || anyError || anyUploading || audioUploading}
                                     className="w-full bg-[#2DD4A0] hover:brightness-110 disabled:opacity-40 disabled:grayscale text-[#0C0A0F] font-bold py-4 px-6 rounded-xl text-lg transition-all shadow-[0_4px_20px_rgba(45,212,160,0.2)] active:scale-[0.98] flex items-center justify-center gap-2"
                                 >
                                     <CheckCircle2 className="w-5 h-5" />
-                                    {anyUploading
+                                    {audioUploading
+                                        ? "Subiendo audio..."
+                                        : anyUploading
                                         ? `Subiendo... ${[...fotosReglamentarias, ...fotosDanios].filter(f => f.uploaded).length}/${totalFotos}`
                                         : anyError
                                             ? `${[...fotosReglamentarias, ...fotosDanios].filter(f => f.error).length} fotos con error`

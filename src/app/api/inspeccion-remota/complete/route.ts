@@ -5,7 +5,7 @@ import { encolarNotificacion } from "@/lib/email/queue";
 export async function POST(req: NextRequest) {
     try {
         const supabase = createAdminClient();
-        const { token } = await req.json();
+        const { token, observaciones_pericia, audio_pericia_url } = await req.json();
 
         if (!token) {
             return NextResponse.json({ error: "Token requerido" }, { status: 400 });
@@ -41,14 +41,22 @@ export async function POST(req: NextRequest) {
 
         const estadoAnterior = caso?.estado || "ip_coordinada";
 
-        // Update caso: estado → pendiente_carga + fecha_inspeccion_real
+        // Update caso: estado → pendiente_carga + fecha_inspeccion_real + observaciones
+        const updateData: Record<string, any> = {
+            estado: "pendiente_carga",
+            fecha_inspeccion_real: caso?.fecha_inspeccion_real || new Date().toISOString(),
+            fecha_carga_sistema: caso?.fecha_carga_sistema || new Date().toISOString(),
+        };
+        if (observaciones_pericia && observaciones_pericia.trim()) {
+            updateData.observaciones_pericia = observaciones_pericia.trim();
+        }
+        if (audio_pericia_url) {
+            updateData.audio_pericia_url = audio_pericia_url;
+        }
+
         await supabase
             .from("casos")
-            .update({
-                estado: "pendiente_carga",
-                fecha_inspeccion_real: caso?.fecha_inspeccion_real || new Date().toISOString(),
-                fecha_carga_sistema: caso?.fecha_carga_sistema || new Date().toISOString(),
-            })
+            .update(updateData)
             .eq("id", link.caso_id);
 
         // Create historial entry with proper state transition

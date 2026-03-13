@@ -84,7 +84,7 @@ export function CamaraCaptura({ casoId, onUploadSuccess }: CamaraProps) {
             {/* Input oculto pero nativo para móviles */}
             <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png"
                 capture="environment" // Fuerza apertura de cámara trasera en celus
                 multiple // Permite elegir varias si se selecciona de galeria
                 ref={fileInputRef}

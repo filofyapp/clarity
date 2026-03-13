@@ -256,7 +256,6 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
 
     // GoTo Search: highlight + scroll without filtering
     const [highlightCasoId, setHighlightCasoId] = useState<string | null>(null);
-    const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleGoTo = useCallback(() => {
         const q = localSearch.trim().toLowerCase();
@@ -276,10 +275,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
         // Scroll to the row
         rowVirtualizer.scrollToIndex(idx, { align: "center", behavior: "smooth" });
 
-        // Highlight the row
-        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        // Highlight the row — persists until user hovers over it
         setHighlightCasoId(procesados[idx].id);
-        highlightTimerRef.current = setTimeout(() => setHighlightCasoId(null), 2500);
     }, [localSearch, procesados, rowVirtualizer]);
 
 
@@ -507,8 +504,9 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                                     <div
                                         key={caso.id}
                                         data-caso-id={caso.id}
-                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor} ${isFacturada ? "opacity-75 grayscale" : ""} ${caso.notas_admin ? "border-l-[3px] border-l-brand-primary" : "border-l-[3px] border-l-transparent"} ${highlightCasoId === caso.id ? "ring-2 ring-amber-400/60 bg-amber-500/15 animate-[highlight-flash_2.5s_ease-out_forwards]" : ""}`}
+                                        className={`absolute top-0 left-0 w-full flex border-b border-border/50 text-[13px] transition-colors duration-150 group/row items-center cursor-default ${rowColor} ${isFacturada ? "opacity-75 grayscale" : ""} ${caso.notas_admin ? "border-l-[3px] border-l-brand-primary" : "border-l-[3px] border-l-transparent"} ${highlightCasoId === caso.id ? "ring-2 ring-amber-400/60 bg-amber-500/15" : ""}`}
                                         style={{ height: `${virtualRow.size}px`, transform: `translateY(${virtualRow.start}px)` }}
+                                        onMouseEnter={() => { if (highlightCasoId === caso.id) setHighlightCasoId(null); }}
                                     >
                                         <div className="w-[95px] shrink-0 px-2 py-1 flex items-center whitespace-nowrap overflow-hidden text-ellipsis text-[13px] font-medium text-text-muted">
                                             {formatDateVal(caso.fecha_derivacion)}

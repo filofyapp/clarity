@@ -30,9 +30,19 @@ export async function CasoDetail({ id }: { id: string }) {
     let currentUserNombre = "";
     if (user) {
         currentUserId = user.id;
-        const { data: userData } = await supabase.from("usuarios").select("rol, nombre, apellido").eq("id", user.id).single();
+        const { data: userData } = await supabase.from("usuarios").select("rol, roles, nombre, apellido").eq("id", user.id).single();
         if (userData) {
-            rol = userData.rol;
+            // Determine effective role: check roles array first, fall back to legacy rol field
+            const rolesArr: string[] = userData.roles || [];
+            if (rolesArr.includes("admin") || userData.rol === "admin") {
+                rol = "admin";
+            } else if (rolesArr.includes("carga") || userData.rol === "carga") {
+                rol = "carga";
+            } else if (rolesArr.includes("calle") || userData.rol === "calle") {
+                rol = "calle";
+            } else {
+                rol = userData.rol;
+            }
             currentUserNombre = `${userData.nombre} ${userData.apellido}`;
         }
     }

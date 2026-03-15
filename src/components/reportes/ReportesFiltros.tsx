@@ -278,18 +278,27 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
 
             {/* ─── Tiempos Medios de Gestión ─── */}
             {(() => {
-                // Build historial map: caso_id → first date of 'licitando_repuestos'
-                const historialMap = new Map<string, string>();
+                // Build historial maps: caso_id → first date of each key state transition
+                const histCargaMap = new Map<string, string>();
+                const histLicitMap = new Map<string, string>();
+                const histCierreMap = new Map<string, string>();
                 historial.forEach((h: any) => {
-                    if (h.estado_nuevo === "licitando_repuestos" && !historialMap.has(h.caso_id)) {
-                        historialMap.set(h.caso_id, h.created_at);
+                    if (h.estado_nuevo === "pendiente_carga" && !histCargaMap.has(h.caso_id)) {
+                        histCargaMap.set(h.caso_id, h.created_at);
+                    }
+                    if (h.estado_nuevo === "licitando_repuestos" && !histLicitMap.has(h.caso_id)) {
+                        histLicitMap.set(h.caso_id, h.created_at);
+                    }
+                    if ((h.estado_nuevo === "ip_cerrada" || h.estado_nuevo === "facturada") && !histCierreMap.has(h.caso_id)) {
+                        histCierreMap.set(h.caso_id, h.created_at);
                     }
                 });
 
-                // Enrich closed cases with fecha_licitacion
+                // Enrich closed cases with fallback dates from historial
                 const casosConFechas = casosCerradosRango.map((c: any) => ({
                     ...c,
-                    fecha_licitacion: historialMap.get(c.id) || null,
+                    fecha_carga: c.fecha_carga_sistema || histCargaMap.get(c.id) || null,
+                    fecha_licitacion: histLicitMap.get(c.id) || null,
                 }));
 
                 // Helper: calculate avg ms between two date getters, returns { avg, count, values }
@@ -313,8 +322,8 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
 
                 // 6 intervals on closed cases in range
                 const i1 = calcInterval(casosConFechas, c => c.fecha_derivacion || c.created_at, c => c.fecha_inspeccion_real);
-                const i2 = calcInterval(casosConFechas, c => c.fecha_inspeccion_real, c => c.fecha_carga_sistema);
-                const i3 = calcInterval(casosConFechas, c => c.fecha_carga_sistema, c => c.fecha_licitacion);
+                const i2 = calcInterval(casosConFechas, c => c.fecha_inspeccion_real, c => c.fecha_carga);
+                const i3 = calcInterval(casosConFechas, c => c.fecha_carga, c => c.fecha_licitacion);
                 const i4 = calcInterval(casosConFechas, c => c.fecha_licitacion, c => c.fecha_cierre);
                 const i5 = calcInterval(casosConFechas, c => c.fecha_inspeccion_real, c => c.fecha_cierre);
                 const i6 = calcInterval(casosConFechas, c => c.fecha_derivacion || c.created_at, c => c.fecha_cierre);
@@ -341,7 +350,7 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
                     .map(p => {
                         const casosCalle = casosConFechas.filter((c: any) => c.perito_calle_id === p.id);
                         const pI1 = calcInterval(casosCalle, c => c.fecha_derivacion || c.created_at, c => c.fecha_inspeccion_real);
-                        const pI2 = calcInterval(casosCalle, c => c.fecha_inspeccion_real, c => c.fecha_carga_sistema);
+                        const pI2 = calcInterval(casosCalle, c => c.fecha_inspeccion_real, c => c.fecha_carga);
                         const pI5 = calcInterval(casosCalle, c => c.fecha_inspeccion_real, c => c.fecha_cierre);
                         const pI6 = calcInterval(casosCalle, c => c.fecha_derivacion || c.created_at, c => c.fecha_cierre);
                         return {

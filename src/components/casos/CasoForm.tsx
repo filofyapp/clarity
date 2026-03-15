@@ -245,12 +245,19 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                                 let gestorHelper: string | undefined;
                                 if (data.gestor_nombre) {
                                     const nombreRaw = data.gestor_nombre.trim();
+                                    const palabrasRaw = nombreRaw.toLowerCase().split(/\s+/);
                                     // 1. Exact fullname match (case-insensitive)
                                     let matchedGestor = gestores.find(g => g.nombre.toLowerCase() === nombreRaw.toLowerCase());
-                                    // 2. Fallback: first word (apellido) match
+                                    // 2. Fallback: apellido (first word) startsWith
                                     if (!matchedGestor) {
-                                        const apellido = nombreRaw.split(' ')[0].toLowerCase();
-                                        matchedGestor = gestores.find(g => g.nombre.toLowerCase().startsWith(apellido));
+                                        matchedGestor = gestores.find(g => g.nombre.toLowerCase().startsWith(palabrasRaw[0]));
+                                    }
+                                    // 3. Fuzzy: todas las palabras del gestor guardado están en el nombre parseado
+                                    if (!matchedGestor) {
+                                        matchedGestor = gestores.find(g => {
+                                            const palabrasGuardadas = g.nombre.toLowerCase().split(/\s+/);
+                                            return palabrasGuardadas.every((p: string) => palabrasRaw.includes(p));
+                                        });
                                     }
                                     if (matchedGestor) {
                                         setGestorId(matchedGestor.id);

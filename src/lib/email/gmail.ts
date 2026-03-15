@@ -53,6 +53,12 @@ function encodeMimeHeader(text: string): string {
     return `=?utf-8?B?${Buffer.from(text, 'utf-8').toString('base64')}?=`;
 }
 
+interface EmailAttachment {
+    filename: string;
+    mimeType: string;
+    content: Buffer; // raw file bytes
+}
+
 interface SendEmailParams {
     toEmail: string;
     toName?: string;
@@ -61,21 +67,18 @@ interface SendEmailParams {
     htmlBody: string;
     threadId?: string;       // Si es respuesta a un hilo
     inReplyToRef?: string;   // El Message-ID del mensaje al que respondemos
+    attachments?: EmailAttachment[];  // Archivos adjuntos
 }
 
-export async function sendEmail({ toEmail, toName, ccEmails, subject, htmlBody, threadId, inReplyToRef }: SendEmailParams) {
+export async function sendEmail({ toEmail, toName, ccEmails, subject, htmlBody, threadId, inReplyToRef, attachments }: SendEmailParams) {
     const accessToken = await getGmailAccessToken();
     const fromEmail = process.env.GMAIL_USER_EMAIL || "gestionsancoraomsiniestros@gmail.com";
-    const fromName = "Estudio AOM Siniestros · CLARITY"; // We can fetch this from settings later
+    const fromName = "Estudio AOM Siniestros · CLARITY";
 
     if (!accessToken || !fromEmail) {
         return { success: false, error: "Missing config or access token" };
     }
 
-    // Build the raw email RFC 2822 string
-    // Headers are highly sensitive to CRLF vs LF. Let's use \r\n
-
-    // Some email clients choke on utf-8 in the "From" name or "To" name if not MIME-encoded
     const safeFromName = encodeMimeHeader(fromName);
     const safeToName = toName ? encodeMimeHeader(toName) : "";
     const to = safeToName ? `"${safeToName}" <${toEmail}>` : toEmail;
@@ -87,15 +90,41 @@ export async function sendEmail({ toEmail, toName, ccEmails, subject, htmlBody, 
     }
     rawStr += `Subject: ${encodeMimeHeader(subject)}\r\n`;
     rawStr += `MIME-Version: 1.0\r\n`;
-    rawStr += `Content-Type: text/html; charset=utf-8\r\n`;
 
-    // Threading headers
     if (inReplyToRef) {
         rawStr += `In-Reply-To: ${inReplyToRef}\r\n`;
         rawStr += `References: ${inReplyToRef}\r\n`;
     }
 
-    rawStr += `\r\n${htmlBody}`;
+    if (attachments && attachments.length > 0) {
+        // Multipart MIME with attachments
+        const boundary = `boundary_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+        rawStr += `Content-Type: multipart/mixed; boundary="${boundary}"\r\n`;
+        rawStr += `\r\n`;
+        rawStr += `--${boundary}\r\n`;
+        rawStr += `Content-Type: text/html; charset=utf-8\r\n`;
+        rawStr += `\r\n`;
+        rawStr += htmlBody;
+        rawStr += `\r\n`;
+
+        for (const att of attachments) {
+            const b64 = att.content.toString('base64');
+            rawStr += `--${boundary}\r\n`;
+            rawStr += `Content-Type: ${att.mimeType}; name="${att.filename}"\r\n`;
+            rawStr += `Content-Disposition: attachment; filename="${att.filename}"\r\n`;
+            rawStr += `Content-Transfer-Encoding: base64\r\n`;
+            rawStr += `\r\n`;
+            // Split base64 into 76-char lines per RFC 2045
+            for (let i = 0; i < b64.length; i += 76) {
+                rawStr += b64.substring(i, i + 76) + `\r\n`;
+            }
+        }
+        rawStr += `--${boundary}--\r\n`;
+    } else {
+        // Simple HTML email (no attachments)
+        rawStr += `Content-Type: text/html; charset=utf-8\r\n`;
+        rawStr += `\r\n${htmlBody}`;
+    }
 
     const rawAscii = encodeBase64URL(rawStr);
 

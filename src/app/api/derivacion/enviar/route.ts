@@ -47,12 +47,63 @@ export async function POST(req: NextRequest) {
             }, { status: 500 });
         }
 
-        // Send immediately via Gmail API
+        // Fetch archivos adjuntos del caso
+        const attachments: { filename: string; mimeType: string; content: Buffer }[] = [];
+        const { data: files } = await supabase.storage
+            .from("caso-archivos")
+            .list(casoId, { limit: 20 });
+
+        if (files && files.length > 0) {
+            let totalSize = 0;
+            const MAX_TOTAL = 10 * 1024 * 1024; // 10MB limit
+
+            for (const file of files) {
+                if (file.metadata && (file.metadata as any).size) {
+                    totalSize += (file.metadata as any).size;
+                }
+                if (totalSize > MAX_TOTAL) {
+                    console.warn(`[Derivación] Adjuntos exceden 10MB, se adjuntan ${attachments.length} de ${files.length}`);
+                    break;
+                }
+                const { data: blob, error: dlErr } = await supabase.storage
+                    .from("caso-archivos")
+                    .download(`${casoId}/${file.name}`);
+
+                if (dlErr || !blob) {
+                    console.warn(`[Derivación] No se pudo descargar ${file.name}:`, dlErr);
+                    continue;
+                }
+
+                const arrayBuffer = await blob.arrayBuffer();
+                const ext = file.name.split('.').pop()?.toLowerCase() || '';
+                const mimeMap: Record<string, string> = {
+                    pdf: 'application/pdf',
+                    jpg: 'image/jpeg', jpeg: 'image/jpeg',
+                    png: 'image/png',
+                    doc: 'application/msword',
+                    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    xls: 'application/vnd.ms-excel',
+                    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                };
+                // Strip timestamp prefix from filename (e.g. 1710467890123_caratula.pdf → caratula.pdf)
+                const cleanName = file.name.replace(/^\d+_/, '');
+
+                attachments.push({
+                    filename: cleanName,
+                    mimeType: mimeMap[ext] || 'application/octet-stream',
+                    content: Buffer.from(arrayBuffer),
+                });
+            }
+            console.log(`[Derivación] ${attachments.length} archivo(s) adjuntados`);
+        }
+
+        // Send immediately via Gmail API (with attachments if any)
         const result = await sendEmail({
             toEmail: perito.email,
             toName: `${perito.nombre} ${perito.apellido}`,
             subject: render.asunto,
             htmlBody: render.cuerpo_html,
+            attachments: attachments.length > 0 ? attachments : undefined,
         });
 
         if (!result.success) {

@@ -18,7 +18,7 @@ export default async function ReportesDashboard() {
     // Todos los casos con campos necesarios (incluye fecha_inspeccion_real para timing de perito calle)
     const { data: todosLosCasos } = await supabase
         .from("casos")
-        .select("id, estado, created_at, fecha_derivacion, fecha_inspeccion_real, fecha_cierre, monto_facturado_estudio, monto_pagado_perito_calle, monto_pagado_perito_carga, perito_calle_id, perito_carga_id, tipo_inspeccion, facturado");
+        .select("id, estado, created_at, fecha_derivacion, fecha_inspeccion_real, fecha_carga_sistema, fecha_cierre, monto_facturado_estudio, monto_pagado_perito_calle, monto_pagado_perito_carga, perito_calle_id, perito_carga_id, tipo_inspeccion, facturado");
 
     // Historial de Estados para métricas de tiempo
     const { data: historialEstados } = await supabase

@@ -59,30 +59,30 @@ export async function renderTemplate(casoId: string, templateCodigo: string): Pr
         return null;
     }
 
-    // 3. Get or Create Tracking Token
+    // 3. Get or Create Tracking Token (skip for derivacion — peritos don't need seguimiento link)
     let trackingLink = "";
-    const { data: existingToken } = await supabase
-        .from('seguimiento_tokens')
-        .select('token')
-        .eq('caso_id', casoId)
-        .eq('activo', true)
-        .maybeSingle();
-
-    if (existingToken) {
-        // Assume app runs on localhost:3000 in dev, or real domain. For now relative or env based
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://panel.aomsiniestros.com";
-        trackingLink = `${baseUrl}/seguimiento/${existingToken.token}`;
-    } else {
-        // Create token
-        const { data: newToken, error: tokenError } = await supabase
+    if (template.codigo !== 'derivacion_perito') {
+        const { data: existingToken } = await supabase
             .from('seguimiento_tokens')
-            .insert({ caso_id: casoId })
             .select('token')
-            .single();
+            .eq('caso_id', casoId)
+            .eq('activo', true)
+            .maybeSingle();
 
-        if (newToken) {
+        if (existingToken) {
             const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://panel.aomsiniestros.com";
-            trackingLink = `${baseUrl}/seguimiento/${newToken.token}`;
+            trackingLink = `${baseUrl}/seguimiento/${existingToken.token}`;
+        } else {
+            const { data: newToken, error: tokenError } = await supabase
+                .from('seguimiento_tokens')
+                .insert({ caso_id: casoId })
+                .select('token')
+                .single();
+
+            if (newToken) {
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://panel.aomsiniestros.com";
+                trackingLink = `${baseUrl}/seguimiento/${newToken.token}`;
+            }
         }
     }
 

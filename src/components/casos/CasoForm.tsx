@@ -496,6 +496,20 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                 {/* ── Sección 5: Archivos Adjuntos ── */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-text-primary border-b border-border-subtle pb-2 font-outfit mt-4">Archivos Adjuntos (Carátula, Denuncia, etc.)</h3>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,image/*,application/pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                            const files = e.target.files;
+                            if (files && files.length > 0) {
+                                setArchivos(prev => [...prev, ...Array.from(files)]);
+                            }
+                            e.target.value = "";
+                        }}
+                    />
                     <div
                         onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); }}
                         onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
@@ -511,24 +525,11 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                             dragActive ? "border-brand-primary bg-brand-primary/5" : "border-border hover:border-border-hover"
                         }`}
                     >
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="hidden"
-                            onChange={(e) => {
-                                if (e.target.files) {
-                                    setArchivos(prev => [...prev, ...Array.from(e.target.files!)]);
-                                    e.target.value = "";
-                                }
-                            }}
-                        />
                         <Upload className="w-6 h-6 text-text-muted mx-auto mb-1" />
                         <p className="text-sm text-text-secondary">
                             Arrastrá archivos acá o <span className="text-brand-primary underline">seleccioná</span>
                         </p>
-                        <p className="text-xs text-text-muted">PDF, JPG, PNG</p>
+                        <p className="text-xs text-text-muted">PDF, JPG, PNG, DOC, XLSX</p>
                     </div>
                     {archivos.length > 0 && (
                         <div className="space-y-1">

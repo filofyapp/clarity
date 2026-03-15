@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { crearCaso } from "@/app/(dashboard)/casos/actions";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2, Plus, CheckCircle2, Sparkles, Upload, FileText, X, ImageIcon, Check, AlertCircle } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 
 interface CasoFormProps {
     gestores?: any[];
@@ -395,13 +396,13 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="gestor">Gestor de Reclamo</Label>
-                        <select id="gestor" value={gestorId} onChange={e => setGestorId(e.target.value)}
-                            className="flex h-10 w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm">
-                            <option value="">Seleccione gestor...</option>
-                            {gestores.map(g => (
-                                <option key={g.id} value={g.id}>{g.nombre} {g.sector ? `(${g.sector})` : ""}</option>
-                            ))}
-                        </select>
+                        <SearchableSelect
+                            id="gestor"
+                            value={gestorId}
+                            onChange={setGestorId}
+                            options={gestores.map(g => ({ id: g.id, label: g.nombre, sublabel: g.sector || undefined }))}
+                            placeholder="Escribí para buscar gestor..."
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="fecha_ip">Fecha de Inspección</Label>
@@ -458,13 +459,14 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
 
                     <div className="space-y-2 pt-2 border-t border-border-subtle">
                         <Label htmlFor="taller">Taller (Autocompleta dirección al seleccionar)</Label>
-                        <select id="taller" value={tallerId} onChange={e => setTallerId(e.target.value)}
-                            className="flex h-10 w-full rounded-md border border-border bg-bg-tertiary px-3 py-2 text-sm text-brand-primary font-medium focus:ring-1 focus:ring-brand-primary">
-                            <option value="">Ninguno / Dirección manual...</option>
-                            {talleres.map(t => (
-                                <option key={t.id} value={t.id}>{t.nombre} — {t.localidad || "Sin localidad"}</option>
-                            ))}
-                        </select>
+                        <SearchableSelect
+                            id="taller"
+                            value={tallerId}
+                            onChange={setTallerId}
+                            options={talleres.map(t => ({ id: t.id, label: t.nombre, sublabel: t.localidad || "Sin localidad" }))}
+                            placeholder="Escribí para buscar taller..."
+                            className="text-brand-primary font-medium"
+                        />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

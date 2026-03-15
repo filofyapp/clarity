@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 15/03/2026 (Sprint 8.5)
+QUE SE CAMBIO: (1) Badge contador en Facturación en el sidebar. (2) Combobox con búsqueda para gestores y talleres al crear caso. (3) Fix file upload en creación de caso.
+POR QUE: (1) El usuario necesita ver cuántos casos están pendientes de facturar sin entrar a la página. (2) Los desplegables de gestores/talleres eran muy lentos de navegar con muchas opciones. (3) El file input estaba dentro del div clickeable, causando un loop de apertura.
+COMO: (1) `Sidebar.tsx`: query `casos WHERE estado=cerrado AND facturado=false`, pasa `pendingFacturacionCount` a `SidebarClient.tsx` → badge amber en Facturación. (2) Componente `SearchableSelect.tsx` reutilizable con input text + dropdown filtrado + click outside + clear. Reemplaza `<select>` de gestor (línea 398) y taller (línea 461) en `CasoForm.tsx`. (3) `CasoForm.tsx`: movido `<input type=file>` fuera del div con onClick para evitar re-apertura.
+ARCHIVOS AFECTADOS: `Sidebar.tsx`, `SidebarClient.tsx`, `SearchableSelect.tsx` (NUEVO), `CasoForm.tsx`
+EFECTOS COLATERALES: Ninguno. El parser auto-populate sigue funcionando con `setGestorId()` ya que SearchableSelect acepta value programáticamente.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 15/03/2026 (Sprint 8.4)
 QUE SE CAMBIO: (1) Reescritura completa del parser de auto-completado Sancor. (2) Mail de derivación a perito de calle desde el expediente.
 POR QUE: (1) El parser anterior usaba regex frágiles que no extraían correctamente vehículo, instrucciones ni gestor del formato de ficha de Sancor. (2) El coordinador necesita enviar la derivación al perito de calle desde CLARITY en vez de hacerlo manualmente.

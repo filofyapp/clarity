@@ -13,12 +13,13 @@ import { useSidebar } from "./SidebarContext";
 interface SidebarClientProps {
     userRoles: string[];
     pendingCargaCount?: number;
-    unreadTasksCount?: number;
+    pendingTasksCount?: number;
+    pendingFacturacionCount?: number;
     userName?: string;
     userInitial?: string;
 }
 
-export function SidebarClient({ userRoles, pendingCargaCount = 0, unreadTasksCount = 0, userName = "Usuario", userInitial = "U" }: SidebarClientProps) {
+export function SidebarClient({ userRoles, pendingCargaCount = 0, pendingTasksCount = 0, pendingFacturacionCount = 0, userName = "Usuario", userInitial = "U" }: SidebarClientProps) {
     const pathname = usePathname();
     const { isCollapsed, toggleSidebar } = useSidebar();
 
@@ -62,7 +63,7 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0, unreadTasksCou
                         {userRoles.includes("admin") && (
                             <SidebarItem href="/casos/nuevo" icon={PlusCircle} label="Nuevo Caso" pathname={pathname} isCollapsed={isCollapsed} />
                         )}
-                        <SidebarItem href="/tareas" icon={ListTodo} label="Tareas" pathname={pathname} badgeCount={unreadTasksCount} badgeColor="amber" isCollapsed={isCollapsed} />
+                        <SidebarItem href="/tareas" icon={ListTodo} label="Tareas" pathname={pathname} badgeCount={pendingTasksCount} badgeColor="amber" isCollapsed={isCollapsed} />
                         {(userRoles.includes("admin") || userRoles.includes("carga")) && (
                             <SidebarItem href="/carga" icon={FileBox} label="Cola de Carga" pathname={pathname} badgeCount={pendingCargaCount} isCollapsed={isCollapsed} />
                         )}
@@ -79,7 +80,7 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0, unreadTasksCou
                             <h4 className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-text-muted font-outfit">Finanzas</h4>
                         ) : <div className="h-4" />}
                         <div className="space-y-1">
-                            <SidebarItem href="/facturacion" icon={BadgeDollarSign} label="Facturación" pathname={pathname} isCollapsed={isCollapsed} />
+                            <SidebarItem href="/facturacion" icon={BadgeDollarSign} label="Facturación" pathname={pathname} badgeCount={pendingFacturacionCount} badgeColor="amber" isCollapsed={isCollapsed} />
                             <SidebarItem href="/reportes" icon={BarChart3} label="Reportes" pathname={pathname} isCollapsed={isCollapsed} />
                         </div>
                     </div>

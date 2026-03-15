@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Upload, FileText, Trash2, Download, Loader2, FolderOpen, Eye, ExternalLink, ImageIcon } from "lucide-react";
+import { Upload, FileText, Trash2, Download, Loader2, FolderOpen, Eye, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogHeader, DialogDescription } from "@/components/ui/dialog";
-import Image from "next/image";
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
@@ -29,10 +28,23 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
     const [uploading, setUploading] = useState(false);
     const [downloadingZip, setDownloadingZip] = useState(false);
     const [dragActive, setDragActive] = useState(false);
-    const [previewFile, setPreviewFile] = useState<{ url: string; type: string; name: string } | null>(null);
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
     const bucketName = "caso-archivos";
     const folderPath = `${casoId}/`;
+
+    // Helpers
+    const isImage = (name: string) => ["jpg", "jpeg", "png", "gif", "webp"].includes(name.split('.').pop()?.toLowerCase() || "");
+    const isPdf = (name: string) => name.split('.').pop()?.toLowerCase() === "pdf";
+    const cleanName = (name: string) => name.replace(/^\d+_/, "");
+    const getPublicUrl = (name: string) => supabase.storage.from(bucketName).getPublicUrl(`${folderPath}${name}`).data?.publicUrl || "";
+
+    // Separate images and documents
+    const imageFiles = archivos.filter(a => isImage(a.name));
+    const docFiles = archivos.filter(a => !isImage(a.name));
+
+    // Previewable files (images + PDFs) for lightbox navigation
+    const previewableFiles = archivos.filter(a => isImage(a.name) || isPdf(a.name));
 
     const fetchArchivos = useCallback(async () => {
         setLoading(true);
@@ -46,6 +58,31 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
     }, [casoId]);
 
     useEffect(() => { fetchArchivos(); }, [fetchArchivos]);
+
+    // Keyboard navigation for lightbox
+    useEffect(() => {
+        if (lightboxIndex === null) return;
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === "ArrowRight") navigateLightbox(1);
+            else if (e.key === "ArrowLeft") navigateLightbox(-1);
+            else if (e.key === "Escape") setLightboxIndex(null);
+        };
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [lightboxIndex, previewableFiles.length]);
+
+    const navigateLightbox = (dir: number) => {
+        if (lightboxIndex === null) return;
+        const next = lightboxIndex + dir;
+        if (next >= 0 && next < previewableFiles.length) {
+            setLightboxIndex(next);
+        }
+    };
+
+    const openLightbox = (archivo: ArchivoItem) => {
+        const idx = previewableFiles.findIndex(a => a.name === archivo.name);
+        if (idx >= 0) setLightboxIndex(idx);
+    };
 
     const handleUpload = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
@@ -79,13 +116,6 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
         }
     };
 
-    const handleDownload = async (fileName: string) => {
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(`${folderPath}${fileName}`);
-        if (data?.publicUrl) {
-            window.open(data.publicUrl, "_blank");
-        }
-    };
-
     const handleDownloadZip = async () => {
         if (archivos.length === 0) return;
         setDownloadingZip(true);
@@ -93,53 +123,27 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
 
         try {
             const zip = new JSZip();
-
-            // Loop through all files and fetch their blobs
             for (const archivo of archivos) {
-                // We use getPublicUrl since it's a public bucket. Otherwise download() is needed.
-                const { data } = supabase.storage.from(bucketName).getPublicUrl(`${folderPath}${archivo.name}`);
-
-                if (data?.publicUrl) {
+                const url = getPublicUrl(archivo.name);
+                if (url) {
                     try {
-                        const response = await fetch(data.publicUrl);
+                        const response = await fetch(url);
                         const blob = await response.blob();
-                        // Strip internal Supabase timestamp prefix if needed, or keep original name
-                        const cleanName = archivo.name.replace(/^\d+_/, "");
-                        zip.file(cleanName, blob);
+                        zip.file(cleanName(archivo.name), blob);
                     } catch (err) {
                         console.error("Failed to fetch file for ZIP", archivo.name, err);
                     }
                 }
             }
-
             const content = await zip.generateAsync({ type: "blob" });
             saveAs(content, `Expediente_${casoId.substring(0, 8)}.zip`);
             toast.dismiss();
             toast.success("Siniestro descargado exitosamente");
-
         } catch (error: any) {
             toast.dismiss();
             toast.error("Error al generar el ZIP");
         } finally {
             setDownloadingZip(false);
-        }
-    };
-
-    const handlePreview = async (fileName: string) => {
-        const { data } = supabase.storage.from(bucketName).getPublicUrl(`${folderPath}${fileName}`);
-        if (data?.publicUrl) {
-            const ext = fileName.split('.').pop()?.toLowerCase();
-            const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext || "");
-            const isPdf = ext === "pdf";
-
-            if (isImage) {
-                setPreviewFile({ url: data.publicUrl, type: "image", name: fileName.replace(/^\d+_/, "") });
-            } else if (isPdf) {
-                setPreviewFile({ url: data.publicUrl, type: "pdf", name: fileName.replace(/^\d+_/, "") });
-            } else {
-                // For others like DOCX, force open in new tab
-                window.open(data.publicUrl, "_blank");
-            }
         }
     };
 
@@ -163,6 +167,11 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
         if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
         return `${(bytes / 1048576).toFixed(1)} MB`;
     };
+
+    // Current lightbox file
+    const currentPreview = lightboxIndex !== null ? previewableFiles[lightboxIndex] : null;
+    const currentUrl = currentPreview ? getPublicUrl(currentPreview.name) : "";
+    const currentType = currentPreview ? (isImage(currentPreview.name) ? "image" : "pdf") : "";
 
     return (
         <div className="space-y-4">
@@ -219,7 +228,7 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
                 )}
             </div>
 
-            {/* Lista de archivos */}
+            {/* Content */}
             {loading ? (
                 <div className="flex items-center justify-center py-4">
                     <Loader2 className="w-5 h-5 animate-spin text-text-muted" />
@@ -227,82 +236,175 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
             ) : archivos.length === 0 ? (
                 <p className="text-xs text-text-muted text-center py-4">Sin archivos adjuntos.</p>
             ) : (
-                <div className="space-y-1">
-                    {archivos.map(archivo => (
-                        <div
-                            key={archivo.id || archivo.name}
-                            className="flex items-center justify-between bg-bg-tertiary border border-border rounded-md px-3 py-2 group hover:border-border-hover transition-colors"
-                        >
-                            <div
-                                className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
-                                onClick={() => handlePreview(archivo.name)}
-                            >
-                                {["jpg", "jpeg", "png", "gif", "webp"].includes(archivo.name.split('.').pop()?.toLowerCase() || "") ? (
-                                    <ImageIcon className="w-5 h-5 text-brand-secondary shrink-0" />
-                                ) : (
-                                    <FileText className="w-5 h-5 text-text-muted shrink-0" />
-                                )}
-                                <div className="min-w-0">
-                                    <p className="text-sm font-medium text-text-primary truncate">{archivo.name.replace(/^\d+_/, "")}</p>
-                                    <p className="text-[10px] text-text-muted">
-                                        {formatBytes(archivo.metadata?.size || 0)}
-                                        {archivo.created_at && ` · ${format(new Date(archivo.created_at), "dd/MM/yy HH:mm")}`}
-                                    </p>
+                <div className="space-y-4">
+                    {/* Image Thumbnails Grid */}
+                    {imageFiles.length > 0 && (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                            {imageFiles.map(archivo => (
+                                <div
+                                    key={archivo.id || archivo.name}
+                                    className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-bg-tertiary cursor-pointer hover:border-brand-primary transition-colors"
+                                    onClick={() => openLightbox(archivo)}
+                                >
+                                    <img
+                                        src={getPublicUrl(archivo.name)}
+                                        alt={cleanName(archivo.name)}
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                    />
+                                    {/* Overlay on hover */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                        <Eye className="w-6 h-6 text-white drop-shadow-md" />
+                                    </div>
+                                    {/* Delete button */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(archivo.name); }}
+                                        className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-all"
+                                        title="Eliminar"
+                                    >
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                    {/* Name overlay */}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1">
+                                        <p className="text-[10px] text-white truncate">{cleanName(archivo.name)}</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="sm" onClick={() => handlePreview(archivo.name)}
-                                    className="h-8 w-8 p-0 text-brand-secondary hover:text-brand-secondary-hover bg-brand-secondary/5" title="Visualizar">
-                                    <Eye className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleDownload(archivo.name)}
-                                    className="h-8 w-8 p-0 text-text-muted hover:text-text-primary" title="Abrir en pestaña nueva">
-                                    <ExternalLink className="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleDelete(archivo.name)}
-                                    className="h-8 w-8 p-0 text-text-muted hover:text-danger hover:bg-danger/10" title="Eliminar">
-                                    <Trash2 className="w-4 h-4" />
-                                </Button>
-                            </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
+
+                    {/* Document Files (non-image) */}
+                    {docFiles.length > 0 && (
+                        <div className="space-y-1">
+                            {docFiles.map(archivo => (
+                                <div
+                                    key={archivo.id || archivo.name}
+                                    className="flex items-center justify-between bg-bg-tertiary border border-border rounded-md px-3 py-2 group hover:border-border-hover transition-colors"
+                                >
+                                    <div
+                                        className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                                        onClick={() => {
+                                            if (isPdf(archivo.name)) {
+                                                openLightbox(archivo);
+                                            } else {
+                                                window.open(getPublicUrl(archivo.name), "_blank");
+                                            }
+                                        }}
+                                    >
+                                        <FileText className="w-5 h-5 text-text-muted shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-text-primary truncate">{cleanName(archivo.name)}</p>
+                                            <p className="text-[10px] text-text-muted">
+                                                {formatBytes(archivo.metadata?.size || 0)}
+                                                {archivo.created_at && ` · ${format(new Date(archivo.created_at), "dd/MM/yy HH:mm")}`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {isPdf(archivo.name) && (
+                                            <Button variant="ghost" size="sm" onClick={() => openLightbox(archivo)}
+                                                className="h-8 w-8 p-0 text-brand-secondary hover:text-brand-secondary-hover bg-brand-secondary/5" title="Visualizar">
+                                                <Eye className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                        <Button variant="ghost" size="sm" onClick={() => window.open(getPublicUrl(archivo.name), "_blank")}
+                                            className="h-8 w-8 p-0 text-text-muted hover:text-text-primary" title="Abrir en pestaña nueva">
+                                            <ExternalLink className="w-4 h-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(archivo.name)}
+                                            className="h-8 w-8 p-0 text-text-muted hover:text-danger hover:bg-danger/10" title="Eliminar">
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Lightbox / Preview Dialog */}
-            <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
-                <DialogContent className="max-w-4xl bg-bg-primary border-border p-1">
-                    <DialogHeader className="p-4 pb-0">
-                        <DialogTitle className="text-text-primary truncate pr-8">{previewFile?.name}</DialogTitle>
-                        <DialogDescription className="sr-only">Previsualización de imagen del caso</DialogDescription>
+            {/* Lightbox with Navigation */}
+            <Dialog open={lightboxIndex !== null} onOpenChange={(open) => !open && setLightboxIndex(null)}>
+                <DialogContent className="max-w-5xl bg-bg-primary border-border p-0 gap-0">
+                    <DialogHeader className="p-4 pb-2">
+                        <DialogTitle className="text-text-primary truncate pr-12 text-sm">
+                            {currentPreview ? cleanName(currentPreview.name) : ""}
+                            {previewableFiles.length > 1 && (
+                                <span className="text-text-muted font-normal ml-2">
+                                    ({(lightboxIndex ?? 0) + 1} / {previewableFiles.length})
+                                </span>
+                            )}
+                        </DialogTitle>
+                        <DialogDescription className="sr-only">Previsualización de archivo del caso</DialogDescription>
                     </DialogHeader>
-                    {previewFile?.type === "image" && (
-                        <div className="relative w-full h-[75vh] flex items-center justify-center bg-bg-secondary/50 p-4">
-                            {/* Using standard img for zoom capability and auto-sizing within container */}
+
+                    {/* Image viewer */}
+                    {currentPreview && currentType === "image" && (
+                        <div className="relative w-full h-[75vh] flex items-center justify-center bg-black/20 select-none">
                             <img
-                                src={previewFile.url}
-                                alt={previewFile.name}
-                                className="max-w-full max-h-full object-contain rounded-md shadow-sm"
+                                src={currentUrl}
+                                alt={cleanName(currentPreview.name)}
+                                className="max-w-full max-h-full object-contain"
+                                draggable={false}
                             />
                         </div>
                     )}
-                    {previewFile?.type === "pdf" && (
-                        <div className="relative w-full h-[75vh] flex items-center justify-center bg-bg-secondary/20 p-2">
+
+                    {/* PDF viewer */}
+                    {currentPreview && currentType === "pdf" && (
+                        <div className="relative w-full h-[75vh] bg-bg-secondary/20 p-2">
                             <iframe
-                                src={`${previewFile.url}#view=FitH`}
-                                title={previewFile.name}
+                                src={`${currentUrl}#view=FitH`}
+                                title={cleanName(currentPreview.name)}
                                 className="w-full h-full rounded-sm border-0"
                             />
                         </div>
                     )}
-                    <div className="p-2 flex justify-end">
+
+                    {/* Navigation arrows */}
+                    {previewableFiles.length > 1 && (
+                        <>
+                            <button
+                                onClick={() => navigateLightbox(-1)}
+                                disabled={lightboxIndex === 0}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 disabled:opacity-20 disabled:cursor-not-allowed transition-all z-10"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={() => navigateLightbox(1)}
+                                disabled={lightboxIndex === previewableFiles.length - 1}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 disabled:opacity-20 disabled:cursor-not-allowed transition-all z-10"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                        </>
+                    )}
+
+                    {/* Bottom bar */}
+                    <div className="p-3 flex justify-end gap-2 border-t border-border">
                         <Button
-                            variant="default"
-                            className="bg-brand-primary hover:bg-brand-primary-hover text-white flex items-center gap-2 text-sm"
-                            onClick={() => window.open(previewFile?.url, "_blank")}
+                            variant="outline"
+                            size="sm"
+                            className="text-text-primary border-border"
+                            onClick={() => window.open(currentUrl, "_blank")}
                         >
-                            <ExternalLink className="w-4 h-4" />
+                            <ExternalLink className="w-4 h-4 mr-2" />
                             Abrir original
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-text-muted border-border hover:text-danger hover:border-danger"
+                            onClick={() => {
+                                if (currentPreview) {
+                                    handleDelete(currentPreview.name);
+                                    setLightboxIndex(null);
+                                }
+                            }}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar
                         </Button>
                     </div>
                 </DialogContent>

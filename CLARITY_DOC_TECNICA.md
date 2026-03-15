@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 15/03/2026 (Sprint 8.6)
+QUE SE CAMBIO: Reescritura completa de Tiempos Medios de Gestión en Reportes.
+POR QUE: La sección anterior tenía 2 de 5 intervalos hardcodeados a "Sin datos" (Carga→Licitación y Licitación→Cierre), no filtraba por rango de fechas y no mostraba desglose por perito.
+COMO: (1) 6 intervalos: Asig→IP, IP→Carga, Carga→Licitación, Licitación→Cierre, IP→Cierre (neto estudio), Ciclo Completo. (2) `fecha_licitacion` se deriva de `historial_estados` (primer registro con `estado_nuevo='licitando_repuestos'`). (3) Todos los intervalos se calculan sobre casos cerrados en el rango seleccionado. (4) Pipeline visual: barra horizontal proporcional de 4 etapas con colores diferenciados. (5) Tabla "Velocidad por Perito de Calle": avg de cada intervalo por perito, coloreado verde/ámbar/rojo vs promedio general. (6) Cuello de botella: el intervalo más lento del pipeline se resalta con borde rojo + etiqueta ⚠.
+ARCHIVOS AFECTADOS: `ReportesFiltros.tsx`
+EFECTOS COLATERALES: Eliminado componente `TimeBlock` y helpers `getAvgTimeDirect`, `tAsigToIp`, `tIpToCarga`, `tCargaToLicitando`, `tLicitandoToCerrado`, `tiempoPromedioDias` — todo reemplazado por IIFE inline con `calcInterval`.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 15/03/2026 (Sprint 8.5)
 QUE SE CAMBIO: (1) Badge contador en Facturación en el sidebar. (2) Combobox con búsqueda para gestores y talleres al crear caso. (3) Fix file upload en creación de caso.
 POR QUE: (1) El usuario necesita ver cuántos casos están pendientes de facturar sin entrar a la página. (2) Los desplegables de gestores/talleres eran muy lentos de navegar con muchas opciones. (3) El file input estaba dentro del div clickeable, causando un loop de apertura.

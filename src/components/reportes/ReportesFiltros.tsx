@@ -205,51 +205,6 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
     }).filter(d => d.cantidad > 0).sort((a, b) => b.neto - a.neto);
 
     // ═══════════════════════════════════════════════════════════════
-    // 7. TIEMPOS MEDIOS (usando fechas directas de los casos)
-    // ═══════════════════════════════════════════════════════════════
-    const tiempoPromedioDias = casosCerradosRango.length > 0
-        ? casosCerradosRango.reduce((sum: number, c: any) => {
-            const inicio = new Date(c.fecha_derivacion || c.created_at).getTime();
-            const fin = new Date(c.fecha_cierre).getTime();
-            return sum + (fin - inicio) / (1000 * 60 * 60 * 24);
-        }, 0) / casosCerradosRango.length
-        : 0;
-
-    // Helper: promedio de diferencia entre dos campos de fecha
-    const getAvgTimeDirect = (getFrom: (c: any) => string | null, getTo: (c: any) => string | null) => {
-        let sum = 0, count = 0;
-        casosFiltroPrincipal.forEach(c => {
-            const fromStr = getFrom(c);
-            const toStr = getTo(c);
-            if (!fromStr || !toStr) return;
-            const from = new Date(fromStr).getTime();
-            const to = new Date(toStr).getTime();
-            if (isNaN(from) || isNaN(to) || to < from) return;
-            sum += (to - from);
-            count++;
-        });
-        return count > 0 ? sum / count : -1;
-    };
-
-    // Asignación → IP: fecha_derivacion → fecha_inspeccion_real (excluye sin fecha de IP)
-    const tAsigToIp = getAvgTimeDirect(
-        c => c.fecha_derivacion || c.created_at,
-        c => c.fecha_inspeccion_real
-    );
-
-    // IP → Carga: fecha_inspeccion_real → fecha_carga_sistema
-    const tIpToCarga = getAvgTimeDirect(
-        c => c.fecha_inspeccion_real,
-        c => c.fecha_carga_sistema
-    );
-
-    // Carga → Licitando: imposible saberlo desde datos migrados, dejar vacío
-    const tCargaToLicitando = -1;
-
-    // Licitando → Cerrado: imposible saberlo desde datos migrados, dejar vacío
-    const tLicitandoToCerrado = -1;
-
-    // ═══════════════════════════════════════════════════════════════
     // RENDER
     // ═══════════════════════════════════════════════════════════════
 
@@ -321,28 +276,223 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
                 <KpiMini label="Ticket Promedio" value={formatCurrency(ticketPromedio)} color="text-text-primary" sublabel={`${tasaCierre.toFixed(0)}% tasa cierre`} />
             </div>
 
-            {/* ─── Tiempos Medios ─── */}
-            <div className="bg-bg-secondary border border-border rounded-xl p-5 shadow-sm">
-                <div className="flex items-center gap-2 mb-4 border-b border-border/50 pb-3">
-                    <h3 className="font-bold text-text-primary text-sm tracking-wide">Tiempos Medios de Gestión</h3>
-                    {tAsigToIp === -1 && tIpToCarga === -1 && tCargaToLicitando === -1 && tLicitandoToCerrado === -1 ? (
-                        <span className="text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full border border-brand-primary/20">
-                            Faltan datos
-                        </span>
-                    ) : (
-                        <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full border border-border">
-                            En Promedio
-                        </span>
-                    )}
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <TimeBlock label="Asignación → IP" value={tAsigToIp} color="text-text-primary" />
-                    <TimeBlock label="IP → Carga" value={tIpToCarga} color="text-brand-secondary" />
-                    <TimeBlock label="Carga → Licitando" value={tCargaToLicitando} color="text-color-warning" />
-                    <TimeBlock label="Licitando → Cerrado" value={tLicitandoToCerrado} color="text-color-success" />
-                    <TimeBlock label="Ciclo Completo" value={tiempoPromedioDias > 0 ? tiempoPromedioDias * 24 * 60 * 60 * 1000 : -1} color="text-color-info" />
-                </div>
-            </div>
+            {/* ─── Tiempos Medios de Gestión ─── */}
+            {(() => {
+                // Build historial map: caso_id → first date of 'licitando_repuestos'
+                const historialMap = new Map<string, string>();
+                historial.forEach((h: any) => {
+                    if (h.estado_nuevo === "licitando_repuestos" && !historialMap.has(h.caso_id)) {
+                        historialMap.set(h.caso_id, h.created_at);
+                    }
+                });
+
+                // Enrich closed cases with fecha_licitacion
+                const casosConFechas = casosCerradosRango.map((c: any) => ({
+                    ...c,
+                    fecha_licitacion: historialMap.get(c.id) || null,
+                }));
+
+                // Helper: calculate avg ms between two date getters, returns { avg, count, values }
+                const calcInterval = (datos: any[], getFrom: (c: any) => string | null, getTo: (c: any) => string | null) => {
+                    const values: number[] = [];
+                    datos.forEach(c => {
+                        const fromStr = getFrom(c);
+                        const toStr = getTo(c);
+                        if (!fromStr || !toStr) return;
+                        const from = new Date(fromStr).getTime();
+                        const to = new Date(toStr).getTime();
+                        if (isNaN(from) || isNaN(to) || to < from) return;
+                        values.push(to - from);
+                    });
+                    return {
+                        avg: values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : -1,
+                        count: values.length,
+                        values,
+                    };
+                };
+
+                // 6 intervals on closed cases in range
+                const i1 = calcInterval(casosConFechas, c => c.fecha_derivacion || c.created_at, c => c.fecha_inspeccion_real);
+                const i2 = calcInterval(casosConFechas, c => c.fecha_inspeccion_real, c => c.fecha_carga_sistema);
+                const i3 = calcInterval(casosConFechas, c => c.fecha_carga_sistema, c => c.fecha_licitacion);
+                const i4 = calcInterval(casosConFechas, c => c.fecha_licitacion, c => c.fecha_cierre);
+                const i5 = calcInterval(casosConFechas, c => c.fecha_inspeccion_real, c => c.fecha_cierre);
+                const i6 = calcInterval(casosConFechas, c => c.fecha_derivacion || c.created_at, c => c.fecha_cierre);
+
+                const intervals = [
+                    { label: "Asignación → IP", ...i1, color: "text-sky-400", emoji: "📋" },
+                    { label: "IP → Carga", ...i2, color: "text-orange-400", emoji: "📸" },
+                    { label: "Carga → Licitación", ...i3, color: "text-amber-400", emoji: "📦" },
+                    { label: "Licitación → Cierre", ...i4, color: "text-emerald-400", emoji: "🔧" },
+                    { label: "IP → Cierre (Neto)", ...i5, color: "text-brand-secondary", emoji: "⚡" },
+                    { label: "Ciclo Completo", ...i6, color: "text-brand-primary", emoji: "🔄" },
+                ];
+
+                // Find the slowest of the 4 pipeline intervals (i1-i4) for bottleneck highlighting
+                const pipeline = [i1, i2, i3, i4];
+                const maxPipeline = Math.max(...pipeline.filter(x => x.avg > 0).map(x => x.avg));
+
+                // Per-perito timing (only for peritos de calle — they affect Asig→IP)
+                const peritoTimings = peritos
+                    .filter(p => {
+                        const roles = p.roles || [p.rol];
+                        return roles.includes("calle");
+                    })
+                    .map(p => {
+                        const casosCalle = casosConFechas.filter((c: any) => c.perito_calle_id === p.id);
+                        const pI1 = calcInterval(casosCalle, c => c.fecha_derivacion || c.created_at, c => c.fecha_inspeccion_real);
+                        const pI2 = calcInterval(casosCalle, c => c.fecha_inspeccion_real, c => c.fecha_carga_sistema);
+                        const pI5 = calcInterval(casosCalle, c => c.fecha_inspeccion_real, c => c.fecha_cierre);
+                        const pI6 = calcInterval(casosCalle, c => c.fecha_derivacion || c.created_at, c => c.fecha_cierre);
+                        return {
+                            nombre: `${p.nombre} ${p.apellido}`,
+                            total: casosCalle.length,
+                            asigToIp: pI1.avg,
+                            ipToCarga: pI2.avg,
+                            ipToCierre: pI5.avg,
+                            ciclo: pI6.avg,
+                            countAsigIp: pI1.count,
+                            countIpCarga: pI2.count,
+                        };
+                    })
+                    .filter(p => p.total > 0)
+                    .sort((a, b) => (b.ciclo > 0 ? b.ciclo : 0) - (a.ciclo > 0 ? a.ciclo : 0));
+
+                // Color coding helper (relative to overall avg)
+                const getTimingColor = (val: number, refAvg: number) => {
+                    if (val < 0 || refAvg < 0) return "text-text-muted";
+                    const ratio = val / refAvg;
+                    if (ratio <= 0.7) return "text-emerald-400"; // fast
+                    if (ratio <= 1.3) return "text-amber-400";   // normal
+                    return "text-red-400";                        // slow
+                };
+
+                return (
+                    <div className="space-y-4">
+                        {/* Pipeline Overview */}
+                        <div className="bg-bg-secondary border border-border rounded-xl p-5 shadow-sm">
+                            <div className="flex items-center gap-2 mb-4 border-b border-border/50 pb-3">
+                                <Clock className="w-4 h-4 text-brand-secondary" />
+                                <h3 className="font-bold text-text-primary text-sm tracking-wide">Tiempos Medios de Gestión</h3>
+                                <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full border border-border">
+                                    {casosCerradosRango.length} casos cerrados en rango
+                                </span>
+                            </div>
+
+                            {/* 6 Interval Cards */}
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+                                {intervals.map((int, idx) => {
+                                    const isBottleneck = idx < 4 && int.avg === maxPipeline && int.avg > 0;
+                                    return (
+                                        <div key={idx} className={`bg-bg-tertiary p-3 rounded-lg border transition-all ${isBottleneck ? "border-red-500/50 ring-1 ring-red-500/20" : "border-border"}`}>
+                                            <div className="flex items-center gap-1 mb-1">
+                                                <span className="text-sm">{int.emoji}</span>
+                                                <p className="text-[10px] text-text-muted leading-tight">{int.label}</p>
+                                            </div>
+                                            <p className={`text-xl font-bold ${int.avg === -1 ? "text-text-muted/40" : int.color}`}>
+                                                {int.avg === -1 ? "—" : formatDuration(int.avg)}
+                                            </p>
+                                            <p className="text-[9px] text-text-muted mt-0.5">
+                                                {int.count > 0 ? `${int.count} caso${int.count > 1 ? "s" : ""}` : "Sin datos"}
+                                                {isBottleneck && <span className="text-red-400 ml-1 font-bold">⚠ Cuello de botella</span>}
+                                            </p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Pipeline Bar (visual proportions of the 4 stages) */}
+                            {pipeline.some(x => x.avg > 0) && (() => {
+                                const pipelineValid = pipeline.filter(x => x.avg > 0);
+                                const totalMs = pipelineValid.reduce((s, x) => s + x.avg, 0);
+                                const labels = ["Asig→IP", "IP→Carga", "Carga→Lic.", "Lic.→Cierre"];
+                                const colors = ["bg-sky-500", "bg-orange-500", "bg-amber-500", "bg-emerald-500"];
+
+                                return (
+                                    <div>
+                                        <p className="text-[10px] text-text-muted mb-2 uppercase tracking-wider">Pipeline visual (proporción)</p>
+                                        <div className="flex h-8 rounded-lg overflow-hidden border border-border">
+                                            {pipeline.map((seg, idx) => {
+                                                if (seg.avg <= 0) return null;
+                                                const pct = (seg.avg / totalMs) * 100;
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={`${colors[idx]} flex items-center justify-center text-[9px] text-white font-bold transition-all relative group`}
+                                                        style={{ width: `${Math.max(pct, 5)}%` }}
+                                                        title={`${labels[idx]}: ${formatDuration(seg.avg)} (${pct.toFixed(0)}%)`}
+                                                    >
+                                                        {pct > 12 && <span>{labels[idx]}</span>}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="flex gap-4 mt-2">
+                                            {pipeline.map((seg, idx) => {
+                                                if (seg.avg <= 0) return null;
+                                                const pct = (seg.avg / totalMs) * 100;
+                                                return (
+                                                    <div key={idx} className="flex items-center gap-1.5 text-[10px] text-text-muted">
+                                                        <div className={`w-2 h-2 rounded-full ${colors[idx]}`} />
+                                                        {labels[idx]}: {pct.toFixed(0)}%
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Per-Perito Timing Table */}
+                        {peritoTimings.length > 0 && (
+                            <div className="bg-bg-secondary border border-border rounded-xl p-5 shadow-sm">
+                                <div className="flex items-center gap-2 mb-4 border-b border-border/50 pb-3">
+                                    <Users className="w-4 h-4 text-brand-secondary" />
+                                    <h3 className="font-bold text-text-primary text-sm tracking-wide">Velocidad por Perito de Calle</h3>
+                                    <span className="text-[10px] bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full border border-border">
+                                        🟢 Rápido &nbsp;🟡 Normal &nbsp;🔴 Lento (vs promedio general)
+                                    </span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="border-b border-border text-text-muted">
+                                                <th className="text-left px-2 py-2">Perito</th>
+                                                <th className="text-center px-2 py-2">Cerrados</th>
+                                                <th className="text-center px-2 py-2">Asig → IP</th>
+                                                <th className="text-center px-2 py-2">IP → Carga</th>
+                                                <th className="text-center px-2 py-2">IP → Cierre</th>
+                                                <th className="text-center px-2 py-2">Ciclo Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/50">
+                                            {peritoTimings.map(p => (
+                                                <tr key={p.nombre} className="hover:bg-bg-tertiary/50">
+                                                    <td className="px-2 py-2.5 text-text-primary font-medium">{p.nombre}</td>
+                                                    <td className="px-2 py-2.5 text-center font-mono">{p.total}</td>
+                                                    <td className={`px-2 py-2.5 text-center font-mono font-bold ${getTimingColor(p.asigToIp, i1.avg)}`}>
+                                                        {p.asigToIp === -1 ? "—" : formatDuration(p.asigToIp)}
+                                                    </td>
+                                                    <td className={`px-2 py-2.5 text-center font-mono font-bold ${getTimingColor(p.ipToCarga, i2.avg)}`}>
+                                                        {p.ipToCarga === -1 ? "—" : formatDuration(p.ipToCarga)}
+                                                    </td>
+                                                    <td className={`px-2 py-2.5 text-center font-mono font-bold ${getTimingColor(p.ipToCierre, i5.avg)}`}>
+                                                        {p.ipToCierre === -1 ? "—" : formatDuration(p.ipToCierre)}
+                                                    </td>
+                                                    <td className={`px-2 py-2.5 text-center font-mono font-bold ${getTimingColor(p.ciclo, i6.avg)}`}>
+                                                        {p.ciclo === -1 ? "—" : formatDuration(p.ciclo)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })()}
 
             {/* ─── Distribución por Estado ─── */}
             <div className="bg-bg-secondary border border-border rounded-xl p-5 shadow-sm">
@@ -533,17 +683,6 @@ function KpiMini({ label, value, color = "text-text-primary", gradient = false, 
             </div>
             <p className={`text-xl font-bold tracking-tight z-10 relative ${color}`}>{value}</p>
             {sublabel && <p className="text-[10px] text-text-muted mt-0.5 z-10 relative">{sublabel}</p>}
-        </div>
-    );
-}
-
-function TimeBlock({ label, value, color }: { label: string; value: number; color: string }) {
-    return (
-        <div className="bg-bg-tertiary p-3 rounded-lg border border-border">
-            <p className="text-[10px] text-text-muted mb-1">{label}</p>
-            <p className={`text-xl font-bold ${value === -1 ? "text-text-muted/50" : color}`}>
-                {value === -1 ? "Sin datos" : formatDuration(value)}
-            </p>
         </div>
     );
 }

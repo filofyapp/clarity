@@ -1,107 +1,140 @@
 /**
- * Utilidad de parseo para textos de correos/sistemas de Sancor Seguros.
- * Utiliza Expresiones Regulares para identificar y extraer datos estructurados
- * críticos para el alta de un caso en CLARITY.
+ * Parser de texto copiado del sistema de Sancor (fichas de orden de servicio).
+ * Utiliza lógica basada en labels/keywords, NO posiciones fijas.
+ * 
+ * Campos extraídos:
+ *  - numero_siniestro (Siniestro nro. XXXXXXXX)
+ *  - numero_servicio  (OS XXXXXX - ...)
+ *  - dominio          (Patente XXXXXXX)
+ *  - vehiculo         (línea siguiente a "Vehículo")
+ *  - instrucciones    (texto entre "Instrucciones" y "Denuncia")
+ *  - gestor_nombre    (línea siguiente a "Gestor del reclamo")
  */
 
 export interface ParsedCasoResult {
     numero_siniestro?: string;
     numero_servicio?: string;
-    nombre_asegurado?: string;
-    dni_asegurado?: string;
-    telefono_asegurado?: string;
     dominio?: string;
     vehiculo?: string;
-    direccion_inspeccion?: string;
-    gestor_nombre?: string;
     instrucciones?: string;
+    gestor_nombre?: string;
+    campos_encontrados: string[];
+    campos_no_encontrados: string[];
     confianza: number; // 0.0 a 1.0
 }
 
 export function parsearSancorTexto(texto: string): ParsedCasoResult {
     const result: ParsedCasoResult = {
-        confianza: 0
+        campos_encontrados: [],
+        campos_no_encontrados: [],
+        confianza: 0,
     };
 
-    let camposEncontrados = 0;
-    const totalCampos = 10;
+    // Normalize line endings
+    const t = texto.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = t.split('\n').map(l => l.trim());
 
-    // Limpiar texto base para facilitar regex (saltos de línea extra, espacios, etc.)
-    const t = texto.replace(/\r\n/g, '\n');
+    const CAMPOS_POSIBLES = [
+        "Siniestro", "Servicio (OS)", "Patente", "Vehículo", "Instrucciones", "Gestor"
+    ];
 
-    // 1. Siniestro (ej: 2003928961, SIN-2003928961)
-    const matchSiniestro = t.match(/(?:siniestro|sin\.|siniestro nro\.?)\s*:?\s*#?([0-9]{8,12})/i);
-    if (matchSiniestro && matchSiniestro[1]) {
+    // 1. Siniestro — "Siniestro nro." followed by number
+    const matchSiniestro = t.match(/Siniestro\s+nro\.?\s*:?\s*([0-9]{6,12})/i);
+    if (matchSiniestro?.[1]) {
         result.numero_siniestro = matchSiniestro[1].trim();
-        camposEncontrados++;
+        result.campos_encontrados.push("Siniestro");
+    } else {
+        result.campos_no_encontrados.push("Siniestro");
     }
 
-    // 2. Servicio/OS (ej: OS 513822 - Pericias Mecánicas)
-    const matchServicio = t.match(/(?:servicio|srv|os)\s*:?\s*#?([0-9]+)/i);
-    if (matchServicio && matchServicio[1]) {
-        result.numero_servicio = matchServicio[1].trim();
-        camposEncontrados++;
+    // 2. Servicio (OS) — "OS " followed by number
+    const matchOS = t.match(/\bOS\s+([0-9]{4,8})/i);
+    if (matchOS?.[1]) {
+        result.numero_servicio = matchOS[1].trim();
+        result.campos_encontrados.push("Servicio (OS)");
+    } else {
+        result.campos_no_encontrados.push("Servicio (OS)");
     }
 
-    // 3. Asegurado / Tercero Nombre
-    const matchAsegurado = t.match(/(?:asegurado|tercero|nombre|titular)\s*:?\s*([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+)(?:(?:\n|\r|dni|tel|cel|vehiculo))/i);
-    if (matchAsegurado && matchAsegurado[1]) {
-        result.nombre_asegurado = matchAsegurado[1].trim().replace(/(dni|tel|cel|vehiculo)/i, '').trim();
-        camposEncontrados++;
+    // 3. Patente — "Patente" followed by formato viejo (AAA111) or nuevo (AA111AA)
+    const matchPatente = t.match(/Patente\s+([A-Z]{2,3}\s?[0-9]{3}\s?[A-Z]{0,3})/i);
+    if (matchPatente?.[1]) {
+        result.dominio = matchPatente[1].replace(/\s/g, '').toUpperCase();
+        result.campos_encontrados.push("Patente");
+    } else {
+        result.campos_no_encontrados.push("Patente");
     }
 
-    // 4. DNI
-    const matchDni = t.match(/(?:dni|documento|cuit|cuil)\s*:?\s*([0-9]{7,11})/i);
-    if (matchDni && matchDni[1]) {
-        result.dni_asegurado = matchDni[1].trim();
-        camposEncontrados++;
+    // 4. Vehículo — line after exact "Vehículo" label
+    const vehiculoIdx = lines.findIndex(l => /^Veh[ií]culo$/i.test(l));
+    if (vehiculoIdx >= 0) {
+        // Next non-empty line
+        for (let i = vehiculoIdx + 1; i < lines.length; i++) {
+            if (lines[i].length > 0) {
+                result.vehiculo = lines[i];
+                result.campos_encontrados.push("Vehículo");
+                break;
+            }
+        }
+        if (!result.vehiculo) result.campos_no_encontrados.push("Vehículo");
+    } else {
+        // Fallback: inline "Vehículo: ..." or "Vehículo ..." 
+        const fallback = t.match(/Veh[ií]culo\s*:?\s*\n?\s*([^\n]+)/i);
+        if (fallback?.[1] && fallback[1].length > 3) {
+            result.vehiculo = fallback[1].replace(/(?:Referencia|Patente).*/i, '').trim();
+            result.campos_encontrados.push("Vehículo");
+        } else {
+            result.campos_no_encontrados.push("Vehículo");
+        }
     }
 
-    // 5. Teléfono
-    const matchTel = t.match(/(?:tel\.|teléfono|telefono|celular|cel\.|tel)\s*:?\s*([0-9\-\s\+]{8,15})/i);
-    if (matchTel && matchTel[1]) {
-        result.telefono_asegurado = matchTel[1].trim();
-        camposEncontrados++;
+    // 5. Instrucciones — text between "Instrucciones" and "Denuncia"
+    const instrIdx = lines.findIndex(l => /^Instrucciones$/i.test(l));
+    const denunciaIdx = lines.findIndex((l, idx) => idx > instrIdx && /^Denuncia$/i.test(l));
+    if (instrIdx >= 0) {
+        const endIdx = denunciaIdx >= 0 ? denunciaIdx : lines.length;
+        const instrLines = lines.slice(instrIdx + 1, endIdx).filter(l => l.length > 0);
+        if (instrLines.length > 0) {
+            result.instrucciones = instrLines.join('\n');
+            result.campos_encontrados.push("Instrucciones");
+        } else {
+            result.campos_no_encontrados.push("Instrucciones");
+        }
+    } else {
+        // Fallback: regex
+        const fallback = t.match(/Instrucciones\s*:?\s*\n?\s*([\s\S]*?)(?:\nDenuncia|\nFecha de cierre|$)/i);
+        if (fallback?.[1]?.trim()) {
+            result.instrucciones = fallback[1].trim();
+            result.campos_encontrados.push("Instrucciones");
+        } else {
+            result.campos_no_encontrados.push("Instrucciones");
+        }
     }
 
-    // 6. Dominio (Patente)
-    const matchDominio = t.match(/(?:patente|dominio|chapa)\s*:?\s*([A-Z]{2,3}\s?[0-9]{3}\s?[A-Z]{0,2})/i);
-    if (matchDominio && matchDominio[1]) {
-        result.dominio = matchDominio[1].replace(/\s/g, '').toUpperCase();
-        camposEncontrados++;
+    // 6. Gestor — line after "Gestor del reclamo"
+    const gestorIdx = lines.findIndex(l => /^Gestor\s+del\s+reclamo$/i.test(l));
+    if (gestorIdx >= 0) {
+        for (let i = gestorIdx + 1; i < lines.length; i++) {
+            if (lines[i].length > 0 && !/^Reclamo$/i.test(lines[i])) {
+                result.gestor_nombre = lines[i];
+                result.campos_encontrados.push("Gestor");
+                break;
+            }
+        }
+        if (!result.gestor_nombre) result.campos_no_encontrados.push("Gestor");
+    } else {
+        // Fallback regex
+        const fallback = t.match(/Gestor\s+del?\s+reclamo\s*:?\s*\n?\s*([^\n]+)/i);
+        if (fallback?.[1]?.trim()) {
+            result.gestor_nombre = fallback[1].replace(/(?:Reclamo|Siniestro).*/i, '').trim();
+            result.campos_encontrados.push("Gestor");
+        } else {
+            result.campos_no_encontrados.push("Gestor");
+        }
     }
 
-    // 7. Vehículo Completo (Orion Format: Vehículo \n RENAULT SANDERO... or inline Vehiculo RENAULT...)
-    const matchVehiculo = t.match(/(?:vehículo|vehiculo)\s*:?\s*\n?\s*([^\n]+)/i);
-    if (matchVehiculo && matchVehiculo[1]) {
-        result.vehiculo = matchVehiculo[1].replace(/(?:referencia|patente|año|modelo).*/i, '').trim();
-        camposEncontrados++;
-    }
-
-    // 8. Instrucciones / Descripción
-    const matchInstrucciones = t.match(/(?:instrucciones|comentarios|observaciones|descripcion|descripción)(?:\s*enviada\s*por\s*el\s*gestor)?\s*:?\s*\n?\s*([\s\S]*?)(?:\nDenuncia|\nFecha de|\nReclamo|$)/i);
-    if (matchInstrucciones && matchInstrucciones[1]) {
-        result.instrucciones = matchInstrucciones[1].trim();
-        camposEncontrados++;
-    }
-
-    // 10. Dirección Inspección
-    const matchLugar = t.match(/(?:lugar|ubicacion|ubicación|domicilio|lugar de inspeccion|inspección en|direccion)\s*:?\s*(.+)/i);
-    if (matchLugar && matchLugar[1]) {
-        // Tomamos la línea completa del match
-        result.direccion_inspeccion = matchLugar[1].trim();
-        camposEncontrados++;
-    }
-
-    // 11. Gestor (Orion Format: Gestor del reclamo \n BOULLE JULIETA ANA or inline)
-    const matchGestor = t.match(/(?:Gestor del reclamo|Gestor de Reclamo)\s*:?\s*\n?\s*([^\n]+)/i);
-    if (matchGestor && matchGestor[1]) {
-        result.gestor_nombre = matchGestor[1].replace(/(?:Reclamo|Siniestro|Referencia)/i, '').trim();
-        camposEncontrados++;
-    }
-
-    // Calcular score de confianza básico
-    result.confianza = Number((camposEncontrados / (totalCampos + 1)).toFixed(2));
+    // Confidence score
+    result.confianza = Number((result.campos_encontrados.length / CAMPOS_POSIBLES.length).toFixed(2));
 
     return result;
 }

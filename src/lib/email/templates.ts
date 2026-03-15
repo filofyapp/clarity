@@ -44,9 +44,12 @@ export async function renderTemplate(casoId: string, templateCodigo: string): Pr
             tipo_inspeccion,
             gestor_id,
             gestor:gestores(nombre),
+            perito_calle_id,
+            perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido, email),
             taller_id,
             taller:talleres(nombre),
-            fecha_inspeccion_real
+            fecha_inspeccion_real,
+            datos_crudos_sancor
         `)
         .eq('id', casoId)
         .single();
@@ -108,6 +111,10 @@ export async function renderTemplate(casoId: string, templateCodigo: string): Pr
     const vehiculoFullName = [caso.marca, caso.modelo].filter(Boolean).join(" ");
     const today = new Date();
 
+    // Perito de calle info
+    const peritoCalle = caso.perito_calle as any;
+    const peritoNombre = peritoCalle ? `${peritoCalle.nombre} ${peritoCalle.apellido}` : "";
+
     let tipoInspeccionLegible = "Inspección";
     switch (caso.tipo_inspeccion) {
         case 'domicilio': tipoInspeccionLegible = "Inspección a Domicilio"; break;
@@ -132,7 +139,10 @@ export async function renderTemplate(casoId: string, templateCodigo: string): Pr
         fecha_hoy: formatSafeDate(today.toISOString()),
         hora_hoy: formatSafeTime(today.toISOString()),
         link_seguimiento: trackingLink,
-        estudio_nombre: "Estudio AOM Siniestros"
+        estudio_nombre: "Estudio AOM Siniestros",
+        perito_nombre: peritoNombre,
+        descripcion: caso.datos_crudos_sancor || "",
+        gestor_email: caso.gestor ? (caso.gestor as any).email || "" : "",
     };
 
     // 5. Replace text in template Asunto and Cuerpo

@@ -20,8 +20,9 @@ import { GenerarLinkInspeccion } from "./GenerarLinkInspeccion";
 import { GestorRepliesBanner } from "./GestorRepliesBanner";
 import EditableCoordinacion from "./EditableCoordinacion";
 import { EditableField } from "./EditableField";
+import { DerivacionPeritoBanner } from "./DerivacionPeritoBanner";
 
-export async function CasoDetail({ id }: { id: string }) {
+export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?: boolean }) {
     const supabase = await createClient();
 
     // Auth Check
@@ -72,7 +73,7 @@ export async function CasoDetail({ id }: { id: string }) {
       *,
       compania:companias(nombre),
       taller:talleres(nombre, direccion),
-      perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido),
+      perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido, email),
       perito_carga:usuarios!casos_perito_carga_id_fkey(nombre, apellido),
       gestor:gestores(nombre, email, sector),
       historial_estados(id, estado_nuevo, created_at, usuario:usuarios(nombre, apellido))
@@ -207,6 +208,24 @@ export async function CasoDetail({ id }: { id: string }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
 
+                    {/* Derivación al Perito de Calle */}
+                    {(rol === "admin" || rol === "carga") && (
+                        <DerivacionPeritoBanner
+                            casoId={caso.id}
+                            siniestro={caso.numero_siniestro}
+                            peritoNombre={caso.perito_calle ? `${(caso.perito_calle as any).nombre} ${(caso.perito_calle as any).apellido}` : undefined}
+                            peritoEmail={caso.perito_calle ? (caso.perito_calle as any).email : undefined}
+                            fechaInspeccion={caso.fecha_inspeccion_programada}
+                            direccion={caso.direccion_inspeccion}
+                            localidad={caso.localidad}
+                            vehiculo={caso.marca}
+                            dominio={caso.dominio}
+                            gestorNombre={caso.gestor ? (caso.gestor as any).nombre : undefined}
+                            descripcion={caso.datos_crudos_sancor}
+                            derivacionEnviadaAt={caso.derivacion_enviada_at}
+                            esNuevo={esNuevo}
+                        />
+                    )}
                     {/* DESACTIVADO TEMPORALMENTE — Banner de Respuestas del Gestor */}
                     {/* Reactivar cuando se decida implementar la UI completa */}
                     {false && (

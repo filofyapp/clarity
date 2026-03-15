@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 15/03/2026 (Sprint 8.4)
+QUE SE CAMBIO: (1) Reescritura completa del parser de auto-completado Sancor. (2) Mail de derivación a perito de calle desde el expediente.
+POR QUE: (1) El parser anterior usaba regex frágiles que no extraían correctamente vehículo, instrucciones ni gestor del formato de ficha de Sancor. (2) El coordinador necesita enviar la derivación al perito de calle desde CLARITY en vez de hacerlo manualmente.
+COMO: (1) `sancor.ts` reescrito con lógica label-based (busca "Vehículo" → siguiente línea, "Instrucciones" → texto hasta "Denuncia", "Gestor del reclamo" → siguiente línea). Extrae 6 campos: siniestro, OS, patente, vehículo, instrucciones, gestor. Devuelve `campos_encontrados`/`campos_no_encontrados` para checklist. (2) `CasoForm.tsx`: mapea `vehiculo→marca`, `dominio`, mejora matching de gestor (fullname exacto → apellido → helper text), checklist visual post-parseo con ✓/✗ por campo + warning amber si gestor no encontrado. (3) `026_derivacion_perito.sql`: columna `derivacion_enviada_at` en `casos`, template `derivacion_perito` en `mail_templates`. (4) `templates.ts`: variables `perito_nombre`, `descripcion`, `gestor_email` agregadas + query actualizada con `perito_calle(email)`. (5) API `/api/derivacion/enviar`: usa `renderTemplate` → `sendEmail` inmediato → audit en `mail_queue` → historial. (6) `DerivacionPeritoBanner.tsx`: banner post-creación (`?nuevo=1`), botón permanente en expediente, preview dialog con datos reales, validación (perito+email, fecha, dirección), warning de reenvío con fecha. (7) `CasoDetail.tsx`: integra banner, fetch `perito_calle.email`. (8) `page.tsx [id]`: acepta `searchParams` para `?nuevo=1`. (9) `CasoForm.tsx`: navega con `?nuevo=1` post-creación.
+ARCHIVOS AFECTADOS: `sancor.ts`, `CasoForm.tsx`, `026_derivacion_perito.sql` (NUEVO), `templates.ts`, `derivacion/enviar/route.ts` (NUEVO), `DerivacionPeritoBanner.tsx` (NUEVO), `CasoDetail.tsx`, `[id]/page.tsx`
+EFECTOS COLATERALES: Parser ya no extrae `direccion_inspeccion` ni `link_orion` (esos campos siempre se completaron manualmente). `renderTemplate` ahora trae `perito_calle` y `datos_crudos_sancor` en su query (backwards compatible). La migración SQL debe ejecutarse en Supabase.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 13/03/2026 (Sprint 8.3)
 QUE SE CAMBIO: Acción "Pedir Migración" en la Cola de Carga. Al ejecutarla, envía un mail automático vía Gmail API pidiendo la migración del siniestro, transiciona el caso a `en_consulta_cia`, y cuando responden el mail detectado por el cron `leer-respuestas`, el caso vuelve automáticamente a `pendiente_carga` con notificación.
 POR QUE: El estudio necesita solicitar la migración de siniestros al usuario de Alfredo Miño en Sancor, con tracking automático de la respuesta.

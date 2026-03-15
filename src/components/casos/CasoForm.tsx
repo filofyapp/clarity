@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { crearCaso } from "@/app/(dashboard)/casos/actions";
 import { createClient } from "@/lib/supabase/client";
-import { Loader2, Plus, CheckCircle2, Sparkles, Upload, FileText, X, ImageIcon } from "lucide-react";
+import { Loader2, Plus, CheckCircle2, Sparkles, Upload, FileText, X, ImageIcon, Check, AlertCircle } from "lucide-react";
 
 interface CasoFormProps {
     gestores?: any[];
@@ -27,6 +27,7 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
     // AI Parser state
     const [textoParser, setTextoParser] = useState("");
     const [isParsing, setIsParsing] = useState(false);
+    const [parserResult, setParserResult] = useState<{ campos_encontrados: string[]; campos_no_encontrados: string[]; details: Record<string, string>; gestorHelper?: string } | null>(null);
 
     // Form states
     const [numSiniestro, setNumSiniestro] = useState("");
@@ -185,7 +186,7 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                 } else {
                     router.refresh();
                     setTimeout(() => {
-                        router.push(`/casos/${result.casoId}`);
+                        router.push(`/casos/${result.casoId}?nuevo=1`);
                     }, 500);
                 }
             }
@@ -209,12 +210,12 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                     <h3>Auto-completado Inteligente</h3>
                 </div>
                 <p className="text-xs text-text-muted">
-                    Copiá el texto completo que te envía la aseguradora (email o sistema) y pegalo acá. El asistente extraerá patentes, información del vehículo, números de siniestro y asignará el gestor si lo encuentra.
+                    Copiá el texto completo de la ficha de Sancor y pegalo acá. El asistente extraerá siniestro, patente, vehículo, gestor e instrucciones.
                 </p>
                 <textarea
                     value={textoParser}
-                    onChange={(e) => setTextoParser(e.target.value)}
-                    placeholder="Detalles de orden de servicio... OS 513822... Vehículo RENAULT SANDERO..."
+                    onChange={(e) => { setTextoParser(e.target.value); setParserResult(null); }}
+                    placeholder="Detalles de orden de servicio\nSiniestro nro. 2003939957\nPatente AB311WJ\nOS 530403 - Pericias Mecánicas..."
                     rows={3}
                     className="w-full bg-bg-primary border border-border rounded-md px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-brand-primary resize-none placeholder:text-text-muted/60"
                 />
@@ -223,6 +224,7 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                     onClick={async () => {
                         if (!textoParser.trim()) return;
                         setIsParsing(true);
+                        setParserResult(null);
                         try {
                             const res = await fetch("/api/parsear-caso", {
                                 method: "POST",
@@ -231,26 +233,46 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                             });
                             const { success, data } = await res.json();
                             if (success && data) {
-                                if (data.numero_siniestro) setNumSiniestro(data.numero_siniestro);
-                                if (data.numero_servicio) setNumServicio(data.numero_servicio);
+                                const details: Record<string, string> = {};
 
-                                if (data.direccion_inspeccion) setDireccion(data.direccion_inspeccion);
-                                if (data.link_orion) setLinkOrion(data.link_orion);
+                                if (data.numero_siniestro) { setNumSiniestro(data.numero_siniestro); details["Siniestro"] = data.numero_siniestro; }
+                                if (data.numero_servicio) { setNumServicio(data.numero_servicio); details["Servicio (OS)"] = data.numero_servicio; }
+                                if (data.dominio) { setDominio(data.dominio); details["Patente"] = data.dominio; }
+                                if (data.vehiculo) { setMarca(data.vehiculo); details["Vehículo"] = data.vehiculo; }
+                                if (data.instrucciones) { setDescripcion(data.instrucciones); details["Instrucciones"] = data.instrucciones.substring(0, 60) + (data.instrucciones.length > 60 ? "..." : ""); }
+                                else { setDescripcion(textoParser); }
 
+                                let gestorHelper: string | undefined;
                                 if (data.gestor_nombre) {
-                                    const nombreStr = data.gestor_nombre.toLowerCase();
-                                    const matchedGestor = gestores.find(g =>
-                                        nombreStr.includes(g.nombre.toLowerCase().split(' ')[0]) ||
-                                        (g.apellido && nombreStr.includes(g.apellido.toLowerCase().split(' ')[0]))
-                                    );
-                                    if (matchedGestor) setGestorId(matchedGestor.id);
+                                    const nombreRaw = data.gestor_nombre.trim();
+                                    // 1. Exact fullname match (case-insensitive)
+                                    let matchedGestor = gestores.find(g => g.nombre.toLowerCase() === nombreRaw.toLowerCase());
+                                    // 2. Fallback: first word (apellido) match
+                                    if (!matchedGestor) {
+                                        const apellido = nombreRaw.split(' ')[0].toLowerCase();
+                                        matchedGestor = gestores.find(g => g.nombre.toLowerCase().startsWith(apellido));
+                                    }
+                                    if (matchedGestor) {
+                                        setGestorId(matchedGestor.id);
+                                        details["Gestor"] = `${nombreRaw} (asignado)`;
+                                    } else {
+                                        gestorHelper = nombreRaw;
+                                        details["Gestor"] = `${nombreRaw} (no encontrado)`;
+                                    }
                                 }
 
-                                if (data.instrucciones) setDescripcion(data.instrucciones);
-                                else setDescripcion(textoParser); // backup completo si falla la regex
+                                setParserResult({
+                                    campos_encontrados: data.campos_encontrados || [],
+                                    campos_no_encontrados: data.campos_no_encontrados || [],
+                                    details,
+                                    gestorHelper,
+                                });
 
-                                setTextoParser("");
-                                toast.success(`Datos extraídos (${(data.confianza * 100).toFixed(0)}% ref)`);
+                                if (!data.numero_siniestro) {
+                                    toast.error("No se pudo detectar un número de siniestro en el texto. Verificá que copiaste todo el contenido de la ficha.");
+                                } else {
+                                    toast.success(`${data.campos_encontrados?.length || 0} campos extraídos`);
+                                }
                             } else {
                                 toast.error("No se detectó información estructurada.");
                             }
@@ -265,6 +287,36 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                 >
                     {isParsing ? <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> Procesando...</> : "Parsear texto y auto-completar"}
                 </Button>
+
+                {/* Visual Checklist */}
+                {parserResult && (
+                    <div className="bg-bg-primary border border-border rounded-lg p-3 space-y-1.5 text-xs animate-in fade-in slide-in-from-top-2 duration-300">
+                        {parserResult.campos_encontrados.map(c => (
+                            <div key={c} className="flex items-start gap-2 text-color-success">
+                                <Check className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span><strong>{c}:</strong> <span className="text-text-primary">{parserResult.details[c] || "✓"}</span></span>
+                            </div>
+                        ))}
+                        {parserResult.campos_no_encontrados.map(c => (
+                            <div key={c} className="flex items-center gap-2 text-text-muted">
+                                <X className="w-3.5 h-3.5 shrink-0" />
+                                <span>{c}: completar manualmente</span>
+                            </div>
+                        ))}
+                        {["Fecha de inspección", "Dirección", "Perito de calle"].map(c => (
+                            <div key={c} className="flex items-center gap-2 text-text-muted">
+                                <X className="w-3.5 h-3.5 shrink-0" />
+                                <span>{c}: completar manualmente</span>
+                            </div>
+                        ))}
+                        {parserResult.gestorHelper && (
+                            <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-amber-400 text-[11px]">
+                                <AlertCircle className="w-3.5 h-3.5 inline mr-1" />
+                                Gestor detectado: <strong>{parserResult.gestorHelper}</strong> — no encontrado en el sistema. Podés agregarlo en Directorio → Gestores.
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">

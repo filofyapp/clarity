@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Download, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
@@ -19,10 +19,12 @@ interface ImageLightboxProps {
 
 export function ImageLightbox({ images, initialIndex = 0, open, onClose }: ImageLightboxProps) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [rotation, setRotation] = useState(0);
 
     // Sync index when images or initialIndex change
     useEffect(() => {
         setCurrentIndex(initialIndex);
+        setRotation(0);
     }, [initialIndex, open]);
 
     // Keyboard navigation
@@ -34,6 +36,8 @@ export function ImageLightbox({ images, initialIndex = 0, open, onClose }: Image
             setCurrentIndex(prev => prev < images.length - 1 ? prev + 1 : 0);
         } else if (e.key === "Escape") {
             onClose();
+        } else if (e.key === "r" || e.key === "R") {
+            setRotation(prev => (prev + 90) % 360);
         }
     }, [open, images.length, onClose]);
 
@@ -84,6 +88,16 @@ export function ImageLightbox({ images, initialIndex = 0, open, onClose }: Image
                         </Button>
                         <Button
                             variant="ghost"
+                            size="sm"
+                            className="text-white hover:bg-white/20"
+                            onClick={() => setRotation(prev => (prev + 90) % 360)}
+                            title="Rotar (R)"
+                        >
+                            <RotateCw className="w-4 h-4 mr-2" />
+                            Rotar
+                        </Button>
+                        <Button
+                            variant="ghost"
                             size="icon"
                             className="text-white hover:bg-white/20 rounded-full"
                             onClick={onClose}
@@ -113,7 +127,8 @@ export function ImageLightbox({ images, initialIndex = 0, open, onClose }: Image
                     <img
                         src={current.url}
                         alt={current.nombre}
-                        className="max-w-full max-h-full object-contain cursor-default"
+                        className="max-w-full max-h-full object-contain cursor-default transition-transform duration-200"
+                        style={{ transform: `rotate(${rotation}deg)` }}
                         onClick={(e) => e.stopPropagation()}
                     />
 
@@ -135,7 +150,7 @@ export function ImageLightbox({ images, initialIndex = 0, open, onClose }: Image
                         {images.map((img, idx) => (
                             <button
                                 key={idx}
-                                onClick={() => setCurrentIndex(idx)}
+                                onClick={() => { setCurrentIndex(idx); setRotation(0); }}
                                 className={`relative h-14 w-14 shrink-0 rounded overflow-hidden transition-all ${idx === currentIndex ? 'ring-2 ring-brand-primary opacity-100 scale-105' : 'opacity-50 hover:opacity-100'}`}
                             >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Upload, FileText, Trash2, Download, Loader2, FolderOpen, Eye, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, FileText, Trash2, Download, Loader2, FolderOpen, Eye, ExternalLink, ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -29,6 +29,7 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
     const [downloadingZip, setDownloadingZip] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+    const [rotation, setRotation] = useState(0);
 
     const bucketName = "caso-archivos";
     const folderPath = `${casoId}/`;
@@ -66,6 +67,7 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
             if (e.key === "ArrowRight") navigateLightbox(1);
             else if (e.key === "ArrowLeft") navigateLightbox(-1);
             else if (e.key === "Escape") setLightboxIndex(null);
+            else if (e.key === "r" || e.key === "R") setRotation(prev => (prev + 90) % 360);
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
@@ -76,12 +78,13 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
         const next = lightboxIndex + dir;
         if (next >= 0 && next < previewableFiles.length) {
             setLightboxIndex(next);
+            setRotation(0);
         }
     };
 
     const openLightbox = (archivo: ArchivoItem) => {
         const idx = previewableFiles.findIndex(a => a.name === archivo.name);
-        if (idx >= 0) setLightboxIndex(idx);
+        if (idx >= 0) { setLightboxIndex(idx); setRotation(0); }
     };
 
     const handleUpload = async (files: FileList | null) => {
@@ -344,7 +347,8 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
                             <img
                                 src={currentUrl}
                                 alt={cleanName(currentPreview.name)}
-                                className="max-w-full max-h-full object-contain"
+                                className="max-w-full max-h-full object-contain transition-transform duration-200"
+                                style={{ transform: `rotate(${rotation}deg)` }}
                                 draggable={false}
                             />
                         </div>
@@ -392,6 +396,18 @@ export function ZonaArchivos({ casoId }: ZonaArchivosProps) {
                             <ExternalLink className="w-4 h-4 mr-2" />
                             Abrir original
                         </Button>
+                        {currentType === "image" && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-text-primary border-border"
+                                onClick={() => setRotation(prev => (prev + 90) % 360)}
+                                title="Rotar (R)"
+                            >
+                                <RotateCw className="w-4 h-4 mr-2" />
+                                Rotar
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"

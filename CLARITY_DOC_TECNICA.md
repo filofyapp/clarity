@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 16/03/2026 (Sprint 9)
+QUE SE CAMBIO: (1) Fix mail gestor vacío en derivación. (2) Mi Agenda: agrupación Hoy/Mañana con ocultamiento de Mañana. (3) Buscador en Tareas. (4) Dashboard perito carga: facturado mensual con filtro de mes.
+POR QUE: (1) `gestor_email` se enviaba vacío porque el select de `gestores` no incluía `email`. (2) Los peritos se confundían viendo tareas de mañana mezcladas con las de hoy. (3) No había forma de buscar tareas específicas entre muchas. (4) El perito de carga no podía comparar su facturación entre meses.
+COMO: (1) `templates.ts`: agregado `email` al select `gestor:gestores(nombre, email)`. (2) `mi-agenda/actions.ts`: cálculo de `hoy` y `manana`; `mi-agenda/page.tsx`: agrupación en secciones Hoy/Mañana/Próximas, Mañana solo visible si Hoy está vacío, badge discreto cuando Mañana está oculto. (3) `KanbanBoard.tsx`: estado `searchTerm`, input con ícono Search, filtro por `titulo` y `caso.numero_siniestro` case-insensitive, aplica a las 3 columnas. (4) `PanelPeritoCarga.tsx`: calcula billing mes actual + anterior server-side; `FacturacionMensualCarga.tsx` (NUEVO): componente client con toggle ◁/▷ entre meses, muestra total + count + desglose por tipo on hover. Usa `monto_pagado_perito_carga`.
+ARCHIVOS AFECTADOS: `templates.ts`, `mi-agenda/actions.ts`, `mi-agenda/page.tsx`, `KanbanBoard.tsx`, `PanelPeritoCarga.tsx`, `FacturacionMensualCarga.tsx` (NUEVO)
+EFECTOS COLATERALES: Ninguno. Mi Agenda ahora muestra sección "Próximas" para IPs con fecha >mañana (antes se mostraban igual que las de hoy). Búsqueda en Tareas funciona sobre las 3 columnas del kanban simultáneamente.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 15/03/2026 (Sprint 8.6)
 QUE SE CAMBIO: Reescritura completa de Tiempos Medios de Gestión en Reportes.
 POR QUE: La sección anterior tenía 2 de 5 intervalos hardcodeados a "Sin datos" (Carga→Licitación y Licitación→Cierre), no filtraba por rango de fechas y no mostraba desglose por perito.

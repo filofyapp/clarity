@@ -4,6 +4,7 @@ import { formatDistanceToNow, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { FacturacionMensualCarga } from "./FacturacionMensualCarga";
 
 interface Props { userId: string; }
 
@@ -25,28 +26,31 @@ export async function PanelPeritoCarga({ userId }: Props) {
     const enProceso = [...pendientePpto, ...licitando, ...enConsulta];
     const cerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
 
+    // Prepare data for billing (mes actual + mes anterior)
     const now = new Date();
-    const isThisMonth = (d: string) => {
-        if (!d) return false;
-        const date = new Date(d);
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    const mesActualInicio = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const mesAnteriorInicio = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+    const mesAnteriorFin = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
+
+    const casosCerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
+
+    const casosMesActual = casosCerrados.filter(c => c.fecha_cierre && c.fecha_cierre >= mesActualInicio);
+    const casosMesAnterior = casosCerrados.filter(c => c.fecha_cierre && c.fecha_cierre >= mesAnteriorInicio && c.fecha_cierre <= mesAnteriorFin);
+
+    const calcDesglose = (lista: typeof casos) => {
+        const total = lista.reduce((s, c) => s + (c.monto_pagado_perito_carga || 0), 0);
+        const desglose = lista.reduce((acc, c) => {
+            const tipo = c.tipo_inspeccion || "otros";
+            if (!acc[tipo]) acc[tipo] = { count: 0, sum: 0 };
+            acc[tipo].count += 1;
+            acc[tipo].sum += (c.monto_pagado_perito_carga || 0);
+            return acc;
+        }, {} as Record<string, { count: number, sum: number }>);
+        return { total, desglose, count: lista.length };
     };
 
-    const casosCerradosMes = casos.filter(c =>
-        (c.estado === "ip_cerrada" || c.estado === "facturada") &&
-        isThisMonth(c.fecha_cierre)
-    );
-
-    const totalFacturado = casosCerradosMes.reduce((s, c) => s + (c.monto_pagado_perito_carga || 0), 0);
-
-    // Desglose por tipo
-    const desglose = casosCerradosMes.reduce((acc, c) => {
-        const tipo = c.tipo_inspeccion || "otros";
-        if (!acc[tipo]) acc[tipo] = { count: 0, sum: 0 };
-        acc[tipo].count += 1;
-        acc[tipo].sum += (c.monto_pagado_perito_carga || 0);
-        return acc;
-    }, {} as Record<string, { count: number, sum: number }>);
+    const mesActualData = calcDesglose(casosMesActual);
+    const mesAnteriorData = calcDesglose(casosMesAnterior);
 
     // Tareas
     const { data: tareasPendientes } = await supabase
@@ -68,27 +72,11 @@ export async function PanelPeritoCarga({ userId }: Props) {
                 <KpiCard icon={Clock} label="En Proceso" value={enProceso.length.toString()} color="text-color-warning" />
                 <KpiCard icon={CheckCircle2} label="Cerrados" value={cerrados.length.toString()} color="text-color-success" />
 
-                {/* Cobrado KPI con Tooltip / Popover Desglose */}
-                <div className="bg-bg-secondary border border-border rounded-xl p-4 flex flex-col group relative">
-                    <div className="flex items-center gap-2 text-text-muted text-xs mb-1">
-                        <TrendingUp className="w-3.5 h-3.5" /> Generado (Mes)
-                    </div>
-                    <p className={`text-2xl font-bold text-brand-secondary`}>{formatCurrency(totalFacturado)}</p>
-                    {/* Tooltip Hover Breakdown */}
-                    {Object.keys(desglose).length > 0 && (
-                        <div className="absolute top-full left-0 mt-2 w-full bg-bg-elevated border border-border p-3 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
-                            <h4 className="text-[10px] uppercase font-bold text-text-muted mb-2 border-b border-border pb-1">Desglose de Ingresos</h4>
-                            <div className="space-y-1.5">
-                                {Object.entries(desglose).map(([tipo, data]) => (
-                                    <div key={tipo} className="flex items-center justify-between text-xs">
-                                        <span className="capitalize text-text-secondary">{tipo.replace(/_/g, " ")} ({data.count})</span>
-                                        <span className="font-semibold text-text-primary">{formatCurrency(data.sum)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+                {/* Billing — client component with month toggle */}
+                <FacturacionMensualCarga
+                    mesActual={mesActualData}
+                    mesAnterior={mesAnteriorData}
+                />
             </div>
 
             {/* Desglose por estado */}

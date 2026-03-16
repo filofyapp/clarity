@@ -43,7 +43,7 @@ export async function renderTemplate(casoId: string, templateCodigo: string): Pr
             fecha_inspeccion_programada,
             tipo_inspeccion,
             gestor_id,
-            gestor:gestores(nombre),
+            gestor:gestores(nombre, email),
             perito_calle_id,
             perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido, email),
             taller_id,

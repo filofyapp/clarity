@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, closestCorners, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { TareaCard, EstadoTarea } from "./TareaCard";
-import { Circle, Clock, CheckCircle2, Filter, Flame } from "lucide-react";
+import { Circle, Clock, CheckCircle2, Filter, Flame, Search } from "lucide-react";
 import { updateTareaEstado } from "@/app/(dashboard)/tareas/actions";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
     const [activeId, setActiveId] = useState<string | null>(null);
     const [filtro, setFiltro] = useState<"todas" | "mias" | "creadas" | "urgentes">("todas");
     const [showAllResueltas, setShowAllResueltas] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -36,6 +37,12 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
         if (filtro === "creadas") return t.creador_id === currentUserId;
         if (filtro === "urgentes") return t.prioridad === "urgente" || t.prioridad === "alfredo";
         return true;
+    }).filter(t => {
+        if (!searchTerm.trim()) return true;
+        const q = searchTerm.toLowerCase();
+        const matchTitulo = t.titulo?.toLowerCase().includes(q);
+        const matchSiniestro = t.caso?.numero_siniestro?.toLowerCase().includes(q);
+        return matchTitulo || matchSiniestro;
     });
 
     const getTareasByEstado = (estado: EstadoTarea) =>
@@ -100,6 +107,18 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
                         </button>
                     );
                 })}
+            </div>
+
+            {/* Search */}
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+                <input
+                    type="text"
+                    placeholder="Buscar por título o siniestro..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-bg-secondary border border-border-subtle rounded-full text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand-primary/40 transition-colors"
+                />
             </div>
 
             <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

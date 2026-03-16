@@ -10,13 +10,16 @@ import { revalidatePath } from "next/cache";
 export async function getMiAgenda() {
     const supabase = await createClient();
 
-    // El RLS de la tabla 'casos' debería filtrar automáticamente si el rol es 'calle'
-    // De todas formas forzamos la busqueda por seguridad operativa para la vista.
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
         return { data: null, error: "Usuario no autenticado" };
     }
+
+    // Fetch today and tomorrow for grouping
+    const now = new Date();
+    const hoy = now.toISOString().slice(0, 10);
+    const manana = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
 
     const { data, error } = await supabase
         .from("casos")
@@ -39,7 +42,7 @@ export async function getMiAgenda() {
         .eq("estado", "ip_coordinada")
         .order("fecha_inspeccion_programada", { ascending: true });
 
-    return { data, error };
+    return { data, error, hoy, manana };
 }
 
 export async function toggleLinkEnviado(casoId: string, enviado: boolean) {

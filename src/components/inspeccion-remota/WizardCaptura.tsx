@@ -742,7 +742,7 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                             {observacionesOpen ? <ChevronUp className="w-4 h-4 text-[#6B5F78]" /> : <ChevronDown className="w-4 h-4 text-[#6B5F78]" />}
                         </button>
 
-                        <div className={`overflow-hidden transition-all duration-300 ${observacionesOpen ? 'max-h-[600px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                        <div className={`transition-all duration-300 ${observacionesOpen ? 'max-h-[2000px] opacity-100 mt-3' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                             {/* Textarea */}
                             <div className="relative mb-4">
                                 <textarea

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { X, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Download, FolderDown, AlertCircle } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Image as ImageIcon, Loader2, Download, FolderDown, AlertCircle, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import JSZip from "jszip";
 
@@ -65,6 +65,7 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
     const panStart = useRef({ x: 0, y: 0 });
     const [activeFilter, setActiveFilter] = useState<string | null>(null);
     const [downloading, setDownloading] = useState(false);
+    const [rotation, setRotation] = useState(0);
 
     useEffect(() => {
         async function fetchFotos() {
@@ -127,6 +128,7 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
         setLightboxIndex(newIndex);
         resetZoom();
         setActiveFilter(null);
+        setRotation(0);
     }, [resetZoom]);
 
     const openLightbox = (index: number) => {
@@ -134,6 +136,7 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
         setShowLightbox(true);
         resetZoom();
         setActiveFilter(null);
+        setRotation(0);
         document.body.style.overflow = "hidden";
     };
 
@@ -154,6 +157,8 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
             } else if (e.key === "ArrowRight") {
                 e.preventDefault();
                 changePhoto(Math.min(filteredFotos.length - 1, lightboxIndex + 1));
+            } else if (e.key === "r" || e.key === "R") {
+                setRotation(prev => (prev + 90) % 360);
             }
         };
         window.addEventListener("keydown", handleKeyDown);
@@ -364,7 +369,14 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
                                 title="Descargar esta foto"
                                 className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-md transition-all"
                             >
-                                <Download className="w-4 h-4" />
+                            <Download className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setRotation(prev => (prev + 90) % 360)}
+                                title="Rotar (R)"
+                                className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-md transition-all"
+                            >
+                                <RotateCw className="w-4 h-4" />
                             </button>
                             <button onClick={closeLightbox} className="p-2 text-white/60 hover:text-white">
                                 <X className="w-5 h-5" />
@@ -412,7 +424,7 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
                                 alt={filteredFotos[lightboxIndex].tipo}
                                 className="max-w-[90vw] max-h-[calc(100vh-140px)] object-contain rounded-lg transition-all duration-150"
                                 style={{
-                                    transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
+                                    transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px) rotate(${rotation}deg)`,
                                     filter: activeFilter ? FILTER_PRESETS.find(f => f.id === activeFilter)?.css : "none",
                                 }}
                                 draggable={false}

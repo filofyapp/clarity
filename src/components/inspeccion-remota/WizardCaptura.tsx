@@ -145,10 +145,16 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
 
     // Audio recording functions
     const startRecording = useCallback(async () => {
+        setAudioError(null);
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // Try preferred MIME types in order
-            const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+            // Check if getUserMedia is available (requires HTTPS)
+            if (!navigator.mediaDevices?.getUserMedia) {
+                setAudioError("Tu navegador no soporta grabación de audio. Probá con Safari o Chrome.");
+                return;
+            }
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false } });
+            // Try preferred MIME types — audio/mp4 first for iOS Safari compatibility
+            const mimeTypes = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
             let mimeType = '';
             for (const mt of mimeTypes) {
                 if (MediaRecorder.isTypeSupported(mt)) { mimeType = mt; break; }
@@ -158,7 +164,7 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
             recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
             recorder.onstop = () => {
                 stream.getTracks().forEach(t => t.stop());
-                const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+                const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/mp4' });
                 setAudioBlob(blob);
                 const localUrl = URL.createObjectURL(blob);
                 setAudioLocalUrl(localUrl);
@@ -174,7 +180,6 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
             setAudioBlob(null);
             setAudioLocalUrl(null);
             setAudioUrl(null);
-            setAudioError(null);
             recordingTimerRef.current = setInterval(() => {
                 setRecordingTime(prev => {
                     if (prev >= 119) {
@@ -184,8 +189,13 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                     return prev + 1;
                 });
             }, 1000);
-        } catch {
-            setAudioError("No se pudo acceder al micrófono");
+        } catch (err: any) {
+            const msg = err?.name === 'NotAllowedError'
+                ? "Permiso de micrófono denegado. Revisá los permisos del navegador."
+                : err?.name === 'NotFoundError'
+                ? "No se encontró un micrófono en el dispositivo."
+                : `No se pudo acceder al micrófono (${err?.name || 'error desconocido'})`;
+            setAudioError(msg);
         }
     }, []);
 
@@ -762,12 +772,23 @@ export function WizardCaptura({ token, siniestro, vehiculo, dominio, tipoInspecc
                             {mediaRecorderSupported && (
                                 <div className="space-y-2">
                                     {!audioBlob && !isRecording && (
+                                        <>
                                         <button
+                                            type="button"
                                             onClick={startRecording}
-                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#D6006E]/10 border border-[#D6006E]/20 text-[#D6006E] text-sm font-medium hover:bg-[#D6006E]/15 transition-colors"
+                                            onContextMenu={(e) => e.preventDefault()}
+                                            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#D6006E]/10 border border-[#D6006E]/20 text-[#D6006E] text-sm font-medium hover:bg-[#D6006E]/15 transition-colors select-none"
+                                            style={{ WebkitTouchCallout: 'none', touchAction: 'manipulation' } as React.CSSProperties}
                                         >
                                             <Mic className="w-4 h-4" /> Grabar audio
                                         </button>
+                                        {audioError && (
+                                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                                <span>{audioError}</span>
+                                            </div>
+                                        )}
+                                        </>
                                     )}
 
                                     {isRecording && (

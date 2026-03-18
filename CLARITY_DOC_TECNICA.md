@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Fix audio inspección remota — iOS Safari / Chrome)
+QUE SE CAMBIO: Botón "Grabar audio" en el resumen de inspección remota ahora funciona correctamente en iOS Safari y Chrome.
+POR QUE: En iPhone 13 (Chrome for iOS), el botón de grabar audio no respondía al tap normal, y al mantener presionado se abría Google Lens. Esto ocurría porque: (1) el `<button>` no tenía `type="button"` explícito, (2) no se prevenía el context menu nativo del long-press, (3) no había `-webkit-touch-callout: none` ni `touch-action: manipulation`, (4) si `getUserMedia` fallaba (permisos denegados), el error no se mostraba al usuario porque el display de errores dependía de `audioBlob` (que no existía antes de grabar).
+COMO: (1) `WizardCaptura.tsx`: botón de audio ahora tiene `type="button"`, `onContextMenu={(e) => e.preventDefault()}`, `select-none`, `style={{ WebkitTouchCallout: 'none', touchAction: 'manipulation' }}`. (2) Error de micrófono ahora se muestra debajo del botón incluso antes de la primera grabación (fragment `<>` con error card). (3) `startRecording` ahora detecta `getUserMedia` no disponible, y da mensajes específicos para `NotAllowedError` (permisos) y `NotFoundError` (sin micrófono). (4) MIME type priority cambiado a `audio/mp4` primero (iOS Safari solo soporta MP4/AAC, no WebM).
+ARCHIVOS AFECTADOS: `WizardCaptura.tsx`
+EFECTOS COLATERALES: Ninguno. En navegadores que soportan WebM, `audio/mp4` se intentará primero pero si no está soportado, se cae a `audio/webm` normalmente. El fallback sigue funcionando.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 18/03/2026 (Fix Cola de Carga — Timer muestra antigüedad en pendiente_carga)
 QUE SE CAMBIO: El badge de antigüedad en la Cola de Carga ahora muestra el tiempo desde que el caso entró a `pendiente_carga` (`fecha_carga_sistema`) en vez del timestamp genérico `updated_at`.
 POR QUE: Un caso que acababa de ser completado por inspección remota mostraba "Hace 3d 6hs" porque `updated_at` reflejaba la última actualización del caso (posiblemente la creación o una edición anterior), no el momento en que entró a la cola de carga.

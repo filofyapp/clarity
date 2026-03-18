@@ -12,20 +12,13 @@ export interface CasoInspeccion {
     direccion: string;
     localidad: string | null;
     tipo_inspeccion: string;
-    perito_calle_id: string;
-    perito_nombre: string;
-    perito_apellido: string;
-    fecha_completada: string; // date only YYYY-MM-DD
+    perito_calle_id: string | null;
+    perito_nombre: string | null;
 }
 
 export interface DiaKilometraje {
     fecha: string;
-    perito_id: string;
-    perito_nombre: string;
-    perito_apellido: string;
-    perito_direccion_base: string | null;
     casos: CasoInspeccion[];
-    // From DB if already calculated
     registro?: RegistroKm | null;
 }
 
@@ -52,127 +45,93 @@ export interface RegistroKm {
 }
 
 // ═══════════════════════════════════════════
-// getDiasKilometraje
+// PUNTO DE PARTIDA DEFAULT (domicilio del estudio)
 // ═══════════════════════════════════════════
-export async function getDiasKilometraje(mes: string, peritoId?: string) {
+export const PUNTO_PARTIDA_DEFAULT = "9 de Julio 62, Bernal";
+
+// ═══════════════════════════════════════════
+// getDiasKilometraje
+// Query: ALL cases with fecha_inspeccion_programada in the month
+// Group: by fecha_inspeccion_programada (one day = one card)
+// ═══════════════════════════════════════════
+export async function getDiasKilometraje(mes: string) {
     const supabase = await createClient();
 
-    // 1. Build date range from mes (YYYY-MM)
     const [year, month] = mes.split("-").map(Number);
     const inicioMes = `${mes}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const finMes = `${mes}-${String(lastDay).padStart(2, "0")}`;
 
-    // 2. Find all cases that transitioned to pendiente_carga during this month
-    //    via historial_estados. This tells us when the inspection was completed.
-    let query = supabase
-        .from("historial_estados")
+    // Query all cases that have fecha_inspeccion_programada in the selected month
+    const { data: casosData, error } = await supabase
+        .from("casos")
         .select(`
-            caso_id,
-            created_at,
-            casos!inner(
-                id,
-                numero_siniestro,
-                direccion_inspeccion,
-                localidad,
-                tipo_inspeccion,
-                perito_calle_id,
-                perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido, direccion_base)
-            )
+            id,
+            numero_siniestro,
+            direccion_inspeccion,
+            localidad,
+            tipo_inspeccion,
+            fecha_inspeccion_programada,
+            perito_calle_id,
+            perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido)
         `)
-        .eq("estado_nuevo", "pendiente_carga")
-        .gte("created_at", `${inicioMes}T00:00:00`)
-        .lte("created_at", `${finMes}T23:59:59`);
+        .not("fecha_inspeccion_programada", "is", null)
+        .gte("fecha_inspeccion_programada", inicioMes)
+        .lte("fecha_inspeccion_programada", finMes)
+        .order("fecha_inspeccion_programada", { ascending: true })
+        .order("numero_siniestro", { ascending: true });
 
-    if (peritoId) {
-        query = query.eq("casos.perito_calle_id", peritoId);
-    }
-
-    const { data: historial, error } = await query;
     if (error) {
-        console.error("Error fetching historial:", error);
+        console.error("Error fetching casos:", error);
         return { error: error.message };
     }
 
-    // 3. Build CasoInspeccion list
-    const casosMap = new Map<string, CasoInspeccion>();
-
-    for (const h of (historial || [])) {
-        const caso = h.casos as any;
-        if (!caso || !caso.perito_calle_id || !caso.perito_calle) continue;
-        // Use date portion of created_at as fecha_completada
-        const fechaCompletada = new Date(h.created_at).toISOString().split("T")[0];
-        const key = `${caso.id}_${fechaCompletada}`;
-        if (casosMap.has(key)) continue; // avoid duplicates
-
-        casosMap.set(key, {
-            caso_id: caso.id,
-            numero_siniestro: caso.numero_siniestro,
-            direccion: caso.direccion_inspeccion || "",
-            localidad: caso.localidad,
-            tipo_inspeccion: caso.tipo_inspeccion,
-            perito_calle_id: caso.perito_calle_id,
-            perito_nombre: caso.perito_calle.nombre,
-            perito_apellido: caso.perito_calle.apellido,
-            fecha_completada: fechaCompletada,
-        });
-    }
-
-    const casos = Array.from(casosMap.values());
-
-    // 4. Group by fecha + perito_calle_id
+    // Group by fecha_inspeccion_programada
     const diasMap = new Map<string, CasoInspeccion[]>();
-    for (const c of casos) {
-        const key = `${c.fecha_completada}_${c.perito_calle_id}`;
-        if (!diasMap.has(key)) diasMap.set(key, []);
-        diasMap.get(key)!.push(c);
+
+    for (const c of (casosData || [])) {
+        const fecha = c.fecha_inspeccion_programada as string;
+        if (!fecha) continue;
+
+        const peritoCalle = c.perito_calle as any;
+        const caso: CasoInspeccion = {
+            caso_id: c.id,
+            numero_siniestro: c.numero_siniestro,
+            direccion: c.direccion_inspeccion || "",
+            localidad: c.localidad,
+            tipo_inspeccion: c.tipo_inspeccion,
+            perito_calle_id: c.perito_calle_id,
+            perito_nombre: peritoCalle
+                ? `${peritoCalle.nombre} ${peritoCalle.apellido}`
+                : null,
+        };
+
+        if (!diasMap.has(fecha)) diasMap.set(fecha, []);
+        diasMap.get(fecha)!.push(caso);
     }
 
-    // 5. Fetch existing kilometraje_diario records for the month
-    let regQuery = supabase
+    // Fetch existing kilometraje_diario records for the month
+    const { data: registros } = await supabase
         .from("kilometraje_diario")
         .select("*")
         .gte("fecha", inicioMes)
         .lte("fecha", finMes);
 
-    if (peritoId) {
-        regQuery = regQuery.eq("perito_id", peritoId);
-    }
-
-    const { data: registros } = await regQuery;
+    // Map by fecha (take the first record for each date)
     const registrosMap = new Map<string, RegistroKm>();
     for (const r of (registros || [])) {
-        registrosMap.set(`${r.fecha}_${r.perito_id}`, r as RegistroKm);
+        if (!registrosMap.has(r.fecha)) {
+            registrosMap.set(r.fecha, r as RegistroKm);
+        }
     }
 
-    // 6. Fetch perito direccion_base for each unique perito
-    const peritoIds = [...new Set(casos.map(c => c.perito_calle_id))];
-    const { data: peritos } = await supabase
-        .from("usuarios")
-        .select("id, nombre, apellido, direccion_base")
-        .in("id", peritoIds.length > 0 ? peritoIds : ["00000000-0000-0000-0000-000000000000"]);
-
-    const peritosMap = new Map<string, any>();
-    for (const p of (peritos || [])) {
-        peritosMap.set(p.id, p);
-    }
-
-    // 7. Build DiaKilometraje[]
+    // Build DiaKilometraje[]
     const dias: DiaKilometraje[] = [];
-    for (const [key, casosList] of diasMap.entries()) {
-        const [fecha, peritoCId] = key.split("_");
-        const perito = peritosMap.get(peritoCId);
-
+    for (const [fecha, casosList] of diasMap.entries()) {
         dias.push({
             fecha,
-            perito_id: peritoCId,
-            perito_nombre: perito?.nombre || casosList[0].perito_nombre,
-            perito_apellido: perito?.apellido || casosList[0].perito_apellido,
-            perito_direccion_base: perito?.direccion_base || null,
-            casos: casosList.sort((a, b) =>
-                a.numero_siniestro.localeCompare(b.numero_siniestro)
-            ),
-            registro: registrosMap.get(`${fecha}_${peritoCId}`) || null,
+            casos: casosList,
+            registro: registrosMap.get(fecha) || null,
         });
     }
 
@@ -183,13 +142,13 @@ export async function getDiasKilometraje(mes: string, peritoId?: string) {
 }
 
 // ═══════════════════════════════════════════
-// getPeritos — active calle peritos
+// getPeritos — active calle peritos (for filter dropdown)
 // ═══════════════════════════════════════════
 export async function getPeritos() {
     const supabase = await createClient();
     const { data } = await supabase
         .from("usuarios")
-        .select("id, nombre, apellido, direccion_base")
+        .select("id, nombre, apellido")
         .eq("rol", "calle")
         .eq("activo", true)
         .order("nombre");
@@ -215,9 +174,9 @@ export async function getPrecioKm() {
 
 // ═══════════════════════════════════════════
 // guardarKilometraje — upsert daily record
+// Uses the admin's user ID as perito_id (constraint: perito_id+fecha)
 // ═══════════════════════════════════════════
 export async function guardarKilometraje(data: {
-    perito_id: string;
     fecha: string;
     casos_ids: string[];
     direcciones_ordenadas: string[];
@@ -235,11 +194,13 @@ export async function guardarKilometraje(data: {
     legs: any[] | null;
 }) {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "No autorizado" };
 
     const { error } = await supabase
         .from("kilometraje_diario")
         .upsert({
-            perito_id: data.perito_id,
+            perito_id: user.id, // admin's ID for the unique constraint
             fecha: data.fecha,
             casos_ids: data.casos_ids,
             direcciones_ordenadas: data.direcciones_ordenadas,
@@ -269,23 +230,22 @@ export async function guardarKilometraje(data: {
 // actualizarInclusiones — save checkbox state
 // ═══════════════════════════════════════════
 export async function actualizarInclusiones(
-    peritoId: string,
     fecha: string,
     casosIncluidos: string[],
     casosExcluidos: string[]
 ) {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "No autorizado" };
 
-    // Check if record exists
     const { data: existing } = await supabase
         .from("kilometraje_diario")
         .select("id")
-        .eq("perito_id", peritoId)
+        .eq("perito_id", user.id)
         .eq("fecha", fecha)
         .single();
 
     if (existing) {
-        // Update existing
         const { error } = await supabase
             .from("kilometraje_diario")
             .update({
@@ -295,11 +255,10 @@ export async function actualizarInclusiones(
             .eq("id", existing.id);
         if (error) return { error: error.message };
     } else {
-        // Create a minimal record with just inclusions
         const { error } = await supabase
             .from("kilometraje_diario")
             .insert({
-                perito_id: peritoId,
+                perito_id: user.id,
                 fecha,
                 casos_ids: casosIncluidos,
                 casos_incluidos: casosIncluidos,

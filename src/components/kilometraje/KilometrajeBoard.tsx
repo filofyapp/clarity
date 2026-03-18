@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
     Map, Calendar, DollarSign, ChevronDown, ChevronUp,
     Loader2, CheckCircle2, Circle, Calculator, Download,
@@ -11,15 +11,16 @@ import { format, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatCurrency } from "@/lib/utils/formatters";
 import {
-    DiaKilometraje, CasoInspeccion,
-    guardarKilometraje, actualizarInclusiones
+    DiaKilometraje,
+    guardarKilometraje,
+    PUNTO_PARTIDA_DEFAULT,
 } from "@/app/(dashboard)/kilometraje/actions";
 import { KilometrajeMapa } from "./KilometrajeMapa";
 
 // ═══ Tipos ═══
 interface Props {
     dias: DiaKilometraje[];
-    peritos: { id: string; nombre: string; apellido: string; direccion_base: string | null }[];
+    peritos: { id: string; nombre: string; apellido: string }[];
     precioKm: { estudio: number; perito: number };
     mesInicial: string;
     mapsApiKey: string;
@@ -53,10 +54,8 @@ function buildInitialState(dia: DiaKilometraje): DiaState {
     const incluidos = new Set<string>();
     for (const c of dia.casos) {
         if (hasDBState) {
-            // Restore from DB
             if (incluidosFromDB.includes(c.caso_id)) incluidos.add(c.caso_id);
         } else {
-            // Default: presenciales included, remotas excluded
             if (!TIPOS_REMOTOS.has(c.tipo_inspeccion)) incluidos.add(c.caso_id);
         }
     }
@@ -64,7 +63,7 @@ function buildInitialState(dia: DiaKilometraje): DiaState {
     return {
         expanded: false,
         incluidos,
-        puntoPartida: reg?.punto_partida || dia.perito_direccion_base || "",
+        puntoPartida: reg?.punto_partida || PUNTO_PARTIDA_DEFAULT,
         siniestroAsociado: reg?.siniestro_asociado || dia.casos[0]?.numero_siniestro || "",
         calculating: false,
         calculado: !!reg?.km_total && reg.km_total > 0,
@@ -78,8 +77,9 @@ function buildInitialState(dia: DiaKilometraje): DiaState {
     };
 }
 
+// Key is just the date (one card per day)
 function diaKey(dia: DiaKilometraje) {
-    return `${dia.fecha}_${dia.perito_id}`;
+    return dia.fecha;
 }
 
 // ═══ MAIN COMPONENT ═══
@@ -100,7 +100,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
     // ─── Global loading ───
     const [calculatingAll, setCalculatingAll] = useState(false);
     const [exportingExcel, setExportingExcel] = useState(false);
-    const [exportingImages, setExportingImages] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
     // Reinit states when dias change
@@ -114,16 +113,18 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dias]);
 
-    // ─── Filtered dias ───
-    const filteredDias = useMemo(() => {
-        if (selectedPerito === "todos") return dias;
-        return dias.filter(d => d.perito_id === selectedPerito);
-    }, [dias, selectedPerito]);
+    // ─── Visible cases per day (filtered by perito) ───
+    const getVisibleCasos = useCallback((dia: DiaKilometraje) => {
+        if (selectedPerito === "todos") return dia.casos;
+        return dia.casos.filter(c => c.perito_calle_id === selectedPerito);
+    }, [selectedPerito]);
 
     // ─── KPIs ───
     const kpis = useMemo(() => {
         let calculados = 0, pendientes = 0, kmTotal = 0;
-        for (const d of filteredDias) {
+        for (const d of dias) {
+            const visible = getVisibleCasos(d);
+            if (visible.length === 0) continue;
             const st = diaStates[diaKey(d)];
             if (st?.calculado && !st.needsRecalc) { calculados++; kmTotal += st.kmTotal; }
             else pendientes++;
@@ -135,7 +136,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
             montoEstudio: kmTotal * precioEstudio,
             montoPerito: kmTotal * precioPerito,
         };
-    }, [filteredDias, diaStates, precioEstudio, precioPerito]);
+    }, [dias, diaStates, precioEstudio, precioPerito, getVisibleCasos]);
 
     // ═══ ACTIONS ═══
 
@@ -171,7 +172,8 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
         const st = diaStates[key];
         if (!st || !st.puntoPartida) return;
 
-        const casosIncluidos = dia.casos.filter(c => st.incluidos.has(c.caso_id));
+        const visibleCasos = getVisibleCasos(dia);
+        const casosIncluidos = visibleCasos.filter(c => st.incluidos.has(c.caso_id));
         if (casosIncluidos.length === 0) return;
 
         setDiaStates(prev => ({
@@ -194,7 +196,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
 
             // Save to DB
             await guardarKilometraje({
-                perito_id: dia.perito_id,
                 fecha: dia.fecha,
                 casos_ids: casosIncluidos.map(c => c.caso_id),
                 direcciones_ordenadas: casosIncluidos.map(c => c.direccion),
@@ -207,7 +208,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                 punto_partida: st.puntoPartida,
                 siniestro_asociado: st.siniestroAsociado,
                 casos_incluidos: casosIncluidos.map(c => c.caso_id),
-                casos_excluidos: dia.casos.filter(c => !st.incluidos.has(c.caso_id)).map(c => c.caso_id),
+                casos_excluidos: visibleCasos.filter(c => !st.incluidos.has(c.caso_id)).map(c => c.caso_id),
                 ruta_orden: data.waypoint_order,
                 legs: data.legs,
             });
@@ -234,31 +235,32 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                 [key]: { ...prev[key], calculating: false }
             }));
         }
-    }, [diaStates, precioEstudio, precioPerito]);
+    }, [diaStates, precioEstudio, precioPerito, getVisibleCasos]);
 
     // ─── Calculate all pending ───
     const calcularTodas = useCallback(async () => {
         setCalculatingAll(true);
-        for (const dia of filteredDias) {
+        for (const dia of dias) {
+            const visible = getVisibleCasos(dia);
+            if (visible.length === 0) continue;
             const key = diaKey(dia);
             const st = diaStates[key];
             if (st && (!st.calculado || st.needsRecalc)) {
                 await calcularRuta(dia);
-                await new Promise(r => setTimeout(r, 2500)); // Rate limit
+                await new Promise(r => setTimeout(r, 2500));
             }
         }
         setCalculatingAll(false);
-    }, [filteredDias, diaStates, calcularRuta]);
+    }, [dias, diaStates, calcularRuta, getVisibleCasos]);
 
     // ─── Copy summary ───
     const copyResumen = useCallback((dia: DiaKilometraje) => {
         const key = diaKey(dia);
         const st = diaStates[key];
         if (!st) return;
-        const casosIncl = dia.casos.filter(c => st.incluidos.has(c.caso_id));
+        const casosIncl = getVisibleCasos(dia).filter(c => st.incluidos.has(c.caso_id));
         const text = [
             `Fecha: ${format(parse(dia.fecha, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")}`,
-            `Perito: ${dia.perito_nombre} ${dia.perito_apellido}`,
             `Siniestro asociado: ${st.siniestroAsociado}`,
             `Siniestros: ${casosIncl.map(c => c.numero_siniestro).join(" - ")}`,
             `Kilómetros: ${st.kmTotal.toFixed(1)} km`,
@@ -267,7 +269,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
         navigator.clipboard.writeText(text);
         setCopiedId(key);
         setTimeout(() => setCopiedId(null), 2000);
-    }, [diaStates, precioEstudio]);
+    }, [diaStates, precioEstudio, getVisibleCasos]);
 
     // ─── Excel export ───
     const exportExcel = useCallback(async () => {
@@ -276,13 +278,12 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
             const XLSX = await import("xlsx");
             const rows: any[] = [];
             let totalKm = 0;
-            for (const dia of filteredDias) {
+            for (const dia of dias) {
                 const key = diaKey(dia);
                 const st = diaStates[key];
                 if (!st || !st.calculado) continue;
-                const casosIncl = dia.casos.filter(c => st.incluidos.has(c.caso_id));
+                const casosIncl = getVisibleCasos(dia).filter(c => st.incluidos.has(c.caso_id));
 
-                // Build localidades in optimal order
                 const localidades = [st.puntoPartida];
                 if (st.rutaOrden && st.rutaOrden.length > 0) {
                     for (const idx of st.rutaOrden) {
@@ -295,7 +296,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
 
                 rows.push({
                     "Fecha": format(parse(dia.fecha, "yyyy-MM-dd", new Date()), "dd/MM"),
-                    "Perito": `${dia.perito_nombre} ${dia.perito_apellido}`,
                     "Sin. Asociado": st.siniestroAsociado,
                     "Localidades": localidades.join(" - "),
                     "Siniestros": casosIncl.map(c => c.numero_siniestro).join(" - "),
@@ -304,7 +304,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                 totalKm += st.kmTotal;
             }
             rows.push({
-                "Fecha": "", "Perito": "", "Sin. Asociado": "", "Localidades": "", "Siniestros": "TOTAL",
+                "Fecha": "", "Sin. Asociado": "", "Localidades": "", "Siniestros": "TOTAL",
                 "Kilometraje": totalKm,
             });
 
@@ -316,7 +316,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
             console.error("Excel export error:", err);
         }
         setExportingExcel(false);
-    }, [filteredDias, diaStates, selectedMes]);
+    }, [dias, diaStates, selectedMes, getVisibleCasos]);
 
     // ─── PNG export ───
     const exportImage = useCallback(async (dia: DiaKilometraje) => {
@@ -324,7 +324,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
         const st = diaStates[key];
         if (!st || !st.calculado) return;
 
-        const casosIncl = dia.casos.filter(c => st.incluidos.has(c.caso_id));
+        const casosIncl = getVisibleCasos(dia).filter(c => st.incluidos.has(c.caso_id));
         const canvas = document.createElement("canvas");
         const W = 1000, rowH = 30, headerH = 80, tableH = headerH + (casosIncl.length + 1) * rowH + 20;
         const mapH = 500;
@@ -333,22 +333,19 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
         canvas.height = H;
         const ctx = canvas.getContext("2d")!;
 
-        // Background
         ctx.fillStyle = "#0D0B12";
         ctx.fillRect(0, 0, W, H);
 
-        // Header
         ctx.fillStyle = "#F59E0B";
         ctx.font = "bold 20px Inter, system-ui";
         ctx.fillText(
-            `${format(parse(dia.fecha, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")} — ${dia.perito_nombre} ${dia.perito_apellido}`,
+            `${format(parse(dia.fecha, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")} — Circuito diario`,
             20, 35
         );
         ctx.fillStyle = "#9CA3AF";
         ctx.font = "14px Inter, system-ui";
         ctx.fillText(`${st.kmTotal.toFixed(1)} km · ${formatCurrency(st.kmTotal * precioEstudio)}`, 20, 58);
 
-        // Table header
         const ty = headerH;
         ctx.fillStyle = "#1F1B2E";
         ctx.fillRect(20, ty, W - 40, rowH);
@@ -358,7 +355,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
         ctx.fillText("Dirección", 200, ty + 20);
         ctx.fillText("Tipo IP", 700, ty + 20);
 
-        // Table rows
         for (let i = 0; i < casosIncl.length; i++) {
             const c = casosIncl[i];
             const ry = ty + rowH + i * rowH;
@@ -373,7 +369,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
             ctx.fillText(c.tipo_inspeccion, 700, ry + 20);
         }
 
-        // Map (static)
         if (st.polyline && mapsApiKey) {
             try {
                 const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?size=900x500&scale=2&maptype=roadmap` +
@@ -398,12 +393,11 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
             }
         }
 
-        // Download
         const link = document.createElement("a");
-        link.download = `KM_${dia.fecha}_${dia.perito_nombre}.png`;
+        link.download = `KM_${dia.fecha}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
-    }, [diaStates, precioEstudio, mapsApiKey]);
+    }, [diaStates, precioEstudio, mapsApiKey, getVisibleCasos]);
 
     // ═══ MONTHS OPTIONS ═══
     const monthOptions = useMemo(() => {
@@ -437,7 +431,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
             {/* ── Filters ── */}
             <div className="flex flex-wrap items-end gap-4 bg-bg-secondary border border-border rounded-xl p-4">
                 <div className="flex-1 min-w-[160px]">
-                    <label className="text-[11px] text-text-muted uppercase tracking-wider font-medium mb-1 block">Perito</label>
+                    <label className="text-[11px] text-text-muted uppercase tracking-wider font-medium mb-1 block">Perito (filtro)</label>
                     <select
                         value={selectedPerito}
                         onChange={e => setSelectedPerito(e.target.value)}
@@ -511,21 +505,25 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
             </div>
 
             {/* ── Days list ── */}
-            {filteredDias.length === 0 ? (
+            {dias.length === 0 ? (
                 <div className="bg-bg-secondary border border-border rounded-xl p-8 text-center">
                     <Navigation className="w-10 h-10 text-text-muted opacity-40 mx-auto mb-3" />
                     <p className="text-text-primary font-medium">Sin inspecciones este mes</p>
                     <p className="text-text-muted text-sm mt-1">
-                        No se encontraron inspecciones completadas para el período seleccionado.
+                        No se encontraron casos con fecha de inspección en el período seleccionado.
                     </p>
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {filteredDias.map(dia => {
+                    {dias.map(dia => {
                         const key = diaKey(dia);
                         const st = diaStates[key];
                         if (!st) return null;
-                        const casosIncl = dia.casos.filter(c => st.incluidos.has(c.caso_id));
+
+                        const visibleCasos = getVisibleCasos(dia);
+                        if (visibleCasos.length === 0) return null; // hide if filtered out entirely
+
+                        const casosIncl = visibleCasos.filter(c => st.incluidos.has(c.caso_id));
                         const monto = st.kmTotal * precioEstudio;
 
                         return (
@@ -546,11 +544,9 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                                         <div>
                                             <div className="flex items-center gap-2 text-text-primary font-semibold">
                                                 <span>Día {format(parse(dia.fecha, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")}</span>
-                                                <span className="text-text-muted font-normal">—</span>
-                                                <span className="text-brand-secondary">{dia.perito_nombre} {dia.perito_apellido}</span>
                                             </div>
                                             <div className="flex items-center gap-3 text-xs text-text-muted mt-0.5">
-                                                <span>{dia.casos.length} siniestro{dia.casos.length !== 1 ? "s" : ""}</span>
+                                                <span>{visibleCasos.length} siniestro{visibleCasos.length !== 1 ? "s" : ""}</span>
                                                 {st.calculado && !st.needsRecalc && (
                                                     <>
                                                         <span>·</span>
@@ -582,13 +578,13 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                                         <div className="flex flex-wrap gap-4 text-sm">
                                             <div className="flex-1 min-w-[200px]">
                                                 <label className="text-[11px] text-text-muted uppercase tracking-wider font-medium mb-1 block">
-                                                    <MapPin className="w-3 h-3 inline mr-1" />Punto de partida
+                                                    <MapPin className="w-3 h-3 inline mr-1" />Punto de partida / regreso
                                                 </label>
                                                 <input
                                                     value={st.puntoPartida}
                                                     onChange={e => updateField(key, "puntoPartida", e.target.value)}
                                                     className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2 text-text-primary focus:border-brand-secondary focus:outline-none"
-                                                    placeholder="Dirección base del perito"
+                                                    placeholder={PUNTO_PARTIDA_DEFAULT}
                                                 />
                                             </div>
                                             <div className="min-w-[200px]">
@@ -613,11 +609,12 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                                                         <th className="text-left px-3 py-2 text-text-muted text-xs font-medium">Siniestro</th>
                                                         <th className="text-left px-3 py-2 text-text-muted text-xs font-medium">Dirección</th>
                                                         <th className="text-left px-3 py-2 text-text-muted text-xs font-medium">Tipo IP</th>
+                                                        <th className="text-left px-3 py-2 text-text-muted text-xs font-medium">Perito</th>
                                                         <th className="text-left px-3 py-2 text-text-muted text-xs font-medium">Estado</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-border/30">
-                                                    {dia.casos.map(caso => {
+                                                    {visibleCasos.map(caso => {
                                                         const isIncluded = st.incluidos.has(caso.caso_id);
                                                         const isRemota = TIPOS_REMOTOS.has(caso.tipo_inspeccion);
                                                         return (
@@ -643,6 +640,7 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                                                                         {caso.tipo_inspeccion.replace(/_/g, " ")}
                                                                     </span>
                                                                 </td>
+                                                                <td className="px-3 py-2 text-text-secondary text-xs">{caso.perito_nombre || "—"}</td>
                                                                 <td className="px-3 py-2 text-xs">
                                                                     {isRemota && !isIncluded ? (
                                                                         <span className="text-text-muted">Excluida (remota)</span>
@@ -703,7 +701,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                                         {/* Results after calculation */}
                                         {st.calculado && !st.needsRecalc && (
                                             <div className="space-y-4 pt-2 border-t border-border">
-                                                {/* Summary */}
                                                 <div className="flex flex-wrap gap-4">
                                                     <div className="bg-brand-secondary/10 border border-brand-secondary/20 rounded-xl px-5 py-3">
                                                         <p className="text-[11px] text-brand-secondary/70 uppercase tracking-wider">Distancia total</p>
@@ -719,7 +716,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                                                     </div>
                                                 </div>
 
-                                                {/* Legs (route order) */}
                                                 {st.legs && st.legs.length > 0 && (
                                                     <div className="space-y-1">
                                                         <p className="text-xs text-text-muted font-medium uppercase tracking-wider">Orden de la ruta</p>
@@ -739,7 +735,6 @@ export function KilometrajeBoard({ dias, peritos, precioKm, mesInicial, mapsApiK
                                                     </div>
                                                 )}
 
-                                                {/* Map */}
                                                 {st.polyline && mapsApiKey && (
                                                     <KilometrajeMapa
                                                         apiKey={mapsApiKey}

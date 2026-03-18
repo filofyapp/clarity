@@ -11,7 +11,7 @@ export const metadata = {
 export default async function KilometrajePage({
     searchParams,
 }: {
-    searchParams: Promise<{ mes?: string; perito?: string }>;
+    searchParams: Promise<{ mes?: string }>;
 }) {
     const { getUsuarioActual } = await import("@/lib/auth");
     const userData = await getUsuarioActual();
@@ -27,7 +27,7 @@ export default async function KilometrajePage({
 
     // Fetch data
     const [diasResult, peritos, precioKm] = await Promise.all([
-        getDiasKilometraje(mesActual, params.perito),
+        getDiasKilometraje(mesActual),
         getPeritos(),
         getPrecioKm(),
     ]);

@@ -7,7 +7,7 @@ import {
     Camera, CheckCircle2, ChevronRight, ChevronLeft,
     Car, Loader2, Image as ImageIcon,
     Mic, Square, Play, Pause, Trash2, ChevronDown, ChevronUp,
-    Plus, X, PenTool, PartyPopper, MapPin
+    Plus, X, PenTool, PartyPopper, MapPin, Maximize2
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -146,9 +146,11 @@ export function InspeccionCampoWizard({
 
     // ═══ Firma state ═══
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fullscreenCanvasRef = useRef<HTMLCanvasElement>(null);
     const [firmaDibujada, setFirmaDibujada] = useState(false);
     const [isDrawing, setIsDrawing] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [firmaFullscreen, setFirmaFullscreen] = useState(false);
     const resumenRef = useRef<HTMLDivElement>(null);
 
     // ═══ Computed ═══
@@ -192,6 +194,9 @@ export function InspeccionCampoWizard({
             uploadPhoto(file, tipo, setFotosReg);
             if (pasoReg < PASOS_REGLAMENTARIOS.length - 1) {
                 setPasoReg(prev => prev + 1);
+            } else {
+                // Fix 1: Auto-transition to zona_danio after last photo
+                setStep("zona_danio");
             }
         }
         e.target.value = "";
@@ -267,9 +272,7 @@ export function InspeccionCampoWizard({
     };
 
     // ═══ Firma Canvas ═══
-    useEffect(() => {
-        if (step !== "firma") return;
-        const canvas = canvasRef.current;
+    const initCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
         if (!canvas) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
@@ -280,10 +283,22 @@ export function InspeccionCampoWizard({
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-    }, [step]);
+    }, []);
 
-    const getPos = (e: React.TouchEvent | React.MouseEvent) => {
-        const canvas = canvasRef.current!;
+    useEffect(() => {
+        if (step !== "firma") return;
+        initCanvas(canvasRef.current);
+    }, [step, initCanvas]);
+
+    // Init fullscreen canvas when opened
+    useEffect(() => {
+        if (!firmaFullscreen) return;
+        const t = setTimeout(() => initCanvas(fullscreenCanvasRef.current), 50);
+        return () => clearTimeout(t);
+    }, [firmaFullscreen, initCanvas]);
+
+    const getPos = (e: React.TouchEvent | React.MouseEvent, targetCanvas?: HTMLCanvasElement | null) => {
+        const canvas = targetCanvas || canvasRef.current!;
         const rect = canvas.getBoundingClientRect();
         if ("touches" in e) {
             return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
@@ -295,9 +310,10 @@ export function InspeccionCampoWizard({
         e.preventDefault();
         setIsDrawing(true);
         setFirmaDibujada(true);
-        const ctx = canvasRef.current?.getContext("2d");
+        const targetCanvas = firmaFullscreen ? fullscreenCanvasRef.current : canvasRef.current;
+        const ctx = targetCanvas?.getContext("2d");
         if (!ctx) return;
-        const { x, y } = getPos(e);
+        const { x, y } = getPos(e, targetCanvas);
         ctx.beginPath();
         ctx.moveTo(x, y);
     };
@@ -305,21 +321,45 @@ export function InspeccionCampoWizard({
     const draw = (e: React.TouchEvent | React.MouseEvent) => {
         if (!isDrawing) return;
         e.preventDefault();
-        const ctx = canvasRef.current?.getContext("2d");
+        const targetCanvas = firmaFullscreen ? fullscreenCanvasRef.current : canvasRef.current;
+        const ctx = targetCanvas?.getContext("2d");
         if (!ctx) return;
-        const { x, y } = getPos(e);
+        const { x, y } = getPos(e, targetCanvas);
         ctx.lineTo(x, y);
         ctx.stroke();
     };
 
     const endDraw = () => { setIsDrawing(false); };
 
-    const clearSignature = () => {
-        const canvas = canvasRef.current;
+    const clearCanvas = (canvas: HTMLCanvasElement | null) => {
         if (!canvas) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    const clearSignature = () => {
+        clearCanvas(canvasRef.current);
+        clearCanvas(fullscreenCanvasRef.current);
+        setFirmaDibujada(false);
+    };
+
+    // Transfer fullscreen signature to main canvas
+    const confirmFullscreenSignature = () => {
+        const fsCanvas = fullscreenCanvasRef.current;
+        const mainCanvas = canvasRef.current;
+        if (fsCanvas && mainCanvas) {
+            const ctx = mainCanvas.getContext("2d");
+            if (ctx) {
+                ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+                ctx.drawImage(fsCanvas, 0, 0, mainCanvas.width, mainCanvas.height);
+            }
+        }
+        setFirmaFullscreen(false);
+    };
+
+    const clearFullscreenCanvas = () => {
+        clearCanvas(fullscreenCanvasRef.current);
         setFirmaDibujada(false);
     };
 
@@ -525,13 +565,7 @@ export function InspeccionCampoWizard({
                         </div>
                     )}
 
-                    {/* Observaciones */}
-                    {observaciones.trim() && (
-                        <div>
-                            <h4 className="text-xs font-bold text-text-muted uppercase mb-1">Observaciones</h4>
-                            <p className="text-sm text-text-secondary whitespace-pre-wrap">{observaciones}</p>
-                        </div>
-                    )}
+                    {/* Fix 4: Observaciones are internal — NOT shown to taller in firma screen */}
 
                     <hr className="border-border" />
 
@@ -544,11 +578,19 @@ export function InspeccionCampoWizard({
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">
                             <span className="text-xs text-text-muted font-semibold uppercase">Firma del Taller</span>
-                            {firmaDibujada && (
-                                <button onClick={clearSignature} className="text-xs text-text-muted hover:text-text-primary flex items-center gap-1">
-                                    <Trash2 className="w-3 h-3" /> Limpiar
+                            <div className="flex items-center gap-2">
+                                {firmaDibujada && (
+                                    <button onClick={clearSignature} className="text-xs text-text-muted hover:text-text-primary flex items-center gap-1">
+                                        <Trash2 className="w-3 h-3" /> Limpiar
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => setFirmaFullscreen(true)}
+                                    className="text-xs text-brand-primary hover:text-text-primary flex items-center gap-1"
+                                >
+                                    <Maximize2 className="w-3.5 h-3.5" /> Ampliar
                                 </button>
-                            )}
+                            </div>
                         </div>
                         <div className="relative">
                             <canvas
@@ -587,6 +629,54 @@ export function InspeccionCampoWizard({
                         )}
                     </button>
                 </div>
+
+                {/* Fix 5: Fullscreen signature canvas */}
+                {firmaFullscreen && (
+                    <div className="fixed inset-0 z-[10001] bg-white flex flex-col">
+                        {/* Subtle landscape hint */}
+                        <div className="absolute top-3 left-1/2 -translate-x-1/2 text-gray-400 text-[11px] flex items-center gap-1.5 pointer-events-none">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
+                            Girá el celular para más espacio
+                        </div>
+                        {/* Canvas fills all available space */}
+                        <div className="flex-1 relative">
+                            <canvas
+                                ref={fullscreenCanvasRef}
+                                className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+                                onMouseDown={startDraw}
+                                onMouseMove={draw}
+                                onMouseUp={endDraw}
+                                onMouseLeave={endDraw}
+                                onTouchStart={startDraw}
+                                onTouchMove={draw}
+                                onTouchEnd={endDraw}
+                            />
+                            {!firmaDibujada && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <span className="text-gray-300 text-lg flex items-center gap-2">
+                                        <PenTool className="w-5 h-5" /> Firmar aquí
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        {/* Floating buttons */}
+                        <div className="absolute bottom-6 left-4 right-4 flex justify-between">
+                            <button
+                                onClick={clearFullscreenCanvas}
+                                className="px-5 py-3 bg-gray-100 text-gray-600 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-md"
+                            >
+                                <Trash2 className="w-4 h-4" /> Limpiar
+                            </button>
+                            <button
+                                onClick={confirmFullscreenSignature}
+                                disabled={!firmaDibujada}
+                                className="px-6 py-3 bg-brand-primary text-white rounded-xl font-bold text-sm flex items-center gap-2 shadow-md disabled:opacity-40"
+                            >
+                                <CheckCircle2 className="w-4 h-4" /> Listo
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -594,7 +684,7 @@ export function InspeccionCampoWizard({
     // ─── RESUMEN ───
     if (step === "resumen") {
         return (
-            <div className="max-w-lg mx-auto p-4 space-y-6">
+            <div className="max-w-lg mx-auto p-4 pb-[120px] space-y-6">
                 <h1 className="text-xl font-bold text-text-primary text-center">Resumen de Inspección</h1>
                 <div className="bg-bg-secondary rounded-xl border border-border p-5 space-y-2">
                     <div className="flex justify-between text-sm"><span className="text-text-muted">Siniestro</span><span className="text-text-primary font-mono font-bold">{siniestro}</span></div>
@@ -665,7 +755,7 @@ export function InspeccionCampoWizard({
         ].filter(Boolean).length;
 
         return (
-            <div className="max-w-lg mx-auto p-4 space-y-5">
+            <div className="max-w-lg mx-auto p-4 pb-[120px] space-y-5">
                 <div className="text-center">
                     <h1 className="text-xl font-bold text-text-primary">Informe Técnico</h1>
                     <p className="text-xs text-text-muted mt-1">{siniestro} · {dominio}</p>
@@ -873,7 +963,7 @@ export function InspeccionCampoWizard({
     // ─── FOTOS DAÑOS ───
     if (step === "fotos_danios") {
         return (
-            <div className="max-w-lg mx-auto p-4 space-y-6">
+            <div className="max-w-lg mx-auto p-4 pb-[120px] space-y-6">
                 <div className="text-center">
                     <h1 className="text-xl font-bold text-text-primary">Fotos de Daños</h1>
                     <p className="text-sm text-text-muted mt-1">
@@ -934,7 +1024,7 @@ export function InspeccionCampoWizard({
     // ─── ZONA DAÑO ───
     if (step === "zona_danio") {
         return (
-            <div className="max-w-lg mx-auto p-4 space-y-6">
+            <div className="max-w-lg mx-auto p-4 pb-[120px] space-y-6">
                 <div className="text-center">
                     <h1 className="text-xl font-bold text-text-primary">Zonas de Daño</h1>
                     <p className="text-sm text-text-muted mt-1">Seleccioná las zonas dañadas del vehículo</p>
@@ -962,7 +1052,7 @@ export function InspeccionCampoWizard({
 
     // ─── FOTOS REGLAMENTARIAS ───
     return (
-        <div className="max-w-lg mx-auto p-4 space-y-6">
+        <div className="max-w-lg mx-auto p-4 pb-[120px] space-y-6">
             <div className="text-center">
                 <h1 className="text-xl font-bold text-text-primary">Inspección Presencial</h1>
                 <p className="text-sm text-text-muted mt-1">{siniestro} · {dominio} · {vehiculo}</p>

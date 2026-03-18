@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
     ShieldCheck, Hammer, Paintbrush, Wrench,
     MapPin, Clock, Mic, BadgeDollarSign,
-    ShoppingCart, AlertCircle
+    ShoppingCart, AlertCircle, ChevronDown
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/formatters";
 
@@ -17,6 +17,7 @@ export function VistaInformeCampo({ casoId }: Props) {
     const supabase = createClient();
     const [informe, setInforme] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [conformidadOpen, setConformidadOpen] = useState(false);
 
     useEffect(() => {
         async function fetch() {
@@ -163,46 +164,61 @@ export function VistaInformeCampo({ casoId }: Props) {
                         </div>
                     )}
 
-                    {/* Conformidad del Taller (Firma) */}
+                    {/* Conformidad del Taller — Collapsible (closed by default) */}
                     {(informe.resumen_firmado_url || informe.firma_url) && (
-                        <div className="bg-bg-tertiary rounded-xl p-5 border border-color-success/30 space-y-4">
-                            <h4 className="font-bold text-text-primary flex items-center gap-2">
-                                <ShieldCheck className="w-5 h-5 text-color-success" />
-                                Conformidad del Taller
-                                <span className="ml-auto px-2 py-1 text-[10px] uppercase font-bold bg-color-success/10 text-color-success rounded-full">
-                                    Firmado ✓
-                                </span>
-                            </h4>
+                        <div className="bg-bg-tertiary rounded-xl border border-color-success/30 overflow-hidden">
+                            <button
+                                onClick={() => setConformidadOpen(prev => !prev)}
+                                className="w-full flex items-center justify-between px-5 py-4 text-left"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="w-5 h-5 text-color-success" />
+                                    <span className="font-bold text-text-primary text-sm">Conformidad del Taller</span>
+                                    <span className="px-2 py-0.5 text-[10px] uppercase font-bold bg-color-success/10 text-color-success rounded-full">
+                                        Firmado ✓
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-text-muted">
+                                    {firmaDate && <span className="text-[11px] hidden sm:inline">{firmaDate}</span>}
+                                    <span className="text-[11px] text-text-muted">{conformidadOpen ? 'Ocultar' : 'Ver detalle'}</span>
+                                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${conformidadOpen ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
 
-                            {/* Resumen firmado image */}
-                            {informe.resumen_firmado_url && (
-                                <a href={informe.resumen_firmado_url} target="_blank" rel="noopener noreferrer" className="block">
-                                    <img
-                                        src={informe.resumen_firmado_url}
-                                        alt="Resumen firmado"
-                                        className="w-full rounded-lg border border-border hover:border-brand-primary/50 transition-colors cursor-pointer"
-                                    />
-                                </a>
-                            )}
+                            {/* Expandable detail */}
+                            <div className={`transition-all duration-300 overflow-hidden ${conformidadOpen ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                <div className="px-5 pb-5 space-y-4 border-t border-color-success/10">
+                                    {/* Resumen firmado image */}
+                                    {informe.resumen_firmado_url && (
+                                        <a href={informe.resumen_firmado_url} target="_blank" rel="noopener noreferrer" className="block mt-4">
+                                            <img
+                                                src={informe.resumen_firmado_url}
+                                                alt="Resumen firmado"
+                                                className="max-w-[400px] w-full mx-auto rounded-lg border border-border hover:border-brand-primary/50 transition-colors cursor-pointer"
+                                            />
+                                        </a>
+                                    )}
 
-                            {/* Meta */}
-                            <div className="space-y-1.5 text-xs text-text-muted">
-                                {firmaDate && (
-                                    <p className="flex items-center gap-1.5">
-                                        <Clock className="w-3 h-3" /> {firmaDate}
-                                    </p>
-                                )}
-                                {informe.firma_latitud && informe.firma_longitud && (
-                                    <a
-                                        href={`https://www.google.com/maps?q=${informe.firma_latitud},${informe.firma_longitud}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-1.5 text-brand-primary hover:underline"
-                                    >
-                                        <MapPin className="w-3 h-3" />
-                                        {Number(informe.firma_latitud).toFixed(4)}, {Number(informe.firma_longitud).toFixed(4)}
-                                    </a>
-                                )}
+                                    {/* Meta */}
+                                    <div className="space-y-1.5 text-xs text-text-muted">
+                                        {firmaDate && (
+                                            <p className="flex items-center gap-1.5">
+                                                <Clock className="w-3 h-3" /> {firmaDate}
+                                            </p>
+                                        )}
+                                        {informe.firma_latitud && informe.firma_longitud && (
+                                            <a
+                                                href={`https://www.google.com/maps?q=${informe.firma_latitud},${informe.firma_longitud}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 text-brand-primary hover:underline"
+                                            >
+                                                <MapPin className="w-3 h-3" />
+                                                {Number(informe.firma_latitud).toFixed(4)}, {Number(informe.firma_longitud).toFixed(4)}
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}

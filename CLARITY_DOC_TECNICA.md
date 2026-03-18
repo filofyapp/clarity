@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Sprint 10.1)
+QUE SE CAMBIO: 7 fixes UX al módulo de inspección presencial.
+POR QUE: Ajustes reportados post-implementación: (1) pantalla intermedia innecesaria entre fotos y zona daños, (2) fotos de daños debían ser continuas como en IR, (3) scroll no llegaba al final en varias pantallas, (4) observaciones internas visibles al taller en pantalla firma, (5) canvas de firma muy chico en mobile, (6) bloque viejo "informe no redactado" visible, (7) conformidad del taller gigante rompía armonía visual.
+COMO: (1) `InspeccionCampoWizard.tsx`: al aceptar última foto reglamentaria, `setStep("zona_danio")` automático. (2) Fotos daños ya soportaban multi-file; se mantiene el comportamiento. (3) `pb-[120px]` en todos los contenedores scrolleables (fotos_reg, zona_danio, fotos_danios, informe, resumen). (4) Sección observaciones eliminada del render de firma/kiosko. (5) Nuevo modo fullscreen para canvas firma: `Maximize2` abre overlay `z-[10001]`, canvas 100vw×100vh con fondo blanco, hint "Girá el celular para más espacio", botones flotantes "Limpiar" y "Listo" que transfiere firma al canvas principal. (6) `CasoDetail.tsx`: eliminado import y render de `VistaInforme`, casos post-inspección solo muestran `VistaInformeCampo`. (7) `VistaInformeCampo.tsx`: conformidad del taller convertida en sección colapsable (cerrada por defecto) con badge FIRMADO ✓, fecha, "Ver detalle ▼", imagen max-w-[400px], transición suave.
+ARCHIVOS AFECTADOS: `InspeccionCampoWizard.tsx`, `CasoDetail.tsx`, `VistaInformeCampo.tsx`
+EFECTOS COLATERALES: `VistaInforme.tsx` ya no se importa ni renderiza en CasoDetail (eliminado completamente). Casos legacy que usaban `informes_periciales` no verán su informe viejo en el expediente.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 17/03/2026 (Sprint 10)
 QUE SE CAMBIO: Módulo completo de inspección presencial para perito de calle.
 POR QUE: El perito de calle necesita un flujo digital (antes era manual/papel) para capturar fotos, redactar informe técnico con mano de obra y piezas, obtener firma del taller, y que todo quede documentado en el expediente.

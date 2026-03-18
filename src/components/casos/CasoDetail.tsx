@@ -6,7 +6,6 @@ import { TipoIPBadge } from "./TipoIPBadge";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { GaleriaFotosResponsive } from "@/components/inspeccion/GaleriaFotosResponsive";
-import { VistaInforme } from "@/components/inspeccion/VistaInforme";
 import { VistaInformeCampo } from "@/components/inspeccion/VistaInformeCampo";
 import Link from "next/link";
 
@@ -450,10 +449,6 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                         caso.estado === "facturada") && (
                             <div className="mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
                                 <VistaInformeCampo casoId={caso.id} />
-                                <VistaInforme
-                                    casoId={caso.id}
-                                    puedeOperar={(rol === "carga" || rol === "admin") && caso.estado === "pendiente_carga"}
-                                />
                             </div>
                         )}
 

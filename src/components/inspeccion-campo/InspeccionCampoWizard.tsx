@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SelectorZonaDanio, ZONAS_MAP } from "@/components/inspeccion-remota/SelectorZonaDanio";
+import { CameraCapture } from "@/components/inspeccion-remota/CameraCapture";
 import {
     Camera, CheckCircle2, ChevronRight, ChevronLeft,
     Car, Loader2, Image as ImageIcon,
@@ -117,7 +118,7 @@ export function InspeccionCampoWizard({
     const [fotosDanios, setFotosDanios] = useState<FotoCapturada[]>([]);
     const [zonasDanio, setZonasDanio] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const damageFileRef = useRef<HTMLInputElement>(null);
+    const [capturingDamage, setCapturingDamage] = useState(false);
 
     // ═══ Informe state ═══
     const [manoObra, setManoObra] = useState<ManoObraRow[]>([
@@ -209,6 +210,14 @@ export function InspeccionCampoWizard({
             });
         }
         e.target.value = "";
+    };
+
+    // Handler for CameraCapture multi-shot damage photos
+    const handleDamageMultiCapture = (blobs: { blob: Blob; preview: string }[]) => {
+        setCapturingDamage(false);
+        blobs.forEach(({ blob }) => {
+            uploadPhoto(blob, "danio_detalle", setFotosDanios);
+        });
     };
 
     // ═══ Audio ═══
@@ -812,10 +821,11 @@ export function InspeccionCampoWizard({
                                         <div>
                                             <label className="text-[10px] text-text-muted uppercase">Valor</label>
                                             <input
-                                                type="number"
+                                                type="text"
                                                 inputMode="decimal"
+                                                pattern="[0-9]*[.,]?[0-9]*"
                                                 value={r.valor || ""}
-                                                onChange={e => updateMORow(r.id, "valor", parseFloat(e.target.value) || 0)}
+                                                onChange={e => updateMORow(r.id, "valor", parseFloat(e.target.value.replace(",", ".")) || 0)}
                                                 className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono focus:border-brand-primary focus:outline-none"
                                                 placeholder="$0"
                                             />
@@ -823,11 +833,11 @@ export function InspeccionCampoWizard({
                                         <div>
                                             <label className="text-[10px] text-text-muted uppercase">Cantidad</label>
                                             <input
-                                                type="number"
+                                                type="text"
                                                 inputMode="decimal"
-                                                step="any"
+                                                pattern="[0-9]*[.,]?[0-9]*"
                                                 value={r.cantidad || ""}
-                                                onChange={e => updateMORow(r.id, "cantidad", parseFloat(e.target.value) || 0)}
+                                                onChange={e => updateMORow(r.id, "cantidad", parseFloat(e.target.value.replace(",", ".")) || 0)}
                                                 className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono focus:border-brand-primary focus:outline-none"
                                                 placeholder="0"
                                             />
@@ -973,6 +983,20 @@ export function InspeccionCampoWizard({
 
     // ─── FOTOS DAÑOS ───
     if (step === "fotos_danios") {
+        // If CameraCapture is active, render it fullscreen
+        if (capturingDamage) {
+            return (
+                <CameraCapture
+                    tipo="danio_detalle"
+                    label="Fotos de Daños"
+                    allowMultiple={true}
+                    onCapture={() => { }} // dummy for type check
+                    onCaptureMultiple={handleDamageMultiCapture}
+                    onCancel={() => setCapturingDamage(false)}
+                />
+            );
+        }
+
         return (
             <div className="max-w-lg mx-auto p-4 pb-[120px] space-y-6">
                 <div className="text-center">
@@ -990,31 +1014,31 @@ export function InspeccionCampoWizard({
                 </div>
 
                 {/* Photo grid */}
-                <div className="grid grid-cols-3 gap-2">
-                    {fotosDanios.map(f => (
-                        <div key={f.id} className="relative aspect-square rounded-lg overflow-hidden bg-bg-tertiary">
-                            <img src={f.preview} alt="" className="w-full h-full object-cover" />
-                            {f.uploading && (
-                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                    <Loader2 className="w-5 h-5 text-white animate-spin" />
-                                </div>
-                            )}
-                            {f.uploaded && (
-                                <div className="absolute top-1 right-1">
-                                    <CheckCircle2 className="w-4 h-4 text-color-success" />
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                <input ref={damageFileRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleDamageCapture} />
+                {fotosDanios.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                        {fotosDanios.map(f => (
+                            <div key={f.id} className="relative aspect-square rounded-lg overflow-hidden bg-bg-tertiary">
+                                <img src={f.preview} alt="" className="w-full h-full object-cover" />
+                                {f.uploading && (
+                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                                    </div>
+                                )}
+                                {f.uploaded && (
+                                    <div className="absolute top-1 right-1">
+                                        <CheckCircle2 className="w-4 h-4 text-color-success" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 <button
-                    onClick={() => damageFileRef.current?.click()}
+                    onClick={() => setCapturingDamage(true)}
                     className="w-full py-4 border-2 border-dashed border-brand-primary/30 rounded-xl text-brand-primary font-semibold hover:bg-brand-primary/5 transition-colors flex items-center justify-center gap-2"
                 >
-                    <Camera className="w-5 h-5" /> Tomar más fotos de daños
+                    <Camera className="w-5 h-5" /> {fotosDanios.length > 0 ? 'Tomar más fotos' : 'Abrir cámara para fotos de daños'}
                 </button>
 
                 <button

@@ -344,7 +344,7 @@ export function InspeccionCampoWizard({
         setFirmaDibujada(false);
     };
 
-    // Transfer fullscreen signature to main canvas
+    // Transfer fullscreen signature to main canvas (preserve aspect ratio)
     const confirmFullscreenSignature = () => {
         const fsCanvas = fullscreenCanvasRef.current;
         const mainCanvas = canvasRef.current;
@@ -352,7 +352,17 @@ export function InspeccionCampoWizard({
             const ctx = mainCanvas.getContext("2d");
             if (ctx) {
                 ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-                ctx.drawImage(fsCanvas, 0, 0, mainCanvas.width, mainCanvas.height);
+                // Fit landscape signature into portrait canvas preserving ratio
+                const srcW = fsCanvas.width;
+                const srcH = fsCanvas.height;
+                const dstW = mainCanvas.width;
+                const dstH = mainCanvas.height;
+                const scale = Math.min(dstW / srcW, dstH / srcH);
+                const drawW = srcW * scale;
+                const drawH = srcH * scale;
+                const offsetX = (dstW - drawW) / 2;
+                const offsetY = (dstH - drawH) / 2;
+                ctx.drawImage(fsCanvas, 0, 0, srcW, srcH, offsetX, offsetY, drawW, drawH);
             }
         }
         setFirmaFullscreen(false);

@@ -44,10 +44,8 @@ export interface RegistroKm {
     legs: any[] | null;
 }
 
-// ═══════════════════════════════════════════
-// PUNTO DE PARTIDA DEFAULT (domicilio del estudio)
-// ═══════════════════════════════════════════
-export const PUNTO_PARTIDA_DEFAULT = "9 de Julio 62, Bernal";
+// NOTE: PUNTO_PARTIDA_DEFAULT = "9 de Julio 62, Bernal" is defined in KilometrajeBoard.tsx
+// because "use server" files can only export async functions.
 
 // ═══════════════════════════════════════════
 // getDiasKilometraje

@@ -13,9 +13,11 @@ import { formatCurrency } from "@/lib/utils/formatters";
 import {
     DiaKilometraje,
     guardarKilometraje,
-    PUNTO_PARTIDA_DEFAULT,
 } from "@/app/(dashboard)/kilometraje/actions";
 import { KilometrajeMapa } from "./KilometrajeMapa";
+
+// Domicilio del estudio — hardcodeado como default
+const PUNTO_PARTIDA_DEFAULT = "9 de Julio 62, Bernal";
 
 // ═══ Tipos ═══
 interface Props {

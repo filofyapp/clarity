@@ -367,8 +367,8 @@ export function InspeccionCampoWizard({
             rotated.height = fsCanvas.width;
             const ctx = rotated.getContext("2d");
             if (ctx) {
-                ctx.translate(0, rotated.height);
-                ctx.rotate(-Math.PI / 2);
+                ctx.translate(rotated.width, 0);
+                ctx.rotate(Math.PI / 2);
                 ctx.drawImage(fsCanvas, 0, 0);
             }
             setFirmaDataUrl(rotated.toDataURL("image/png"));

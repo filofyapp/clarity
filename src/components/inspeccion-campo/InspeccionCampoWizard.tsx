@@ -815,6 +815,7 @@ export function InspeccionCampoWizard({
                                             <input
                                                 type="number"
                                                 inputMode="decimal"
+                                                step="any"
                                                 value={r.cantidad || ""}
                                                 onChange={e => updateMORow(r.id, "cantidad", parseFloat(e.target.value) || 0)}
                                                 className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono focus:border-brand-primary focus:outline-none"
@@ -997,7 +998,7 @@ export function InspeccionCampoWizard({
                     ))}
                 </div>
 
-                <input ref={damageFileRef} type="file" accept="image/*,.heic,.heif" capture="environment" multiple className="hidden" onChange={handleDamageCapture} />
+                <input ref={damageFileRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleDamageCapture} />
 
                 <button
                     onClick={() => damageFileRef.current?.click()}
@@ -1105,18 +1106,6 @@ export function InspeccionCampoWizard({
                 {pasoReg > 0 && (
                     <button onClick={() => setPasoReg(p => p - 1)} className="flex-1 py-3 border border-border rounded-xl text-text-muted font-medium hover:bg-bg-tertiary">
                         <ChevronLeft className="w-4 h-4 inline mr-1" /> Anterior
-                    </button>
-                )}
-                {pasoReg < PASOS_REGLAMENTARIOS.length - 1 ? (
-                    <button onClick={() => setPasoReg(p => p + 1)} className="flex-1 py-3 border border-border rounded-xl text-text-muted font-medium hover:bg-bg-tertiary">
-                        Saltar <ChevronRight className="w-4 h-4 inline ml-1" />
-                    </button>
-                ) : (
-                    <button
-                        onClick={() => setStep("zona_danio")}
-                        className="flex-1 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-primary-hover transition-colors"
-                    >
-                        Zonas de daño <ChevronRight className="w-4 h-4 inline ml-1" />
                     </button>
                 )}
             </div>

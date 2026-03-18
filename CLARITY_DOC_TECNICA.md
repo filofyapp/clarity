@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Fix Cola de Carga — Timer muestra antigüedad en pendiente_carga)
+QUE SE CAMBIO: El badge de antigüedad en la Cola de Carga ahora muestra el tiempo desde que el caso entró a `pendiente_carga` (`fecha_carga_sistema`) en vez del timestamp genérico `updated_at`.
+POR QUE: Un caso que acababa de ser completado por inspección remota mostraba "Hace 3d 6hs" porque `updated_at` reflejaba la última actualización del caso (posiblemente la creación o una edición anterior), no el momento en que entró a la cola de carga.
+COMO: (1) `ColaDeCargaBoard.tsx`: se agregó `fecha_carga_sistema` a la interface `CasoCarga`, se usa como fuente primaria para `getAntiguedad()` con fallback a `updated_at`. (2) `carga/actions.ts`: `order()` cambiado de `updated_at DESC` a `fecha_carga_sistema ASC` (más viejo primero, consistente con el propósito de la cola).
+ARCHIVOS AFECTADOS: `ColaDeCargaBoard.tsx`, `carga/actions.ts`
+EFECTOS COLATERALES: Ninguno. Casos sin `fecha_carga_sistema` (legacy) usan `updated_at` como fallback.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 18/03/2026 (Fix inspección remota — Retry Supabase transiente)
 QUE SE CAMBIO: Resiliencia ante errores transitorios de Supabase (502/503/504 Bad Gateway) en los 2 endpoints de inspección remota: upload y complete.
 POR QUE: El servidor devolvía 502 Bad Gateway desde Supabase (Cloudflare) al intentar insertar fotos en `fotos_inspeccion` y al completar la inspección. El error venía como página HTML en vez de JSON, causando que el endpoint devolviera "Error al registrar foto" sin recuperación. NO fue una regresión del sprint de inspección presencial — los componentes compartidos (`CameraCapture`, `SelectorZonaDanio`, `WizardCaptura`) están intactos. `InspeccionCampoWizard` importa pero no modifica componentes compartidos y usa pipeline de upload independiente.

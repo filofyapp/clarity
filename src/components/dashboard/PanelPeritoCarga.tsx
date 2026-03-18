@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { Clock, CheckCircle2, AlertTriangle, Briefcase, TrendingUp, FileText } from "lucide-react";
-import { formatDistanceToNow, differenceInDays } from "date-fns";
+import { Clock, CheckCircle2, AlertTriangle, Briefcase, FileText } from "lucide-react";
+import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -11,7 +11,6 @@ interface Props { userId: string; }
 export async function PanelPeritoCarga({ userId }: Props) {
     const supabase = await createClient();
 
-    // Mis casos como perito de carga
     const { data: misCasos } = await supabase
         .from("casos")
         .select("id, numero_siniestro, estado, dominio, marca, modelo, tipo_inspeccion, monto_facturado_estudio, monto_pagado_perito_carga, updated_at, fecha_cierre")
@@ -19,6 +18,16 @@ export async function PanelPeritoCarga({ userId }: Props) {
         .order("updated_at", { ascending: false });
 
     const casos = misCasos || [];
+    const now = new Date();
+    const mesActualStr = format(now, "MMMM yyyy", { locale: es });
+
+    // Month calculations
+    const isThisMonth = (d: string | null) => {
+        if (!d) return false;
+        const date = new Date(d);
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    };
+
     const pendientes = casos.filter(c => c.estado === "pendiente_carga");
     const pendientePpto = casos.filter(c => c.estado === "pendiente_presupuesto");
     const licitando = casos.filter(c => c.estado === "licitando_repuestos");
@@ -26,14 +35,15 @@ export async function PanelPeritoCarga({ userId }: Props) {
     const enProceso = [...pendientePpto, ...licitando, ...enConsulta];
     const cerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
 
-    // Prepare data for billing (mes actual + mes anterior)
-    const now = new Date();
+    const cargadosEsteMes = casos.filter(c => isThisMonth(c.fecha_cierre));
+    const cerradosEsteMes = cargadosEsteMes.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
+
+    // Billing data
     const mesActualInicio = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const mesAnteriorInicio = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
     const mesAnteriorFin = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
 
     const casosCerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
-
     const casosMesActual = casosCerrados.filter(c => c.fecha_cierre && c.fecha_cierre >= mesActualInicio);
     const casosMesAnterior = casosCerrados.filter(c => c.fecha_cierre && c.fecha_cierre >= mesAnteriorInicio && c.fecha_cierre <= mesAnteriorFin);
 
@@ -52,6 +62,9 @@ export async function PanelPeritoCarga({ userId }: Props) {
     const mesActualData = calcDesglose(casosMesActual);
     const mesAnteriorData = calcDesglose(casosMesAnterior);
 
+    // Actividad reciente (últimos 10)
+    const recientes = casos.slice(0, 10);
+
     // Tareas
     const { data: tareasPendientes } = await supabase
         .from("tareas")
@@ -61,25 +74,44 @@ export async function PanelPeritoCarga({ userId }: Props) {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
+            {/* ═══ Bloque 1: Resumen del Mes ═══ */}
             <div>
-                <h1 className="text-2xl font-bold text-text-primary">📋 Mi Panel — Perito de Carga</h1>
-                <p className="text-text-muted text-sm mt-1">Resumen de tu carga de trabajo y expedientes.</p>
+                <h1 className="text-2xl font-bold text-text-primary capitalize">📋 {mesActualStr}</h1>
+                <p className="text-text-muted text-sm mt-1">Tu resumen del mes actual.</p>
             </div>
 
-            {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={Briefcase} label="Total Asignados" value={casos.length.toString()} color="text-brand-primary" />
-                <KpiCard icon={Clock} label="En Proceso" value={enProceso.length.toString()} color="text-color-warning" />
-                <KpiCard icon={CheckCircle2} label="Cerrados" value={cerrados.length.toString()} color="text-color-success" />
-
-                {/* Billing — client component with month toggle */}
-                <FacturacionMensualCarga
-                    mesActual={mesActualData}
-                    mesAnterior={mesAnteriorData}
-                />
+                <KpiCard icon={FileText} label="Cargados este mes" value={cargadosEsteMes.length.toString()} color="text-brand-primary" />
+                <KpiCard icon={AlertTriangle} label="En cola" value={pendientes.length.toString()} color="text-color-danger" />
+                <KpiCard icon={CheckCircle2} label="Cerrados este mes" value={cerradosEsteMes.length.toString()} color="text-color-success" />
+                <FacturacionMensualCarga mesActual={mesActualData} mesAnterior={mesAnteriorData} />
             </div>
 
-            {/* Desglose por estado */}
+            {/* ═══ Bloque 2: Actividad Reciente ═══ */}
+            <div className="bg-bg-secondary border border-border rounded-xl p-4">
+                <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-brand-secondary" /> Actividad Reciente
+                </h2>
+                {recientes.length === 0 ? (
+                    <p className="text-xs text-text-muted text-center py-4">Sin actividad reciente.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {recientes.map(c => (
+                            <Link key={c.id} href={`/casos/${c.id}`}
+                                className="flex items-center justify-between bg-bg-tertiary border border-border rounded-lg px-3 py-2 hover:border-border-hover transition-colors">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-mono text-sm text-text-primary shrink-0">{c.numero_siniestro}</span>
+                                    <span className="text-xs text-text-muted truncate">{c.dominio} · {c.marca} {c.modelo}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-secondary text-text-muted capitalize shrink-0">{c.estado.replace(/_/g, " ")}</span>
+                                </div>
+                                <span className="text-xs text-text-muted shrink-0">{formatDistanceToNow(new Date(c.updated_at), { locale: es, addSuffix: true })}</span>
+                            </Link>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* ═══ Bloque 3: Distribución por Estado ═══ */}
             <div className="bg-bg-secondary border border-border rounded-xl p-4">
                 <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2 text-sm">
                     <FileText className="w-4 h-4 text-brand-primary" /> Distribución por Estado
@@ -93,17 +125,12 @@ export async function PanelPeritoCarga({ userId }: Props) {
                 </div>
             </div>
 
-            {/* Cola pendiente_carga */}
-            <div className="bg-bg-secondary border border-danger/20 rounded-xl p-4">
-                <h2 className="font-semibold text-danger mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4" /> Pendientes de Carga ({pendientes.length})
-                </h2>
-                {pendientes.length === 0 ? (
-                    <div className="text-center py-6">
-                        <CheckCircle2 className="w-8 h-8 text-color-success/40 mx-auto mb-2" />
-                        <p className="text-sm text-text-muted">¡Sin casos pendientes de carga!</p>
-                    </div>
-                ) : (
+            {/* Pendientes de carga */}
+            {pendientes.length > 0 && (
+                <div className="bg-bg-secondary border border-danger/20 rounded-xl p-4">
+                    <h2 className="font-semibold text-danger mb-3 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" /> Pendientes de Carga ({pendientes.length})
+                    </h2>
                     <div className="space-y-2">
                         {pendientes.map(c => (
                             <Link key={c.id} href={`/casos/${c.id}`}
@@ -118,8 +145,8 @@ export async function PanelPeritoCarga({ userId }: Props) {
                             </Link>
                         ))}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* En proceso */}
             {enProceso.length > 0 && (

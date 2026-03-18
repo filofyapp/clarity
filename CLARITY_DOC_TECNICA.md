@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Sprint 10.3)
+QUE SE CAMBIO: 7 correcciones plataforma.
+POR QUE: (1) Highlight del buscador GoTo se perdía al hacer hover, poco visible. (2) Timer de cola de carga solo mostraba horas, sin color por antigüedad. (3) No se podía cambiar responsable de tarea desde barra lateral. (4) Dashboards de peritos no priorizaban datos del mes. (5) Texto de derivación del gestor no era editable. (6) Valores unitarios de MO no se mostraban en informe campo. (7) Admin no veía informe de campo en algunos estados.
+COMO: (1) `CasosTable.tsx`: reemplazado `ring-2` por CSS pulse animation `animate-highlight-pulse` con auto-clear 8s vía `setTimeout`. Keyframe en `globals.css`. (2) `ColaDeCargaBoard.tsx`: `getAntiguedad` mejorado con min/hs/días + color: gris <12h, ámbar 12-24h, rojo >24h. (3) `TareaCard.tsx`: header del sheet muestra nombre asignado clickable con dropdown de usuarios; reusa `handleAssigneeChange` existente. (4) `PanelPeritoCalle.tsx` + `PanelPeritoCarga.tsx`: reestructurados con Bloque 1 = KPIs del mes, Bloque 2 = actividad reciente (10 casos), Bloque 3 = datos históricos. (5) `CasoDetail.tsx`: `datos_crudos_sancor` usa `EditableField` para admin, read-only para otros. (6) `VistaInformeCampo.tsx`: MO cambiado de flex list a table con 4 columnas (Concepto, Valor Unit., Cantidad, Total) + tfoot con Total MO. (7) `CasoDetail.tsx`: `VistaInformeCampo` ahora se muestra en `pendiente_presupuesto` y `contactado` además de los estados originales.
+ARCHIVOS AFECTADOS: `CasosTable.tsx`, `globals.css`, `ColaDeCargaBoard.tsx`, `TareaCard.tsx`, `PanelPeritoCalle.tsx`, `PanelPeritoCarga.tsx`, `CasoDetail.tsx`, `VistaInformeCampo.tsx`
+EFECTOS COLATERALES: Ninguno.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 18/03/2026 (Sprint 10.2)
 QUE SE CAMBIO: 4 correcciones UX al módulo de inspección presencial.
 POR QUE: (1) Inputs decimales no aceptaban punto ni coma en iOS Safari. (2) Texto "Firmar aquí" en fullscreen no se adaptaba a orientación. (3) Conformidad del Taller colapsable no mostraba contenido al expandir. (4) Badge "FIRMADO ✓" tenía texto e ícono desalineados.

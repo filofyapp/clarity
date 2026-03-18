@@ -46,17 +46,32 @@ const ACCIONES: { value: AccionCarga; label: string; icon: React.ReactNode; desc
     { value: "ip_cerrada", label: "Cerrar Inspección", icon: <XCircle className="w-4 h-4" />, description: "Cerrar el informe pericial y enviar a compañía" },
 ];
 
-function getAntiguedad(fecha: string): { label: string; isOld: boolean; hours: number } {
+function getAntiguedad(fecha: string): { label: string; isOld: boolean; hours: number; color: string } {
     const now = new Date();
     const created = new Date(fecha);
     const diffMs = now.getTime() - created.getTime();
+    const diffMin = Math.floor(diffMs / (1000 * 60));
     const diffH = Math.floor(diffMs / (1000 * 60 * 60));
     const diffD = Math.floor(diffH / 24);
 
-    if (diffD > 0) {
-        return { label: `${diffD}d ${diffH % 24}h`, isOld: diffH >= 24, hours: diffH };
+    let label: string;
+    if (diffH < 1) {
+        label = `Hace ${diffMin} min`;
+    } else if (diffH < 24) {
+        label = `Hace ${diffH} hs`;
+    } else {
+        label = `Hace ${diffD}d ${diffH % 24}hs`;
     }
-    return { label: `${diffH}h`, isOld: diffH >= 24, hours: diffH };
+
+    // Color: < 12h normal, 12-24h amber, > 24h red
+    let color = "bg-bg-tertiary text-text-muted border border-border";
+    if (diffH >= 24) {
+        color = "bg-red-500/15 text-red-400 border border-red-500/30";
+    } else if (diffH >= 12) {
+        color = "bg-amber-500/15 text-amber-400 border border-amber-500/30";
+    }
+
+    return { label, isOld: diffH >= 24, hours: diffH, color };
 }
 
 export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps) {
@@ -230,11 +245,7 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
                                 {/* Right: Antiquity + Actions */}
                                 <div className="flex items-center gap-3 shrink-0">
                                     {/* Antiquity badge */}
-                                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                                        antiguedad.isOld
-                                            ? "bg-red-500/15 text-red-400 border border-red-500/30"
-                                            : "bg-bg-tertiary text-text-muted border border-border"
-                                    }`}>
+                                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${antiguedad.color}`}>
                                         {antiguedad.isOld && <AlertTriangle className="w-3 h-3" />}
                                         <Clock className="w-3 h-3" />
                                         <span>{antiguedad.label}</span>

@@ -340,9 +340,20 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                 {caso.datos_crudos_sancor && (
                                     <div className="bg-bg-elevated border border-border/60 rounded-lg p-5 relative overflow-hidden">
                                         <div className="absolute top-0 left-0 w-1 h-full bg-brand-secondary/70"></div>
-                                        <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap italic">
-                                            &quot;{caso.datos_crudos_sancor}&quot;
-                                        </p>
+                                        {rol === "admin" ? (
+                                            <EditableField
+                                                casoId={caso.id}
+                                                campo="datos_crudos_sancor"
+                                                valorActual={caso.datos_crudos_sancor}
+                                                tipo="textarea"
+                                                placeholder="Sin datos de derivación"
+                                                textClassName="text-sm text-text-primary leading-relaxed italic"
+                                            />
+                                        ) : (
+                                            <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap italic">
+                                                &quot;{caso.datos_crudos_sancor}&quot;
+                                            </p>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>
@@ -441,12 +452,14 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                         </div>
                     )}
 
-                    {/* Informe de Inspección de Campo (post-inspección) */}
+                    {/* Informe de Inspección de Campo (post-inspección — visible para TODOS los roles) */}
                     {(caso.estado === "pendiente_carga" ||
+                        caso.estado === "pendiente_presupuesto" ||
                         caso.estado === "licitando_repuestos" ||
                         caso.estado === "en_consulta_cia" ||
                         caso.estado === "ip_cerrada" ||
-                        caso.estado === "facturada") && (
+                        caso.estado === "facturada" ||
+                        caso.estado === "contactado") && (
                             <div className="mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
                                 <VistaInformeCampo casoId={caso.id} />
                             </div>

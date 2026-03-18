@@ -149,18 +149,32 @@ export function VistaInformeCampo({ casoId }: Props) {
                                 <BadgeDollarSign className="w-5 h-5 text-color-success" />
                                 Mano de Obra Acordada
                             </h4>
-                            <div className="space-y-2 text-sm">
-                                {manoDeObra.filter(r => r.cantidad > 0).map((r, i) => (
-                                    <div key={i} className="flex justify-between items-center text-text-secondary">
-                                        <span>{r.concepto} ({r.cantidad} {r.unidad})</span>
-                                        <span className="font-medium text-text-primary font-mono">{formatCurrency(r.valor * r.cantidad)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="pt-3 border-t border-border flex justify-between items-center">
-                                <span className="font-bold text-text-primary">Total MO</span>
-                                <span className="text-xl font-black text-color-success font-mono">{formatCurrency(informe.total_mano_de_obra || 0)}</span>
-                            </div>
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-xs text-text-muted uppercase tracking-wider">
+                                        <th className="text-left pb-2">Concepto</th>
+                                        <th className="text-right pb-2">Valor Unit.</th>
+                                        <th className="text-center pb-2">Cantidad</th>
+                                        <th className="text-right pb-2">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/30">
+                                    {manoDeObra.filter(r => r.cantidad > 0).map((r, i) => (
+                                        <tr key={i} className="text-text-secondary">
+                                            <td className="py-1.5">{r.concepto}</td>
+                                            <td className="py-1.5 text-right font-mono text-text-primary">{formatCurrency(r.valor)}<span className="text-text-muted text-xs">/{r.unidad}</span></td>
+                                            <td className="py-1.5 text-center">{r.cantidad} {r.unidad}</td>
+                                            <td className="py-1.5 text-right font-mono font-medium text-text-primary">{formatCurrency(r.valor * r.cantidad)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="border-t border-border">
+                                        <td colSpan={3} className="pt-3 font-bold text-text-primary">Total MO</td>
+                                        <td className="pt-3 text-right text-xl font-black text-color-success font-mono">{formatCurrency(informe.total_mano_de_obra || 0)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
                     )}
 

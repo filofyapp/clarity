@@ -357,12 +357,21 @@ export function InspeccionCampoWizard({
         setFirmaDataUrl(null);
     };
 
-    // Export fullscreen signature as image (pixel-perfect, no distortion)
+    // Export fullscreen signature rotated for portrait display
     const confirmFullscreenSignature = () => {
         const fsCanvas = fullscreenCanvasRef.current;
         if (fsCanvas) {
-            const dataUrl = fsCanvas.toDataURL("image/png");
-            setFirmaDataUrl(dataUrl);
+            // Rotate -90° so landscape signature displays correctly in portrait
+            const rotated = document.createElement("canvas");
+            rotated.width = fsCanvas.height;
+            rotated.height = fsCanvas.width;
+            const ctx = rotated.getContext("2d");
+            if (ctx) {
+                ctx.translate(0, rotated.height);
+                ctx.rotate(-Math.PI / 2);
+                ctx.drawImage(fsCanvas, 0, 0);
+            }
+            setFirmaDataUrl(rotated.toDataURL("image/png"));
         }
         setFirmaFullscreen(false);
     };

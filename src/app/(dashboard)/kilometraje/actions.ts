@@ -97,7 +97,9 @@ export async function getDiasKilometraje(mes: string) {
         const caso: CasoInspeccion = {
             caso_id: c.id,
             numero_siniestro: c.numero_siniestro,
-            direccion: c.direccion_inspeccion || "",
+            direccion: c.localidad
+                ? `${c.direccion_inspeccion || ""}, ${c.localidad}`
+                : (c.direccion_inspeccion || ""),
             localidad: c.localidad,
             tipo_inspeccion: c.tipo_inspeccion,
             perito_calle_id: c.perito_calle_id,

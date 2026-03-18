@@ -33,7 +33,7 @@ export async function getCasosParaCarga() {
             informe_pericial:informes_periciales(id, completo, updated_at)
         `)
         .eq("estado", "pendiente_carga")
-        .order("updated_at", { ascending: false });
+        .order("fecha_carga_sistema", { ascending: true, nullsFirst: false });
 
     if (error) {
         console.error("Error fetching casos para carga:", error);

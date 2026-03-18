@@ -5,9 +5,10 @@ import { EstadoBadge } from "./EstadoBadge";
 import { TipoIPBadge } from "./TipoIPBadge";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { InformePericial } from "@/components/inspeccion/InformePericial";
 import { GaleriaFotosResponsive } from "@/components/inspeccion/GaleriaFotosResponsive";
 import { VistaInforme } from "@/components/inspeccion/VistaInforme";
+import { VistaInformeCampo } from "@/components/inspeccion/VistaInformeCampo";
+import Link from "next/link";
 
 import { SelectorEstado } from "./SelectorEstado";
 import { ZonaArchivos } from "./ZonaArchivos";
@@ -429,17 +430,26 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                     {/* Módulo de Inspección (Solo Peritos de Calle en Estado IP Coordinada) */}
                     {rol === "calle" && caso.estado === "ip_coordinada" && (
                         <div className="mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
-                            <InformePericial casoId={caso.id} talleres={[]} />
+                            <div className="bg-bg-secondary border border-border rounded-xl p-6 text-center space-y-4">
+                                <h3 className="text-lg font-bold text-text-primary">Inspección Presencial</h3>
+                                <p className="text-sm text-text-muted">Iniciá el flujo completo: fotos → informe → firma del taller</p>
+                                <Link href={`/inspeccion-campo/${caso.id}`}>
+                                    <button className="w-full py-4 bg-brand-primary text-white rounded-xl font-bold text-lg hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2 mt-2">
+                                        📷 Comenzar Inspección
+                                    </button>
+                                </Link>
+                            </div>
                         </div>
                     )}
 
-                    {/* Validación del Informe (Oficina/Carga) */}
+                    {/* Informe de Inspección de Campo (post-inspección) */}
                     {(caso.estado === "pendiente_carga" ||
                         caso.estado === "licitando_repuestos" ||
                         caso.estado === "en_consulta_cia" ||
                         caso.estado === "ip_cerrada" ||
                         caso.estado === "facturada") && (
                             <div className="mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
+                                <VistaInformeCampo casoId={caso.id} />
                                 <VistaInforme
                                     casoId={caso.id}
                                     puedeOperar={(rol === "carga" || rol === "admin") && caso.estado === "pendiente_carga"}

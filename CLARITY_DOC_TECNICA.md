@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 17/03/2026 (Sprint 10)
+QUE SE CAMBIO: Módulo completo de inspección presencial para perito de calle.
+POR QUE: El perito de calle necesita un flujo digital (antes era manual/papel) para capturar fotos, redactar informe técnico con mano de obra y piezas, obtener firma del taller, y que todo quede documentado en el expediente.
+COMO: (1) Migración `027_inspeccion_campo.sql`: tabla `informe_inspeccion_campo` (MO JSONB, piezas, observaciones, audio, firma, GPS), seeds de 3 `mano_obra` precios Sancor. (2) `ValoresSancorEditor.tsx` (NUEVO): sección en Valores de Referencia para editar Día de Chapa, Paño de Pintura, Hora de Mecánica con formato moneda y fecha de actualización. (3) Ruta `/inspeccion-campo/[casoId]/page.tsx` (NUEVA): server component que valida perito, estado ip_coordinada, fetch precios MO. (4) `InspeccionCampoWizard.tsx` (NUEVO, 800+ líneas): wizard completo con pasos: fotos reglamentarias guiadas → selector zona de daño (reutiliza `SelectorZonaDanio` con paleta ámbar override) → fotos de daños → informe técnico (MO tabla con precarga + filas custom, piezas por cambiar/reparar/pintar, observaciones + audio) → resumen → firma modo kiosko (canvas touch, html2canvas, GPS, prevención navegación). Reutiliza pipeline HEIC/compresión/upload de WizardCaptura. (5) `actions.ts` (NUEVA): guarda en DB, cambia estado a pendiente_carga, registra historial. (6) Botón "Comenzar Inspección" en `AgendaCard.tsx` y `CasoDetail.tsx`. (7) `VistaInformeCampo.tsx` (NUEVO): visualización en expediente con tabla MO, listas piezas color-coded, observaciones+audio, imagen resumen firmado (link lightbox), GPS link Google Maps, badge "Firmado ✓". (8) `CasoDetail.tsx`: reemplaza viejo `InformePericial` con botón de inspección, añade `VistaInformeCampo` para estados post-inspección.
+ARCHIVOS AFECTADOS: `027_inspeccion_campo.sql` (NUEVO), `ValoresSancorEditor.tsx` (NUEVO), `precios/page.tsx`, `inspeccion-campo/[casoId]/page.tsx` (NUEVO), `inspeccion-campo/[casoId]/actions.ts` (NUEVO), `InspeccionCampoWizard.tsx` (NUEVO), `VistaInformeCampo.tsx` (NUEVO), `AgendaCard.tsx`, `CasoDetail.tsx`
+EFECTOS COLATERALES: `InformePericial.tsx` ya no se usa (import removido de CasoDetail). `VistaInforme.tsx` se mantiene como fallback para casos legacy con informes_periciales. Dependencia nueva: `html2canvas`.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 16/03/2026 (Sprint 9)
 QUE SE CAMBIO: (1) Fix mail gestor vacío en derivación. (2) Mi Agenda: agrupación Hoy/Mañana con ocultamiento de Mañana. (3) Buscador en Tareas. (4) Dashboard perito carga: facturado mensual con filtro de mes.
 POR QUE: (1) `gestor_email` se enviaba vacío porque el select de `gestores` no incluía `email`. (2) Los peritos se confundían viendo tareas de mañana mezcladas con las de hoy. (3) No había forma de buscar tareas específicas entre muchas. (4) El perito de carga no podía comparar su facturación entre meses.

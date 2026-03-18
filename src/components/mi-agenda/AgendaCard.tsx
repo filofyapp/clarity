@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Phone, Car, CheckCircle2, Loader2, Link2 } from "lucide-react";
+import { MapPin, Phone, Car, CheckCircle2, Loader2, Link2, Camera } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useState, useTransition } from "react";
@@ -138,6 +138,11 @@ export function AgendaCard({ caso }: AgendaCardProps) {
                     </Button>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
+                    <Link href={`/inspeccion-campo/${caso.id}`}>
+                        <Button className="w-full h-12 text-sm font-bold bg-brand-primary hover:bg-brand-primary-hover text-white transition-colors">
+                            <Camera className="w-5 h-5 mr-2" /> Comenzar Inspección
+                        </Button>
+                    </Link>
                     <Link href={`/casos/${caso.id}`}>
                         <Button variant="outline" className="w-full h-11 text-xs font-semibold border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white transition-colors">
                             Ver Expediente

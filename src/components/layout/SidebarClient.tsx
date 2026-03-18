@@ -67,7 +67,7 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0, pendingTasksCo
                         {(userRoles.includes("admin") || userRoles.includes("carga")) && (
                             <SidebarItem href="/carga" icon={FileBox} label="Cola de Carga" pathname={pathname} badgeCount={pendingCargaCount} isCollapsed={isCollapsed} />
                         )}
-                        {(userRoles.includes("admin") || userRoles.includes("calle")) && (
+                        {userRoles.includes("admin") && (
                             <SidebarItem href="/kilometraje" icon={Map} label="Kilometraje" pathname={pathname} isCollapsed={isCollapsed} />
                         )}
                     </div>

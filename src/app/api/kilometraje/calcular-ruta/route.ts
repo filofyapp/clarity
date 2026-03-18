@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 
 // Calcula ruta óptima usando Google Maps Directions API
-// Recibe: origin, destination, waypoints[]
-// Devuelve: km_total, duracion_min, polyline, deep links
+// Ida y vuelta: origin → waypoints (optimizados) → origin
 export async function POST(request: Request) {
     try {
         const body = await request.json();
@@ -14,26 +13,30 @@ export async function POST(request: Request) {
 
         const GOOGLE_MAPS_KEY = process.env.GOOGLE_MAPS_KEY;
         if (!GOOGLE_MAPS_KEY) {
-            // Sin API key, devolvemos estimación manual
             return NextResponse.json({
                 km_total: 0,
                 duracion_min: 0,
                 polyline: null,
+                legs: [],
+                waypoint_order: [],
                 google_maps_url: buildGoogleMapsUrl(origin, waypoints),
-                waze_url: buildWazeUrl(waypoints[0]),
-                error_api: "Google Maps API key no configurada. Se generaron deep links sin cálculo de ruta."
+                error_api: "Google Maps API key no configurada."
             });
         }
 
-        // Armar URL de la Directions API
-        const destination = waypoints[waypoints.length - 1];
-        const intermedios = waypoints.slice(0, -1);
+        // Ida y vuelta: destino = origen
+        const destination = origin;
+        const waypointsStr = waypoints
+            .map((w: string) => encodeURIComponent(w + ", Buenos Aires, Argentina"))
+            .join("|");
 
-        let url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&key=${GOOGLE_MAPS_KEY}&language=es&region=ar`;
-
-        if (intermedios.length > 0) {
-            url += `&waypoints=optimize:true|${intermedios.map((w: string) => encodeURIComponent(w)).join("|")}`;
-        }
+        const url = `https://maps.googleapis.com/maps/api/directions/json` +
+            `?origin=${encodeURIComponent(origin + ", Buenos Aires, Argentina")}` +
+            `&destination=${encodeURIComponent(destination + ", Buenos Aires, Argentina")}` +
+            `&waypoints=optimize:true|${waypointsStr}` +
+            `&avoid=highways` +
+            `&key=${GOOGLE_MAPS_KEY}` +
+            `&language=es&region=ar`;
 
         const response = await fetch(url);
         const data = await response.json();
@@ -43,19 +46,30 @@ export async function POST(request: Request) {
                 km_total: 0,
                 duracion_min: 0,
                 polyline: null,
+                legs: [],
+                waypoint_order: [],
                 google_maps_url: buildGoogleMapsUrl(origin, waypoints),
-                waze_url: buildWazeUrl(waypoints[0]),
-                error_api: `Google Maps respondió: ${data.status}`
+                error_api: `Google Maps respondió: ${data.status} — ${data.error_message || ""}`
             });
         }
 
-        // Sumar distancias y duraciones de cada leg
+        const route = data.routes[0];
         let totalMetros = 0;
         let totalSegundos = 0;
-        for (const leg of data.routes[0].legs) {
+
+        // Build legs info
+        const legs = route.legs.map((leg: any, i: number) => {
             totalMetros += leg.distance.value;
             totalSegundos += leg.duration.value;
-        }
+            return {
+                index: i,
+                start_address: leg.start_address,
+                end_address: leg.end_address,
+                distance_km: Math.round((leg.distance.value / 1000) * 100) / 100,
+                distance_text: leg.distance.text,
+                duration_text: leg.duration.text,
+            };
+        });
 
         const km_total = Math.round((totalMetros / 1000) * 100) / 100;
         const duracion_min = Math.round(totalSegundos / 60);
@@ -63,10 +77,10 @@ export async function POST(request: Request) {
         return NextResponse.json({
             km_total,
             duracion_min,
-            polyline: data.routes[0].overview_polyline?.points || null,
+            polyline: route.overview_polyline?.points || null,
+            legs,
+            waypoint_order: route.waypoint_order || [],
             google_maps_url: buildGoogleMapsUrl(origin, waypoints),
-            waze_url: buildWazeUrl(waypoints[0]),
-            orden_optimizado: data.routes[0].waypoint_order || []
         });
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
@@ -74,15 +88,13 @@ export async function POST(request: Request) {
 }
 
 function buildGoogleMapsUrl(origin: string, waypoints: string[]): string {
-    const destination = waypoints[waypoints.length - 1];
-    const intermedios = waypoints.slice(0, -1);
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
-    if (intermedios.length > 0) {
-        url += `&waypoints=${intermedios.map((w: string) => encodeURIComponent(w)).join("|")}`;
-    }
-    return url;
-}
-
-function buildWazeUrl(destination: string): string {
-    return `https://waze.com/ul?q=${encodeURIComponent(destination)}&navigate=yes`;
+    // Build round-trip URL: origin → waypoints → origin
+    const waypointStr = waypoints
+        .map((w: string) => encodeURIComponent(w + ", Buenos Aires, Argentina"))
+        .join("|");
+    return `https://www.google.com/maps/dir/?api=1` +
+        `&origin=${encodeURIComponent(origin)}` +
+        `&destination=${encodeURIComponent(origin)}` +
+        `&waypoints=${waypointStr}` +
+        `&travelmode=driving`;
 }

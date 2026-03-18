@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Módulo Kilometraje v2 — Rewrite completo)
+QUE SE CAMBIO: Reemplazo completo de la sección Kilometraje. Antes era una tabla estática con registro manual. Ahora es un módulo que auto-genera los días de trabajo de cada perito de calle desde `historial_estados`, calcula rutas óptimas con Google Maps Directions API, renderiza mapas interactivos, y exporta a Excel/PNG.
+POR QUE: La herramienta anterior requería ingreso manual de datos. El sistema ya tenía toda la información necesaria: inspecciones realizadas, direcciones, peritos asignados, y bases de los peritos. Ahora todo es automático.
+COMO: (1) `page.tsx` reescrita: guard admin-only, data fetching desde `historial_estados` vía server actions. (2) `actions.ts` reescrita: `getDiasKilometraje` consulta `historial_estados.estado_nuevo='pendiente_carga'` en el mes, JOIN con `casos` y `usuarios`, agrupa por fecha+perito. (3) `calcular-ruta/route.ts` modificado: ida+vuelta (destination=origin), `avoid=highways`, retorna `legs` detallados. (4) `KilometrajeBoard.tsx` (nuevo): header con filtros (perito, mes, precio/km), KPI cards, lista de días colapsables, checkboxes por siniestro (remotas destildadas por defecto), cálculo de ruta, copiar resumen, exportar Excel (SheetJS), exportar PNG (Canvas API + Static Maps). (5) `KilometrajeMapa.tsx` (nuevo): mapa interactivo Google Maps JS API con estilo oscuro, polyline ámbar, marcadores numerados. (6) Sidebar restringida a admin-only. (7) Migración SQL `028_kilometraje_v2.sql` con 5 columnas adicionales: `siniestro_asociado`, `casos_incluidos`, `casos_excluidos`, `ruta_orden`, `legs`.
+ARCHIVOS AFECTADOS: `SidebarClient.tsx`, `kilometraje/page.tsx`, `kilometraje/actions.ts`, `api/kilometraje/calcular-ruta/route.ts`, `KilometrajeBoard.tsx` (nuevo), `KilometrajeMapa.tsx` (nuevo), `028_kilometraje_v2.sql` (nuevo)
+EFECTOS COLATERALES: Peritos de calle ya no ven la sección Kilometraje en el sidebar (solo admin). La tabla `kilometraje_diario` conserva los datos existentes; se agregan 5 columnas nuevas.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 18/03/2026 (Fix audio inspección remota — iOS Safari / Chrome)
 QUE SE CAMBIO: Botón "Grabar audio" en el resumen de inspección remota ahora funciona correctamente en iOS Safari y Chrome.
 POR QUE: En iPhone 13 (Chrome for iOS), el botón de grabar audio no respondía al tap normal, y al mantener presionado se abría Google Lens. Esto ocurría porque: (1) el `<button>` no tenía `type="button"` explícito, (2) no se prevenía el context menu nativo del long-press, (3) no había `-webkit-touch-callout: none` ni `touch-action: manipulation`, (4) si `getUserMedia` fallaba (permisos denegados), el error no se mostraba al usuario porque el display de errores dependía de `audioBlob` (que no existía antes de grabar).

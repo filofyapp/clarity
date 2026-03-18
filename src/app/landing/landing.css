@@ -1,0 +1,275 @@
+/* ═══════════════════════════════════════════════
+   CLARITY Landing Page — Custom Styles
+   ═══════════════════════════════════════════════ */
+
+/* ── Theme Variables ── */
+.landing-dark {
+    --bg-landing: #06060A;
+    --bg-section: #0A0A10;
+    --bg-card: #12121A;
+    --text-heading: #F5F0F7;
+    --text-body: #9B8FA6;
+    --text-muted: #5C5670;
+    --accent: #D6006E;
+    --accent-glow: rgba(214, 0, 110, 0.15);
+    --accent-secondary: #F59E0B;
+}
+
+.landing-light {
+    --bg-landing: #FAFAF8;
+    --bg-section: #FFFFFF;
+    --bg-card: #F5F3F0;
+    --text-heading: #1A1520;
+    --text-body: #6B5F78;
+    --text-muted: #9B8FA6;
+    --accent: #C2005F;
+    --accent-glow: rgba(214, 0, 110, 0.08);
+    --accent-secondary: #D97706;
+}
+
+/* ── Base ── */
+.landing-root {
+    background: var(--bg-landing);
+    color: var(--text-body);
+    transition: background-color 400ms ease, color 400ms ease;
+    overflow-x: hidden;
+    font-family: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+}
+
+.landing-root * {
+    transition: color 400ms ease, background-color 400ms ease, border-color 400ms ease;
+}
+
+/* ── Typography ── */
+.heading-font {
+    font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--text-heading) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.gradient-text-amber {
+    background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--text-heading) 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ── Cards ── */
+.landing-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+}
+
+.landing-light .landing-card {
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+.landing-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 40px var(--accent-glow);
+    border-color: rgba(214, 0, 110, 0.2);
+}
+
+/* ── Glow Effects ── */
+.glow-magenta {
+    text-shadow: 0 0 40px var(--accent-glow), 0 0 80px rgba(214, 0, 110, 0.08);
+}
+
+.card-glow::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 17px;
+    background: linear-gradient(135deg, transparent 40%, var(--accent-glow) 100%);
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 400ms ease;
+}
+
+.landing-card:hover .card-glow::before {
+    opacity: 1;
+}
+
+/* ── Cursor Glow ── */
+.cursor-glow {
+    position: fixed;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    transform: translate(-50%, -50%);
+    opacity: 0.4;
+    transition: opacity 300ms;
+}
+
+/* ── Phone Mockup ── */
+.phone-mockup {
+    width: 280px;
+    height: 560px;
+    background: #0A0A12;
+    border-radius: 36px;
+    border: 3px solid #2A2A3A;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 40px var(--accent-glow);
+}
+
+.phone-notch {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 28px;
+    background: #0A0A12;
+    border-radius: 0 0 16px 16px;
+    z-index: 10;
+}
+
+/* ── Browser Mockup ── */
+.browser-mockup {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4);
+}
+
+.browser-bar {
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.browser-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+/* ── Section Dividers ── */
+.section-gradient-top {
+    background: linear-gradient(180deg, var(--bg-landing) 0%, var(--bg-section) 100%);
+}
+
+.section-gradient-bottom {
+    background: linear-gradient(180deg, var(--bg-section) 0%, var(--bg-landing) 100%);
+}
+
+/* ── Animations ── */
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.6); }
+}
+
+@keyframes bounce-arrow {
+    0%, 100% { transform: translateY(0) translateX(-50%); }
+    50% { transform: translateY(10px) translateX(-50%); }
+}
+
+.animate-float {
+    animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.animate-bounce-arrow {
+    animation: bounce-arrow 2s ease-in-out infinite;
+}
+
+/* ── Pill ── */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    border-radius: 100px;
+    border: 1px solid rgba(214, 0, 110, 0.3);
+    background: rgba(214, 0, 110, 0.06);
+    font-size: 14px;
+    color: var(--accent);
+    font-weight: 500;
+}
+
+/* ── Checkmark Animation ── */
+@keyframes check-in {
+    0% { opacity: 0; transform: scale(0.5); }
+    50% { transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.check-animated {
+    animation: check-in 0.5s ease-out forwards;
+    opacity: 0;
+}
+
+/* ── Theme Toggle ── */
+.theme-toggle {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-body);
+    transition: all 300ms ease;
+}
+
+.landing-light .theme-toggle {
+    border-color: rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.05);
+}
+
+/* ── Map ── */
+.map-container svg {
+    width: 100%;
+    height: auto;
+}
+
+.map-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .phone-mockup {
+        width: 200px;
+        height: 400px;
+    }
+}

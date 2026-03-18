@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Landing page de presentación para Sancor Seguros)
+QUE SE CAMBIO: Nueva landing page en `/landing` (ruta pública, sin autenticación) diseñada para presentar CLARITY a ejecutivos de Sancor Seguros.
+POR QUE: Herramienta de negociación para reuniones presenciales y compartir por link. Diseño premium tipo linear.app / vercel.com.
+COMO: 8 secciones: Hero con partículas interactivas (tsParticles), Pain Points con counters animados, Inspección Remota con mockup de celular, Inspección Presencial con mockup de firma digital, Visibilidad con mockup de dashboard, Mapa de Argentina SVG con puntos pulsantes, Métricas de impacto, y CTA. Toggle dark/light mode, scroll animations con Framer Motion, cursor glow en desktop, tipografía Outfit + DM Sans. Datos editables en objeto `LANDING_DATA`.
+ARCHIVOS AFECTADOS: `landing/page.tsx` (nuevo), `landing/layout.tsx` (nuevo), `landing/landing.css` (nuevo), `LandingPage.tsx` (nuevo), `ParticlesBackground.tsx` (nuevo), `ArgentinaMap.tsx` (nuevo)
+EFECTOS COLATERALES: Ninguno. Ruta completamente independiente del sistema.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 18/03/2026 (Fix Kilometraje — Fuente de datos y agrupación)
 QUE SE CAMBIO: Corregida la lógica de generación de días en el módulo Kilometraje. Antes consultaba `historial_estados` (estado_nuevo=pendiente_carga) y agrupaba por fecha+perito. Ahora consulta `casos.fecha_inspeccion_programada` directamente y genera UNA card por día con TODOS los siniestros de esa fecha.
 POR QUE: El kilometraje es un circuito diario del estudio, no por perito. Todos los siniestros con fecha de inspección del día deben aparecer en la misma card, sin importar qué perito los hizo ni si ya pasaron a pendiente_carga.

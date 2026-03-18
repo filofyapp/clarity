@@ -66,8 +66,8 @@ export function ValoresSancorEditor({ valores: initial }: { valores: ValorSancor
     return (
         <div className="bg-bg-secondary border border-border rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-bg-tertiary border-b border-border flex items-center justify-between">
-                <h3 className="font-semibold text-text-primary text-sm">Valores Sancor — Mano de Obra</h3>
-                <span className="text-[10px] text-text-muted uppercase tracking-wide">Para inspecciones presenciales</span>
+                <h3 className="font-bold text-text-primary text-sm uppercase tracking-wide">Valores Generales Sancor</h3>
+                <span className="text-[10px] text-text-muted bg-brand-primary/5 px-2 py-1 rounded-full border border-brand-primary/10">Referencia para inspecciones · No removible</span>
             </div>
             <div className="divide-y divide-border/30">
                 {valores.map(v => {

@@ -124,7 +124,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
     ];
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 overflow-x-hidden">
             {/* Cabecera del caso */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-6">
                 <div>

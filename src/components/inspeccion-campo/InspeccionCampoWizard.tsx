@@ -152,6 +152,7 @@ export function InspeccionCampoWizard({
     const [isDrawing, setIsDrawing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [firmaFullscreen, setFirmaFullscreen] = useState(false);
+    const [firmaDataUrl, setFirmaDataUrl] = useState<string | null>(null);
     const resumenRef = useRef<HTMLDivElement>(null);
 
     // ═══ Computed ═══
@@ -351,28 +352,15 @@ export function InspeccionCampoWizard({
         clearCanvas(canvasRef.current);
         clearCanvas(fullscreenCanvasRef.current);
         setFirmaDibujada(false);
+        setFirmaDataUrl(null);
     };
 
-    // Transfer fullscreen signature to main canvas (preserve aspect ratio)
+    // Export fullscreen signature as image (pixel-perfect, no distortion)
     const confirmFullscreenSignature = () => {
         const fsCanvas = fullscreenCanvasRef.current;
-        const mainCanvas = canvasRef.current;
-        if (fsCanvas && mainCanvas) {
-            const ctx = mainCanvas.getContext("2d");
-            if (ctx) {
-                ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
-                // Fit landscape signature into portrait canvas preserving ratio
-                const srcW = fsCanvas.width;
-                const srcH = fsCanvas.height;
-                const dstW = mainCanvas.width;
-                const dstH = mainCanvas.height;
-                const scale = Math.min(dstW / srcW, dstH / srcH);
-                const drawW = srcW * scale;
-                const drawH = srcH * scale;
-                const offsetX = (dstW - drawW) / 2;
-                const offsetY = (dstH - drawH) / 2;
-                ctx.drawImage(fsCanvas, 0, 0, srcW, srcH, offsetX, offsetY, drawW, drawH);
-            }
+        if (fsCanvas) {
+            const dataUrl = fsCanvas.toDataURL("image/png");
+            setFirmaDataUrl(dataUrl);
         }
         setFirmaFullscreen(false);
     };
@@ -380,6 +368,7 @@ export function InspeccionCampoWizard({
     const clearFullscreenCanvas = () => {
         clearCanvas(fullscreenCanvasRef.current);
         setFirmaDibujada(false);
+        setFirmaDataUrl(null);
     };
 
     // ═══ Final submit ═══
@@ -399,18 +388,28 @@ export function InspeccionCampoWizard({
 
             const ts = new Date().toISOString();
 
-            // 2. Capture signature canvas as PNG
+            // 2. Capture signature as PNG
             let firmaStorageUrl: string | null = null;
-            const canvas = canvasRef.current;
-            if (canvas) {
-                const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
-                if (blob) {
-                    const fileName = `${casoId}/firma_taller_${Date.now()}.png`;
-                    const { error } = await supabase.storage.from("caso-archivos").upload(fileName, blob);
-                    if (!error) {
-                        const { data: pub } = supabase.storage.from("caso-archivos").getPublicUrl(fileName);
-                        firmaStorageUrl = pub.publicUrl;
-                    }
+            let sigBlob: Blob | null = null;
+
+            if (firmaDataUrl) {
+                // Fullscreen signature — convert data URL to blob
+                const res = await fetch(firmaDataUrl);
+                sigBlob = await res.blob();
+            } else {
+                // Inline canvas signature
+                const canvas = canvasRef.current;
+                if (canvas) {
+                    sigBlob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+                }
+            }
+
+            if (sigBlob) {
+                const fileName = `${casoId}/firma_taller_${Date.now()}.png`;
+                const { error } = await supabase.storage.from("caso-archivos").upload(fileName, sigBlob);
+                if (!error) {
+                    const { data: pub } = supabase.storage.from("caso-archivos").getPublicUrl(fileName);
+                    firmaStorageUrl = pub.publicUrl;
                 }
             }
 
@@ -612,23 +611,33 @@ export function InspeccionCampoWizard({
                             </div>
                         </div>
                         <div className="relative">
-                            <canvas
-                                ref={canvasRef}
-                                className="w-full h-[200px] bg-white rounded-xl border-2 border-dashed border-border cursor-crosshair touch-none"
-                                onMouseDown={startDraw}
-                                onMouseMove={draw}
-                                onMouseUp={endDraw}
-                                onMouseLeave={endDraw}
-                                onTouchStart={startDraw}
-                                onTouchMove={draw}
-                                onTouchEnd={endDraw}
-                            />
-                            {!firmaDibujada && (
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <span className="text-gray-400 text-sm flex items-center gap-2">
-                                        <PenTool className="w-4 h-4" /> Firmar aquí
-                                    </span>
+                            {firmaDataUrl ? (
+                                /* Show the exact signature image from fullscreen */
+                                <div className="w-full bg-white rounded-xl border-2 border-color-success/30 p-2">
+                                    <img src={firmaDataUrl} alt="Firma" className="w-full h-auto rounded-lg" />
                                 </div>
+                            ) : (
+                                /* Inline drawing canvas (when not using fullscreen) */
+                                <>
+                                    <canvas
+                                        ref={canvasRef}
+                                        className="w-full h-[200px] bg-white rounded-xl border-2 border-dashed border-border cursor-crosshair touch-none"
+                                        onMouseDown={startDraw}
+                                        onMouseMove={draw}
+                                        onMouseUp={endDraw}
+                                        onMouseLeave={endDraw}
+                                        onTouchStart={startDraw}
+                                        onTouchMove={draw}
+                                        onTouchEnd={endDraw}
+                                    />
+                                    {!firmaDibujada && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <span className="text-gray-400 text-sm flex items-center gap-2">
+                                                <PenTool className="w-4 h-4" /> Firmar aquí
+                                            </span>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Sprint 10.2)
+QUE SE CAMBIO: 4 correcciones UX al módulo de inspección presencial.
+POR QUE: (1) Inputs decimales no aceptaban punto ni coma en iOS Safari. (2) Texto "Firmar aquí" en fullscreen no se adaptaba a orientación. (3) Conformidad del Taller colapsable no mostraba contenido al expandir. (4) Badge "FIRMADO ✓" tenía texto e ícono desalineados.
+COMO: (1) `InspeccionCampoWizard.tsx`: inputs Valor y Cantidad usan `type="text"` con `inputMode="decimal"`, estado `editingText` para guardar texto raw durante edición, solo parsea a número con `parseFloat(val.replace(",","."))` en `onBlur`. Elimina el problema de iOS que no permite escribir punto/coma en `type="number"`. (2) Texto placeholder de firma fullscreen rotado con `portrait:rotate-[-90deg] landscape:rotate-0`; preview firma compacta `max-h-[80px]` centrada. (3) `VistaInformeCampo.tsx`: reemplazada transición `max-h-0/max-h-[900px]` (no funcionaba) por render condicional simple `{conformidadOpen && (...)}`. Añadido fallback de imagen de firma cuando no hay resumen firmado y "GPS no disponible" cuando no hay coordenadas. (4) Badge cambiado de `rounded-full` con ✓ unicode a `inline-flex items-center gap-1 rounded-md` con SVG check para alineación perfecta.
+ARCHIVOS AFECTADOS: `InspeccionCampoWizard.tsx`, `VistaInformeCampo.tsx`
+EFECTOS COLATERALES: Ninguno.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 18/03/2026 (Sprint 10.1)
 QUE SE CAMBIO: 7 fixes UX al módulo de inspección presencial.
 POR QUE: Ajustes reportados post-implementación: (1) pantalla intermedia innecesaria entre fotos y zona daños, (2) fotos de daños debían ser continuas como en IR, (3) scroll no llegaba al final en varias pantallas, (4) observaciones internas visibles al taller en pantalla firma, (5) canvas de firma muy chico en mobile, (6) bloque viejo "informe no redactado" visible, (7) conformidad del taller gigante rompía armonía visual.

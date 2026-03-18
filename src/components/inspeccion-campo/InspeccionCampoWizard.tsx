@@ -143,6 +143,8 @@ export function InspeccionCampoWizard({
     const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
     // ═══ Sections collapse (informe) ═══
+    // Track raw text for decimal inputs (iOS fix)
+    const [editingText, setEditingText] = useState<Record<string, string>>({});
     const [seccionesOpen, setSeccionesOpen] = useState({ mo: true, piezas: true, obs: true });
 
     // ═══ Firma state ═══
@@ -613,8 +615,8 @@ export function InspeccionCampoWizard({
                         <div className="relative">
                             {firmaDataUrl ? (
                                 /* Show the exact signature image from fullscreen */
-                                <div className="w-full bg-white rounded-xl border-2 border-color-success/30 p-2">
-                                    <img src={firmaDataUrl} alt="Firma" className="w-full h-auto rounded-lg" />
+                                <div className="w-full bg-white rounded-xl border-2 border-color-success/30 p-2 flex items-center justify-center">
+                                    <img src={firmaDataUrl} alt="Firma" className="max-h-[80px] w-auto rounded-lg" />
                                 </div>
                             ) : (
                                 /* Inline drawing canvas (when not using fullscreen) */
@@ -681,8 +683,8 @@ export function InspeccionCampoWizard({
                             />
                             {!firmaDibujada && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <span className="text-gray-300 text-lg flex items-center gap-2">
-                                        <PenTool className="w-5 h-5" /> Firmar aquí
+                                    <span className="text-gray-300 text-lg flex items-center gap-2 portrait:rotate-[-90deg] landscape:rotate-0 transition-transform">
+                                        <PenTool className="w-5 h-5" /> Firme aquí
                                     </span>
                                 </div>
                             )}
@@ -833,8 +835,16 @@ export function InspeccionCampoWizard({
                                                 type="text"
                                                 inputMode="decimal"
                                                 pattern="[0-9]*[.,]?[0-9]*"
-                                                value={r.valor || ""}
-                                                onChange={e => updateMORow(r.id, "valor", parseFloat(e.target.value.replace(",", ".")) || 0)}
+                                                value={editingText[`${r.id}_valor`] !== undefined ? editingText[`${r.id}_valor`] : (r.valor || "")}
+                                                onChange={e => {
+                                                    const raw = e.target.value;
+                                                    setEditingText(prev => ({ ...prev, [`${r.id}_valor`]: raw }));
+                                                }}
+                                                onBlur={e => {
+                                                    const parsed = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                                    updateMORow(r.id, "valor", parsed);
+                                                    setEditingText(prev => { const n = { ...prev }; delete n[`${r.id}_valor`]; return n; });
+                                                }}
                                                 className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono focus:border-brand-primary focus:outline-none"
                                                 placeholder="$0"
                                             />
@@ -845,8 +855,16 @@ export function InspeccionCampoWizard({
                                                 type="text"
                                                 inputMode="decimal"
                                                 pattern="[0-9]*[.,]?[0-9]*"
-                                                value={r.cantidad || ""}
-                                                onChange={e => updateMORow(r.id, "cantidad", parseFloat(e.target.value.replace(",", ".")) || 0)}
+                                                value={editingText[`${r.id}_cant`] !== undefined ? editingText[`${r.id}_cant`] : (r.cantidad || "")}
+                                                onChange={e => {
+                                                    const raw = e.target.value;
+                                                    setEditingText(prev => ({ ...prev, [`${r.id}_cant`]: raw }));
+                                                }}
+                                                onBlur={e => {
+                                                    const parsed = parseFloat(e.target.value.replace(",", ".")) || 0;
+                                                    updateMORow(r.id, "cantidad", parsed);
+                                                    setEditingText(prev => { const n = { ...prev }; delete n[`${r.id}_cant`]; return n; });
+                                                }}
                                                 className="w-full bg-bg-tertiary border border-border rounded-lg px-3 py-2.5 text-sm text-text-primary font-mono focus:border-brand-primary focus:outline-none"
                                                 placeholder="0"
                                             />

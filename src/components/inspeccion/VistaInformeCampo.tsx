@@ -174,8 +174,9 @@ export function VistaInformeCampo({ casoId }: Props) {
                                 <div className="flex items-center gap-2">
                                     <ShieldCheck className="w-5 h-5 text-color-success" />
                                     <span className="font-bold text-text-primary text-sm">Conformidad del Taller</span>
-                                    <span className="px-2 py-0.5 text-[10px] uppercase font-bold bg-color-success/10 text-color-success rounded-full">
-                                        Firmado ✓
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-color-success/10 text-color-success border border-color-success/20">
+                                        FIRMADO
+                                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-text-muted">
@@ -185,8 +186,8 @@ export function VistaInformeCampo({ casoId }: Props) {
                                 </div>
                             </button>
 
-                            {/* Expandable detail */}
-                            <div className={`transition-all duration-300 overflow-hidden ${conformidadOpen ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                            {/* Expandable detail — simple conditional render */}
+                            {conformidadOpen && (
                                 <div className="px-5 pb-5 space-y-4 border-t border-color-success/10">
                                     {/* Resumen firmado image */}
                                     {informe.resumen_firmado_url && (
@@ -199,6 +200,17 @@ export function VistaInformeCampo({ casoId }: Props) {
                                         </a>
                                     )}
 
+                                    {/* Firma image */}
+                                    {!informe.resumen_firmado_url && informe.firma_url && (
+                                        <a href={informe.firma_url} target="_blank" rel="noopener noreferrer" className="block mt-4">
+                                            <img
+                                                src={informe.firma_url}
+                                                alt="Firma"
+                                                className="max-w-[300px] w-full mx-auto rounded-lg border border-border hover:border-brand-primary/50 transition-colors cursor-pointer"
+                                            />
+                                        </a>
+                                    )}
+
                                     {/* Meta */}
                                     <div className="space-y-1.5 text-xs text-text-muted">
                                         {firmaDate && (
@@ -206,7 +218,7 @@ export function VistaInformeCampo({ casoId }: Props) {
                                                 <Clock className="w-3 h-3" /> {firmaDate}
                                             </p>
                                         )}
-                                        {informe.firma_latitud && informe.firma_longitud && (
+                                        {informe.firma_latitud && informe.firma_longitud ? (
                                             <a
                                                 href={`https://www.google.com/maps?q=${informe.firma_latitud},${informe.firma_longitud}`}
                                                 target="_blank"
@@ -216,10 +228,14 @@ export function VistaInformeCampo({ casoId }: Props) {
                                                 <MapPin className="w-3 h-3" />
                                                 {Number(informe.firma_latitud).toFixed(4)}, {Number(informe.firma_longitud).toFixed(4)}
                                             </a>
+                                        ) : (
+                                            <p className="flex items-center gap-1.5 text-text-muted/50">
+                                                <MapPin className="w-3 h-3" /> GPS no disponible
+                                            </p>
                                         )}
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
                 </div>

@@ -866,6 +866,16 @@ TESTEADO: Compilación Next/Turbopack superada sin errores.
 
 ---
 
+FECHA: 18/03/2026 (Fix inspección remota — Retry Supabase transiente)
+QUE SE CAMBIO: Resiliencia ante errores transitorios de Supabase (502/503/504 Bad Gateway) en los 2 endpoints de inspección remota: upload y complete.
+POR QUE: El servidor devolvía 502 Bad Gateway desde Supabase (Cloudflare) al intentar insertar fotos en `fotos_inspeccion` y al completar la inspección. El error venía como página HTML en vez de JSON, causando que el endpoint devolviera "Error al registrar foto" sin recuperación. NO fue una regresión del sprint de inspección presencial — los componentes compartidos (`CameraCapture`, `SelectorZonaDanio`, `WizardCaptura`) están intactos. `InspeccionCampoWizard` importa pero no modifica componentes compartidos y usa pipeline de upload independiente.
+COMO: (1) Función `withRetry<T>()` con `PromiseLike<T>` (compatible con PostgREST builders): reintenta hasta 3 veces con espera exponencial (1s, 2s, 4s) cuando detecta errores transitorios (HTML `<!DOCTYPE`, "Bad gateway", 502/503/504). (2) `upload/route.ts`: 4 operaciones con retry (validación token, upload storage, insert `fotos_inspeccion`, update counter). (3) `complete/route.ts`: 7 operaciones con retry (validación token, update link, get caso, update caso, insert historial, insert nota, insert notificación).
+ARCHIVOS AFECTADOS: `api/inspeccion-remota/upload/route.ts`, `api/inspeccion-remota/complete/route.ts`
+EFECTOS COLATERALES: Ninguno. Retry solo agrega latencia cuando hay error transitorio (máx ~7s). Si Supabase sigue caído después de 3 reintentos, el error se devuelve normalmente.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
+---
+
 FECHA: 18/03/2026 (Sprint 10.3)
 QUE SE CAMBIO: 7 correcciones plataforma.
 POR QUE: (1) Highlight del buscador GoTo se perdía al hacer hover, poco visible. (2) Timer de cola de carga solo mostraba horas, sin color por antigüedad. (3) No se podía cambiar responsable de tarea desde barra lateral. (4) Dashboards de peritos no priorizaban datos del mes. (5) Texto de derivación del gestor no era editable. (6) Valores unitarios de MO no se mostraban en informe campo. (7) Admin no veía informe de campo en algunos estados.

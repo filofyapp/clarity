@@ -69,6 +69,7 @@ export function PreciosEditor({ precios: initial }: { precios: Precio[] }) {
     // Agrupar por tipo
     const grupos: Record<string, Precio[]> = {};
     precios.forEach(p => {
+        if (p.tipo === "mano_obra") return; // Handled by ValoresSancorEditor
         if (!grupos[p.tipo]) grupos[p.tipo] = [];
         grupos[p.tipo].push(p);
     });
@@ -76,7 +77,6 @@ export function PreciosEditor({ precios: initial }: { precios: Precio[] }) {
     const tipoLabels: Record<string, string> = {
         honorario: "Honorarios por Tipo de IP",
         kilometraje: "Kilometraje",
-        mano_obra: "Mano de Obra (defaults)"
     };
 
     return (

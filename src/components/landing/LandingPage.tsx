@@ -7,11 +7,10 @@ import {
     useTransform,
     useSpring,
     useMotionValue,
-    AnimatePresence,
 } from "framer-motion";
 import {
     ChevronDown, Clock, PhoneCall, AlertTriangle, Check,
-    Camera, MapPin, Mail, Link2, Timer, Shield, ArrowRight,
+    Camera, MapPin, Mail, Link2, Timer, Shield, Car, Send,
 } from "lucide-react";
 import { ParticlesBackground } from "./ParticlesBackground";
 import { ArgentinaMap } from "./ArgentinaMap";
@@ -21,15 +20,15 @@ import { ArgentinaMap } from "./ArgentinaMap";
 // ═══════════════════════════════════════════════
 const LANDING_DATA = {
     hero: {
-        words: ["De", "7", "días", "a", "7", "minutos."],
-        subtitle: "El sistema de inspección vehicular que está transformando la gestión de siniestros en Argentina.",
+        words: ["De", "3", "días", "a", "3", "minutos."],
+        subtitle: "La plataforma que simplifica cada paso de la gestión pericial, desde la coordinación hasta el cierre del caso.",
     },
     painPoints: [
         {
             icon: Clock,
-            value: 1.2, suffix: " días", decimals: 1,
+            value: 24, suffix: " hs", decimals: 0,
             label: "Tiempo promedio de resolución con CLARITY",
-            highlight: "vs. 7+ días del mercado",
+            highlight: "vs. 3+ días del mercado",
         },
         {
             icon: PhoneCall,
@@ -38,38 +37,49 @@ const LANDING_DATA = {
             highlight: "100% trazabilidad en tiempo real",
         },
         {
-            icon: AlertTriangle,
-            value: 45.5, suffix: "M", prefix: "$", decimals: 1,
-            label: "Ahorro estimado en disputas documentadas",
-            highlight: "Firma digital con geolocalización",
+            icon: Car,
+            value: 100, suffix: "%", prefix: "",
+            label: "De las inspecciones remotas no generan kilometraje ni viáticos",
+            highlight: "Ahorro directo para la compañía",
         },
     ],
     steps: [
-        { title: "El asegurado recibe un link por WhatsApp", desc: "Sin apps, sin descargas. Un link que abre la cámara del celular." },
-        { title: "El sistema guía la captura foto por foto", desc: "Indicaciones claras: frente, lateral, trasera, daños. Impossible equivocarse." },
+        { title: "El asegurado o el taller recibe un link por WhatsApp", desc: "Sin apps, sin descargas. Un link que abre la cámara del celular." },
+        { title: "El sistema guía la captura foto por foto", desc: "Indicaciones claras: frente, lateral, trasera, daños. Imposible equivocarse." },
         { title: "Las fotos llegan al perito en tiempo real", desc: "El perito las ve mientras se suben. No hay que esperar." },
         { title: "El caso avanza automáticamente", desc: "Cambio de estado, notificación al gestor, link de seguimiento. Todo solo." },
     ],
     metricas: [
         { value: 1250, suffix: "+", label: "Casos gestionados", sub: "en los últimos 6 meses" },
-        { value: 1.2, suffix: " días", label: "Tiempo promedio", sub: "vs. 7+ del mercado", decimals: 1 },
+        { value: 24, suffix: " hs", label: "Tiempo promedio", sub: "vs. 3+ días del mercado", decimals: 0 },
         { value: 18400, suffix: "+", label: "Fotos procesadas", sub: "con control de calidad" },
         { value: 97, suffix: "%", label: "Satisfacción", sub: "encuestas internas" },
     ],
     acuerdo: {
         siniestro: "#827-401",
         taller: "AutoFix Quilmes",
-        manoObra: "$285.000",
-        repuestos: "$412.000",
-        total: "$697.000",
+        chapaDias: 2,
+        chapaValor: 140000,
+        pinturaPanos: 3,
+        pinturaValor: 145000,
     },
     contacto: {
-        nombre: "Nicolás Cordova",
-        rol: "Coordinador",
         email: "gestionsancoraomsiniestros@gmail.com",
         estudio: "Estudio AOM Siniestros",
     },
+    emailExample: {
+        asunto: "Siniestro #827-401 · ABC 123",
+        estado: "Inspección Realizada",
+        cuerpo: "Le comunicamos que la inspección del siniestro #827-401 fue realizada el día 18/03/2026 a las 15:42 hs.",
+        vehiculo: "Toyota Corolla 2022 · ABC 123",
+    },
 };
+
+// Calc derived acuerdo values
+const chapaSubtotal = LANDING_DATA.acuerdo.chapaDias * LANDING_DATA.acuerdo.chapaValor;
+const pinturaSubtotal = LANDING_DATA.acuerdo.pinturaPanos * LANDING_DATA.acuerdo.pinturaValor;
+const totalMO = chapaSubtotal + pinturaSubtotal;
+const fmt = (n: number) => "$" + n.toLocaleString("es-AR");
 
 // ═══════════════════════════════════════════════
 // ANIMATED COUNTER
@@ -151,7 +161,6 @@ function ReactiveBlob() {
         setIsMobile(mobile);
 
         if (mobile) {
-            // Autonomous drift for mobile
             mouseX.set(window.innerWidth / 2);
             mouseY.set(window.innerHeight / 3);
             return;
@@ -162,7 +171,6 @@ function ReactiveBlob() {
             mouseY.set(e.clientY);
         };
 
-        // Detect hover on interactive elements
         const onOver = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             if (target.closest("[data-blob-expand]") || target.closest("button") || target.closest("h1") || target.closest("h2")) {
@@ -184,10 +192,7 @@ function ReactiveBlob() {
     return (
         <motion.div
             className={`reactive-blob ${isMobile ? "animate-blob-drift" : ""} ${isHovering ? "expanded" : ""}`}
-            style={{
-                left: springX,
-                top: springY,
-            }}
+            style={{ left: springX, top: springY }}
         />
     );
 }
@@ -202,29 +207,21 @@ export function LandingPage() {
 
     return (
         <div className="landing-root relative min-h-screen">
-            {/* Reactive cursor blob */}
             <ReactiveBlob />
 
-            {/* Content (z-index above blob) */}
             <div className="relative z-10">
 
-                {/* ═══════════ HERO — Full viewport ═══════════ */}
+                {/* ═══════════ HERO ═══════════ */}
                 <section className="relative flex flex-col items-center justify-center min-h-screen px-6 overflow-hidden">
-                    {/* Particles background */}
                     <div className="absolute inset-0 z-0">
                         <ParticlesBackground isDark={true} />
                     </div>
-
-                    {/* Radial gradient overlay */}
                     <div
                         className="absolute inset-0 z-0"
-                        style={{
-                            background: "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(214,0,110,0.05) 0%, transparent 60%)",
-                        }}
+                        style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, rgba(214,0,110,0.05) 0%, transparent 60%)" }}
                     />
 
                     <div className="relative z-10 text-center max-w-5xl mx-auto">
-                        {/* CLARITY wordmark */}
                         <motion.p
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -235,29 +232,21 @@ export function LandingPage() {
                             C L A R I T Y
                         </motion.p>
 
-                        {/* Word-by-word tagline */}
                         <h1 className="heading-font text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold leading-none mb-10" data-blob-expand>
                             {LANDING_DATA.hero.words.map((word, i) => (
                                 <motion.span
                                     key={i}
-                                    className={`hero-word mr-3 md:mr-5 ${
-                                        word === "7" ? "gradient-text-accent" : ""
-                                    }`}
-                                    style={{ color: word !== "7" ? "var(--text-white)" : undefined }}
+                                    className={`hero-word mr-3 md:mr-5 ${word === "3" ? "gradient-text-accent" : ""}`}
+                                    style={{ color: word !== "3" ? "var(--text-white)" : undefined }}
                                     initial={{ opacity: 0, y: 50, filter: "blur(8px)" }}
                                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                                    transition={{
-                                        duration: 0.6,
-                                        delay: 0.5 + i * 0.12,
-                                        ease: [0.25, 0.46, 0.45, 0.94],
-                                    }}
+                                    transition={{ duration: 0.6, delay: 0.5 + i * 0.12, ease: [0.25, 0.46, 0.45, 0.94] }}
                                 >
                                     {word}
                                 </motion.span>
                             ))}
                         </h1>
 
-                        {/* Subtitle */}
                         <motion.p
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -268,7 +257,6 @@ export function LandingPage() {
                             {LANDING_DATA.hero.subtitle}
                         </motion.p>
 
-                        {/* Badge */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -280,7 +268,6 @@ export function LandingPage() {
                         </motion.div>
                     </div>
 
-                    {/* Scroll arrow */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -291,10 +278,9 @@ export function LandingPage() {
                     </motion.div>
                 </section>
 
-                {/* Divider */}
                 <div className="section-divider" />
 
-                {/* ═══════════ EL PROBLEMA — Pain Points ═══════════ */}
+                {/* ═══════════ EL PROBLEMA ═══════════ */}
                 <section className="py-28 md:py-36 px-6" style={{ background: "var(--bg-section)" }}>
                     <div className="max-w-6xl mx-auto">
                         <FadeUp>
@@ -303,36 +289,20 @@ export function LandingPage() {
                             </p>
                         </FadeUp>
                         <FadeUp delay={0.1}>
-                            <h2
-                                className="heading-font text-3xl md:text-5xl lg:text-6xl font-bold text-center mb-20"
-                                style={{ color: "var(--text-white)" }}
-                                data-blob-expand
-                            >
+                            <h2 className="heading-font text-3xl md:text-5xl lg:text-6xl font-bold text-center mb-20" style={{ color: "var(--text-white)" }} data-blob-expand>
                                 ¿Cuánto le cuestan las demoras?
                             </h2>
                         </FadeUp>
 
-                        {/* Staggered cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
                             {LANDING_DATA.painPoints.map((item, i) => (
                                 <FadeUp key={i} delay={0.15 + i * 0.15}>
                                     <div className="glass-card p-8 text-center h-full">
-                                        <div
-                                            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-8"
-                                            style={{ background: "var(--accent-glow)" }}
-                                        >
+                                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-8" style={{ background: "var(--accent-glow)" }}>
                                             <item.icon size={26} style={{ color: "var(--accent)" }} />
                                         </div>
-                                        <p
-                                            className="heading-font text-5xl md:text-6xl font-extrabold mb-4"
-                                            style={{ color: "var(--text-white)" }}
-                                        >
-                                            <Counter
-                                                value={item.value}
-                                                suffix={item.suffix}
-                                                prefix={item.prefix || ""}
-                                                decimals={item.decimals || 0}
-                                            />
+                                        <p className="heading-font text-5xl md:text-6xl font-extrabold mb-4" style={{ color: "var(--text-white)" }}>
+                                            <Counter value={item.value} suffix={item.suffix} prefix={item.prefix || ""} decimals={item.decimals || 0} />
                                         </p>
                                         <p className="text-sm leading-relaxed mb-4" style={{ color: "var(--text-gray)" }}>
                                             {item.label}
@@ -359,7 +329,6 @@ export function LandingPage() {
                 <section className="py-28 md:py-36 px-6">
                     <div className="max-w-6xl mx-auto">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-                            {/* Steps */}
                             <div>
                                 <FadeUp>
                                     <p className="text-sm tracking-widest uppercase mb-4" style={{ color: "var(--accent)" }}>
@@ -367,11 +336,7 @@ export function LandingPage() {
                                     </p>
                                 </FadeUp>
                                 <FadeUp delay={0.1}>
-                                    <h2
-                                        className="heading-font text-3xl md:text-5xl font-bold mb-14"
-                                        style={{ color: "var(--text-white)" }}
-                                        data-blob-expand
-                                    >
+                                    <h2 className="heading-font text-3xl md:text-5xl font-bold mb-14" style={{ color: "var(--text-white)" }} data-blob-expand>
                                         Inspección remota en minutos.
                                     </h2>
                                 </FadeUp>
@@ -379,11 +344,7 @@ export function LandingPage() {
                                 <div className="space-y-8 relative">
                                     {LANDING_DATA.steps.map((step, i) => (
                                         <FadeUp key={i} delay={0.2 + i * 0.12}>
-                                            <motion.div
-                                                className="flex gap-5 group"
-                                                whileInView={{ opacity: 1 }}
-                                                viewport={{ once: true }}
-                                            >
+                                            <motion.div className="flex gap-5 group" whileInView={{ opacity: 1 }} viewport={{ once: true }}>
                                                 <div className="flex flex-col items-center pt-1">
                                                     <motion.div
                                                         className="step-dot"
@@ -396,12 +357,8 @@ export function LandingPage() {
                                                     )}
                                                 </div>
                                                 <div className="pb-2">
-                                                    <p className="text-lg font-semibold mb-1" style={{ color: "var(--text-white)" }}>
-                                                        {step.title}
-                                                    </p>
-                                                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-gray)" }}>
-                                                        {step.desc}
-                                                    </p>
+                                                    <p className="text-lg font-semibold mb-1" style={{ color: "var(--text-white)" }}>{step.title}</p>
+                                                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-gray)" }}>{step.desc}</p>
                                                 </div>
                                             </motion.div>
                                         </FadeUp>
@@ -416,7 +373,6 @@ export function LandingPage() {
                                         <div className="phone-notch" />
                                         <div className="flex flex-col h-full pt-10 px-4 pb-4">
                                             <div className="flex-1 flex flex-col gap-3 pt-4">
-                                                {/* IP Screen */}
                                                 <div className="glass-card p-4" style={{ borderRadius: "14px" }}>
                                                     <p style={{ color: "#D6006E", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                                                         Inspección Remota
@@ -445,10 +401,7 @@ export function LandingPage() {
                                                 ))}
 
                                                 <div className="mt-auto">
-                                                    <div
-                                                        className="w-full py-3 rounded-xl text-center font-semibold text-xs flex items-center justify-center gap-2"
-                                                        style={{ background: "#D6006E", color: "white" }}
-                                                    >
+                                                    <div className="w-full py-3 rounded-xl text-center font-semibold text-xs flex items-center justify-center gap-2" style={{ background: "#D6006E", color: "white" }}>
                                                         <Camera size={14} /> Tomar siguiente foto
                                                     </div>
                                                 </div>
@@ -459,7 +412,6 @@ export function LandingPage() {
                             </FadeUp>
                         </div>
 
-                        {/* Impact stat */}
                         <FadeUp delay={0.5}>
                             <div className="text-center mt-20 pt-16" style={{ borderTop: "1px solid var(--border-glass)" }}>
                                 <p className="heading-font text-5xl md:text-6xl font-extrabold" style={{ color: "var(--text-white)" }}>
@@ -479,12 +431,11 @@ export function LandingPage() {
                 <section className="py-28 md:py-36 px-6" style={{ background: "var(--bg-section)" }}>
                     <div className="max-w-6xl mx-auto">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-                            {/* Signature mockup */}
+                            {/* Acuerdo mockup — chapa y pintura */}
                             <FadeUp delay={0.2} className="hidden lg:flex justify-center order-2 lg:order-1">
                                 <motion.div style={{ y: parallaxSlow }}>
                                     <div className="animate-float-gentle" style={{ animationDelay: "1.5s" }}>
                                         <div className="glass-card p-0 overflow-hidden" style={{ width: 340, borderRadius: "20px" }}>
-                                            {/* GPS badge */}
                                             <div className="flex items-center justify-end gap-1 px-4 pt-4">
                                                 <motion.div
                                                     className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px]"
@@ -497,29 +448,23 @@ export function LandingPage() {
                                             </div>
 
                                             <div className="p-6 pt-3">
-                                                <p className="text-white text-sm font-bold mb-4">Resumen del Acuerdo</p>
-                                                <div className="space-y-2 text-xs" style={{ color: "var(--text-gray)" }}>
-                                                    <div className="flex justify-between">
-                                                        <span>Siniestro</span>
-                                                        <span className="text-white font-medium">{LANDING_DATA.acuerdo.siniestro}</span>
+                                                <p className="text-white text-sm font-bold mb-1">Costos Acordados de Mano de Obra</p>
+                                                <p className="text-[10px] mb-4" style={{ color: "var(--text-muted)" }}>
+                                                    {LANDING_DATA.acuerdo.taller} · Siniestro {LANDING_DATA.acuerdo.siniestro}
+                                                </p>
+                                                <div className="space-y-3 text-xs" style={{ color: "var(--text-gray)" }}>
+                                                    <div className="flex justify-between items-center">
+                                                        <span>Chapa ({LANDING_DATA.acuerdo.chapaDias} días × {fmt(LANDING_DATA.acuerdo.chapaValor)})</span>
+                                                        <span className="text-white font-medium">{fmt(chapaSubtotal)}</span>
                                                     </div>
-                                                    <div className="flex justify-between">
-                                                        <span>Taller</span>
-                                                        <span className="text-white font-medium">{LANDING_DATA.acuerdo.taller}</span>
-                                                    </div>
-                                                    <div className="h-px my-3" style={{ background: "var(--border-glass)" }} />
-                                                    <div className="flex justify-between">
-                                                        <span>Mano de obra</span>
-                                                        <span className="text-white">{LANDING_DATA.acuerdo.manoObra}</span>
-                                                    </div>
-                                                    <div className="flex justify-between">
-                                                        <span>Repuestos</span>
-                                                        <span className="text-white">{LANDING_DATA.acuerdo.repuestos}</span>
+                                                    <div className="flex justify-between items-center">
+                                                        <span>Pintura ({LANDING_DATA.acuerdo.pinturaPanos} paños × {fmt(LANDING_DATA.acuerdo.pinturaValor)})</span>
+                                                        <span className="text-white font-medium">{fmt(pinturaSubtotal)}</span>
                                                     </div>
                                                     <div className="h-px my-3" style={{ background: "var(--border-glass)" }} />
-                                                    <div className="flex justify-between text-sm">
-                                                        <span className="font-bold text-white">Total</span>
-                                                        <span className="font-bold text-white">{LANDING_DATA.acuerdo.total}</span>
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="font-bold text-white">Total Mano de Obra</span>
+                                                        <span className="font-bold text-white">{fmt(totalMO)}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -546,7 +491,7 @@ export function LandingPage() {
                                                     </svg>
                                                 </div>
                                                 <p className="text-[9px] mt-2" style={{ color: "var(--text-muted)" }}>
-                                                    18/03/2026 15:42 · -34.7265, -58.2617
+                                                    19/03/2026 15:42 · -34.7265, -58.2617
                                                 </p>
                                             </div>
                                         </div>
@@ -562,11 +507,7 @@ export function LandingPage() {
                                     </p>
                                 </FadeUp>
                                 <FadeUp delay={0.1}>
-                                    <h2
-                                        className="heading-font text-3xl md:text-5xl font-bold mb-12"
-                                        style={{ color: "var(--text-white)" }}
-                                        data-blob-expand
-                                    >
+                                    <h2 className="heading-font text-3xl md:text-5xl font-bold mb-12" style={{ color: "var(--text-white)" }} data-blob-expand>
                                         Cada acuerdo, documentado e irrefutable.
                                     </h2>
                                 </FadeUp>
@@ -580,15 +521,10 @@ export function LandingPage() {
                                 ].map((item, i) => (
                                     <FadeUp key={i} delay={0.15 + i * 0.1}>
                                         <div className="flex items-start gap-4 mb-5">
-                                            <div
-                                                className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                                                style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.2)" }}
-                                            >
+                                            <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.2)" }}>
                                                 <Check size={12} style={{ color: "#22C55E" }} />
                                             </div>
-                                            <p className="text-base" style={{ color: "var(--text-gray)" }}>
-                                                {item}
-                                            </p>
+                                            <p className="text-base" style={{ color: "var(--text-gray)" }}>{item}</p>
                                         </div>
                                     </FadeUp>
                                 ))}
@@ -598,9 +534,7 @@ export function LandingPage() {
                                         <p className="heading-font text-3xl font-extrabold" style={{ color: "var(--text-white)" }}>
                                             <Counter value={0} /> <span className="text-sm font-normal" style={{ color: "var(--text-muted)" }}>disputas</span>
                                         </p>
-                                        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                                            en los últimos 90 días
-                                        </p>
+                                        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>en los últimos 90 días</p>
                                     </div>
                                 </FadeUp>
                             </div>
@@ -610,7 +544,7 @@ export function LandingPage() {
 
                 <div className="section-divider" />
 
-                {/* ═══════════ VISIBILIDAD ═══════════ */}
+                {/* ═══════════ VISIBILIDAD — Email Notifications ═══════════ */}
                 <section className="py-28 md:py-36 px-6">
                     <div className="max-w-6xl mx-auto">
                         <FadeUp>
@@ -619,67 +553,111 @@ export function LandingPage() {
                             </p>
                         </FadeUp>
                         <FadeUp delay={0.1}>
-                            <h2
-                                className="heading-font text-3xl md:text-5xl font-bold text-center mb-4"
-                                style={{ color: "var(--text-white)" }}
-                                data-blob-expand
-                            >
+                            <h2 className="heading-font text-3xl md:text-5xl font-bold text-center mb-4" style={{ color: "var(--text-white)" }} data-blob-expand>
                                 Los gestores no necesitan llamar.
                             </h2>
                         </FadeUp>
                         <FadeUp delay={0.15}>
                             <p className="text-center text-base max-w-xl mx-auto mb-16" style={{ color: "var(--text-gray)" }}>
-                                Cada cambio de estado dispara una notificación automática. Cada caso tiene su link de seguimiento en tiempo real.
+                                Cada cambio de estado dispara un email automático al gestor con toda la información del caso y un link de seguimiento en tiempo real.
                             </p>
                         </FadeUp>
 
-                        {/* Dashboard mockup */}
+                        {/* Email mockup */}
                         <FadeUp delay={0.3}>
-                            <div className="glass-card max-w-4xl mx-auto overflow-hidden" style={{ borderRadius: "16px" }}>
-                                {/* Browser bar */}
-                                <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid var(--border-glass)" }}>
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#FF5F57" }} />
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#FFBD2E" }} />
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: "#28C840" }} />
-                                    <div className="flex-1 ml-3 rounded-md px-3 py-1 text-[11px]" style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-muted)" }}>
-                                        panel.aomsiniestros.com/dashboard
+                            <div className="glass-card max-w-2xl mx-auto overflow-hidden" style={{ borderRadius: "16px" }}>
+                                {/* Email header */}
+                                <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--border-glass)" }}>
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: "var(--accent-glow)" }}>
+                                            <Mail size={16} style={{ color: "var(--accent)" }} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold" style={{ color: "var(--text-white)" }}>CLARITY — Notificación Automática</p>
+                                            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>gestionsancoraomsiniestros@gmail.com</p>
+                                        </div>
                                     </div>
+                                    <p className="text-sm font-medium" style={{ color: "var(--text-white)" }}>
+                                        [CLARITY] {LANDING_DATA.emailExample.asunto} — {LANDING_DATA.emailExample.estado}
+                                    </p>
                                 </div>
 
-                                <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {/* Email body */}
+                                <div className="px-6 py-5">
+                                    <div className="mb-4 flex items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider" style={{ background: "var(--accent-glow)", color: "var(--accent)" }}>
+                                            {LANDING_DATA.emailExample.estado}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm font-bold mb-1" style={{ color: "var(--text-white)" }}>
+                                        Siniestro {LANDING_DATA.acuerdo.siniestro}
+                                    </p>
+                                    <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--text-gray)" }}>
+                                        Estimado/a Gestor,
+                                        <br /><br />
+                                        {LANDING_DATA.emailExample.cuerpo}
+                                        <br /><br />
+                                        🚗 Vehículo: {LANDING_DATA.emailExample.vehiculo}
+                                    </p>
+
+                                    {/* CTA button */}
+                                    <motion.div
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold"
+                                        style={{ background: "var(--accent)", color: "white" }}
+                                        whileInView={{ scale: [0.95, 1] }}
+                                        transition={{ delay: 0.6 }}
+                                        viewport={{ once: true }}
+                                    >
+                                        🔵 Ver estado del caso →
+                                    </motion.div>
+                                </div>
+
+                                {/* Email footer */}
+                                <div className="px-6 py-3 text-center" style={{ borderTop: "1px solid var(--border-glass)", background: "rgba(255,255,255,0.02)" }}>
+                                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                                        Estudio AOM Siniestros · Al servicio de Sancor Seguros
+                                    </p>
+                                </div>
+                            </div>
+                        </FadeUp>
+
+                        {/* Email states timeline */}
+                        <FadeUp delay={0.5}>
+                            <div className="max-w-2xl mx-auto mt-10">
+                                <p className="text-center text-xs mb-6" style={{ color: "var(--text-muted)" }}>
+                                    El gestor recibe un email en cada hito:
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-2">
                                     {[
-                                        { estado: "IP Coordinada", color: "#3B82F6", n: 12 },
-                                        { estado: "Pendiente Carga", color: "#F59E0B", n: 8 },
-                                        { estado: "Licitando", color: "#8B5CF6", n: 5 },
-                                        { estado: "Cerrada", color: "#22C55E", n: 23 },
-                                    ].map((s, i) => (
+                                        { label: "Contacto iniciado", icon: "📞" },
+                                        { label: "IP Coordinada", icon: "📅" },
+                                        { label: "IP Realizada", icon: "✅" },
+                                        { label: "Repuestos en licitación", icon: "🔍" },
+                                    ].map((item, i) => (
                                         <motion.div
-                                            key={s.estado}
-                                            className="rounded-xl p-4"
-                                            style={{ background: `${s.color}08`, border: `1px solid ${s.color}20` }}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            whileInView={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: 0.4 + i * 0.1, duration: 0.5 }}
+                                            key={item.label}
+                                            className="glass-card px-4 py-2.5 flex items-center gap-2 text-xs"
+                                            style={{ borderRadius: "10px" }}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            whileInView={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.6 + i * 0.1 }}
                                             viewport={{ once: true }}
                                         >
-                                            <p style={{ color: s.color, fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                                                {s.estado}
-                                            </p>
-                                            <p className="heading-font text-2xl font-bold mt-1" style={{ color: "var(--text-white)" }}>
-                                                {s.n}
-                                            </p>
+                                            <span>{item.icon}</span>
+                                            <span style={{ color: "var(--text-gray)" }}>{item.label}</span>
+                                            {i < 3 && <span className="ml-1" style={{ color: "var(--text-muted)" }}>→</span>}
                                         </motion.div>
                                     ))}
                                 </div>
                             </div>
                         </FadeUp>
 
-                        {/* Features */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-10 max-w-4xl mx-auto">
+                        {/* Feature pills */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12 max-w-4xl mx-auto">
                             {[
-                                { icon: Mail, text: "Emails automáticos a gestores en cada hito" },
+                                { icon: Send, text: "Emails automáticos desde Gmail, sin intervención" },
                                 { icon: Link2, text: "Link de seguimiento único por siniestro" },
-                                { icon: Timer, text: "Alertas de SLA cuando un caso se demora" },
+                                { icon: Timer, text: "El gestor ve el estado sin llamar ni preguntar" },
                             ].map((f, i) => (
                                 <FadeUp key={i} delay={0.1 + i * 0.1}>
                                     <div className="glass-card px-5 py-4 flex items-center gap-4" style={{ borderRadius: "14px" }}>
@@ -707,7 +685,7 @@ export function LandingPage() {
                                 <FadeUp delay={0.1}>
                                     <h2 className="heading-font text-3xl md:text-5xl font-bold mb-6" style={{ color: "var(--text-white)" }} data-blob-expand>
                                         Un estudio en Buenos Aires.{" "}
-                                        <span className="gradient-text-hero">Cobertura en todo el país.</span>
+                                        <span className="gradient-text-accent">Cobertura en todo el país.</span>
                                     </h2>
                                 </FadeUp>
                                 <FadeUp delay={0.2}>
@@ -728,15 +706,11 @@ export function LandingPage() {
                 {/* ═══════════ MÉTRICAS ═══════════ */}
                 <section
                     className="py-28 md:py-36 px-6 relative"
-                    style={{
-                        background: "linear-gradient(135deg, rgba(214,0,110,0.03) 0%, var(--bg-abyss) 50%, rgba(245,158,11,0.02) 100%)",
-                    }}
+                    style={{ background: "linear-gradient(135deg, rgba(214,0,110,0.03) 0%, var(--bg-abyss) 50%, rgba(245,158,11,0.02) 100%)" }}
                 >
                     <div className="max-w-5xl mx-auto">
                         <FadeUp>
-                            <p className="text-center text-sm tracking-widest uppercase mb-4" style={{ color: "var(--accent)" }}>
-                                Resultados
-                            </p>
+                            <p className="text-center text-sm tracking-widest uppercase mb-4" style={{ color: "var(--accent)" }}>Resultados</p>
                         </FadeUp>
                         <FadeUp delay={0.1}>
                             <h2 className="heading-font text-3xl md:text-5xl font-bold text-center mb-20" style={{ color: "var(--text-white)" }} data-blob-expand>
@@ -751,12 +725,8 @@ export function LandingPage() {
                                         <p className="heading-font text-4xl md:text-5xl lg:text-6xl font-extrabold" style={{ color: "var(--text-white)" }}>
                                             <Counter value={m.value} suffix={m.suffix} decimals={m.decimals || 0} />
                                         </p>
-                                        <p className="heading-font text-sm font-semibold mt-3" style={{ color: "var(--text-gray)" }}>
-                                            {m.label}
-                                        </p>
-                                        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                                            {m.sub}
-                                        </p>
+                                        <p className="heading-font text-sm font-semibold mt-3" style={{ color: "var(--text-gray)" }}>{m.label}</p>
+                                        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{m.sub}</p>
                                     </div>
                                 </FadeUp>
                             ))}
@@ -766,13 +736,13 @@ export function LandingPage() {
 
                 <div className="section-divider" />
 
-                {/* ═══════════ FOOTER — Cierre ═══════════ */}
+                {/* ═══════════ FOOTER ═══════════ */}
                 <footer className="py-28 md:py-36 px-6" style={{ background: "var(--bg-section)" }}>
                     <div className="max-w-3xl mx-auto text-center">
                         <FadeUp>
                             <h2 className="heading-font text-3xl md:text-5xl lg:text-6xl font-bold mb-6" style={{ color: "var(--text-white)" }} data-blob-expand>
                                 El futuro de la inspección,{" "}
-                                <span className="gradient-text-hero">hoy.</span>
+                                <span className="gradient-text-accent">hoy.</span>
                             </h2>
                         </FadeUp>
 
@@ -787,8 +757,8 @@ export function LandingPage() {
                             <img
                                 src="/logo-al-servicio-de-SS.png"
                                 alt="Al servicio de Sancor Seguros"
-                                className="h-10 md:h-14 mx-auto mb-14"
-                                style={{ opacity: 0.7 }}
+                                className="h-20 md:h-28 mx-auto mb-14"
+                                style={{ opacity: 0.85 }}
                             />
                         </FadeUp>
 
@@ -796,9 +766,6 @@ export function LandingPage() {
                             <div className="glass-card inline-block px-10 py-8" style={{ borderRadius: "16px" }}>
                                 <p className="heading-font text-lg font-bold" style={{ color: "var(--text-white)" }}>
                                     {LANDING_DATA.contacto.estudio}
-                                </p>
-                                <p className="mt-2 text-sm" style={{ color: "var(--text-gray)" }}>
-                                    {LANDING_DATA.contacto.nombre} — {LANDING_DATA.contacto.rol}
                                 </p>
                                 <a
                                     href={`mailto:${LANDING_DATA.contacto.email}`}

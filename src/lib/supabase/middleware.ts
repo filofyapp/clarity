@@ -36,18 +36,18 @@ export async function updateSession(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
-    const isPublicInspeccion = request.nextUrl.pathname.startsWith('/ip/')
-    const isPublicAPI = request.nextUrl.pathname.startsWith('/api/inspeccion-remota/')
-    const isPublicSeguimiento = request.nextUrl.pathname.startsWith('/seguimiento/')
-    const isPublicCron = request.nextUrl.pathname.startsWith('/api/cron/')
-    const isPublicLanding = request.nextUrl.pathname.startsWith('/landing')
 
-    if (!user && !isAuthRoute && !isPublicInspeccion && !isPublicAPI && !isPublicSeguimiento && !isPublicCron && !isPublicLanding) {
-        // no user, potentially respond by redirecting the user to the login page
+    // Note: Public routes (/landing, /ip/, /seguimiento/, /api/inspeccion-remota/, /api/cron/)
+    // are short-circuited in middleware.ts BEFORE this function is called.
+    // Only /login and authenticated routes reach here.
+
+    if (!user && !isAuthRoute) {
+        // no user, redirect to login
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
+
 
     if (user && isAuthRoute) {
         // user is already logged in, redirect away from login

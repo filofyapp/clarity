@@ -1166,3 +1166,11 @@ COMO: (1) Reescritura de PanelPeritoCarga.tsx: consulta tanto perito_carga_id co
 ARCHIVOS AFECTADOS: PanelPeritoCarga.tsx (reescrito), ReportesFiltros.tsx (fix billing dates), FacturacionMensualCarga.tsx (label prop)
 EFECTOS COLATERALES: Si un perito es dual (calle+carga), en su dashboard ahora ve dos filas de KPIs separadas y un total combinado. Los reportes del admin pueden mostrar valores ligeramente distintos a los anteriores por la nueva exclusión de anuladas.
 TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 19/03/2026
+QUE SE CAMBIO: Fix de performance — 884 auth requests por landing page.
+POR QUE: La landing page en /landing pasaba por el middleware de Supabase Auth que llama a getUser() en cada request. Esto generaba ~884 auth requests por hora innecesariamente. Además, framer-motion (~40KB) y @tsparticles (~100KB+) se importaban directo en el bundle principal de la app.
+COMO: (1) middleware.ts: Agregado array PUBLIC_PREFIXES con /landing, /ip/, /seguimiento/, /api/inspeccion-remota/, /api/cron/. El middleware hace NextResponse.next() inmediatamente para estas rutas ANTES de llamar a updateSession(), evitando por completo la llamada a supabase.auth.getUser(). (2) lib/supabase/middleware.ts: Limpiada la lógica redundante de isPublicInspeccion/isPublicAPI/etc. ya que el short-circuit ocurre antes. (3) landing/page.tsx: LandingPage importado con next/dynamic + ssr:false para que framer-motion y @tsparticles no se incluyan en el bundle principal.
+ARCHIVOS AFECTADOS: middleware.ts, lib/supabase/middleware.ts, app/landing/page.tsx
+EFECTOS COLATERALES: Las rutas públicas (/ip/, /seguimiento/, /api/cron/, /landing) ya no pasan por updateSession, lo cual significa que no refrescan cookies de sesión. Esto es correcto porque son rutas públicas sin usuario autenticado.
+TESTEADO: TypeScript --noEmit OK.

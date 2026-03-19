@@ -1150,3 +1150,11 @@ COMO: (1) Para los duplicados: Se implementó un "Smart Retry" añadiendo la fla
 ARCHIVOS AFECTADOS: WizardCaptura.tsx, CameraCapture.tsx
 EFECTOS COLATERALES: Las fotos que ya fueron exitosamente subidas no se vuelven a mandar, ahorrando tiempo, ancho de banda y espacio en Bucket/DB. Evita que el cliente agote la subida permitida inútilmente.
 TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 19/03/2026
+QUE SE CAMBIO: Backfill de honorarios para casos migrados sin montos de facturación.
+POR QUE: Los casos que fueron migrados directamente a estado "facturada" nunca pasaron por la lógica de cambiarEstadoCaso que asigna los montos de honorarios desde la tabla precios. Como resultado, monto_facturado_estudio, monto_pagado_perito_calle y monto_pagado_perito_carga estaban en 0/NULL para esos casos, impactando los reportes financieros y la liquidación de honorarios de peritos.
+COMO: Migración SQL (029_backfill_billing_migrated_cases.sql) que hace UPDATE ... FROM precios WHERE compania_id + tipo_inspeccion coinciden. Solo afecta casos en ip_cerrada/facturada con fecha_cierre pero monto_facturado_estudio = 0 o NULL. No modifica código de la aplicación — el código actual ya preserva fechas manuales (guard !caso.fecha_cierre en cambiarEstadoCaso).
+ARCHIVOS AFECTADOS: supabase/migrations/029_backfill_billing_migrated_cases.sql (nuevo)
+EFECTOS COLATERALES: Ninguno. Los nuevos casos siguen la lógica normal de asignación al cambiar estado. Solo retroactivo para migración.
+TESTEADO: SQL revisado. Debe ejecutarse en Supabase SQL Editor directamente.

@@ -1158,3 +1158,11 @@ COMO: Migración SQL (029_backfill_billing_migrated_cases.sql) que hace UPDATE .
 ARCHIVOS AFECTADOS: supabase/migrations/029_backfill_billing_migrated_cases.sql (nuevo)
 EFECTOS COLATERALES: Ninguno. Los nuevos casos siguen la lógica normal de asignación al cambiar estado. Solo retroactivo para migración.
 TESTEADO: SQL revisado. Debe ejecutarse en Supabase SQL Editor directamente.
+
+FECHA: 19/03/2026
+QUE SE CAMBIO: Corrección de cálculos de honorarios en PanelPeritoCarga y ReportesFiltros.
+POR QUE: El panel del perito mostraba números incorrectos: (1) "Cargados este mes" filtraba por fecha_cierre en vez de fecha de carga. (2) No mostraba honorarios de calle para peritos con doble rol. (3) Los montos no coincidían entre la vista del perito y los reportes del admin. (4) Las anuladas se incluían en métricas de tiempo y billing.
+COMO: (1) Reescritura de PanelPeritoCarga.tsx: consulta tanto perito_carga_id como perito_calle_id, muestra KPIs separados para cada rol, excluye anuladas del billing. Hon. calle se reconoce en fecha_inspeccion_real o fecha_carga_sistema (cuando entra a pendiente_carga). Hon. carga se reconoce en fecha_cierre (cuando se cierra la IP). (2) ReportesFiltros.tsx: corregido fallback de fecha para perito calle de fecha_cierre a fecha_carga_sistema. Excluidas anuladas de casosIPRealizadaRango, casosCerradosRango y totalPagadoPeritoCalle. (3) FacturacionMensualCarga.tsx: agregada prop label para distinguir "Hon. Calle" de "Hon. Carga".
+ARCHIVOS AFECTADOS: PanelPeritoCarga.tsx (reescrito), ReportesFiltros.tsx (fix billing dates), FacturacionMensualCarga.tsx (label prop)
+EFECTOS COLATERALES: Si un perito es dual (calle+carga), en su dashboard ahora ve dos filas de KPIs separadas y un total combinado. Los reportes del admin pueden mostrar valores ligeramente distintos a los anteriores por la nueva exclusión de anuladas.
+TESTEADO: TypeScript --noEmit OK.

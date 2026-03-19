@@ -13,9 +13,10 @@ interface BillingData {
 interface Props {
     mesActual: BillingData;
     mesAnterior: BillingData;
+    label?: string;
 }
 
-export function FacturacionMensualCarga({ mesActual, mesAnterior }: Props) {
+export function FacturacionMensualCarga({ mesActual, mesAnterior, label = "Generado" }: Props) {
     const [showMesAnterior, setShowMesAnterior] = useState(false);
     const data = showMesAnterior ? mesAnterior : mesActual;
     const now = new Date();
@@ -29,8 +30,9 @@ export function FacturacionMensualCarga({ mesActual, mesAnterior }: Props) {
             {/* Month toggle */}
             <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2 text-text-muted text-xs">
-                    <TrendingUp className="w-3.5 h-3.5" /> Generado
+                    <TrendingUp className="w-3.5 h-3.5" /> {label}
                 </div>
+
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => setShowMesAnterior(true)}

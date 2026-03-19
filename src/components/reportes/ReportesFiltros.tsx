@@ -89,17 +89,22 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
     );
 
     // Casos CERRADOS en el rango (por fecha_cierre) — para financial de estudio y perito carga
+    // EXCLUYE anuladas: no generan billing
     const casosCerradosRango = casosFiltroPrincipal.filter(c =>
         c.fecha_cierre && isDateInRange(c.fecha_cierre)
+        && c.estado !== "inspeccion_anulada"
     );
 
-    // Casos con IP REALIZADA en el rango (por fecha_inspeccion_real, fallback a fecha_cierre para datos migrados)
+    // Casos con IP REALIZADA en el rango
+    // Fecha: fecha_inspeccion_real || fecha_carga_sistema (NO fecha_cierre — eso es para carga)
+    // EXCLUYE anuladas
     const casosIPRealizadaRango = casosFiltroPrincipal.filter(c => {
-        const fechaIP = c.fecha_inspeccion_real || c.fecha_cierre;
+        if (c.estado === "inspeccion_anulada") return false;
+        const fechaIP = c.fecha_inspeccion_real || c.fecha_carga_sistema;
         return fechaIP && isDateInRange(fechaIP);
     });
 
-    // Solo los cerrados que tienen billing (excluye anulados u otros estados sin billing)
+    // Solo los cerrados que tienen billing (ip_cerrada o facturada)
     const cerradosConBilling = casosCerradosRango.filter(c =>
         c.estado === "ip_cerrada" || c.estado === "facturada" || c.facturado === true
     );
@@ -149,17 +154,19 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
         (s: number, c: any) => s + (Number(c.monto_facturado_estudio) || 0), 0
     );
 
-    // Pagado a Peritos de Carga: se reconoce al CIERRE (cuando finaliza su trabajo)
+    // Pagado a Peritos de Carga: se reconoce al CIERRE (ip_cerrada/facturada)
     const totalPagadoPeritoCarga = cerradosConBilling.reduce(
         (s: number, c: any) => s + (Number(c.monto_pagado_perito_carga) || 0), 0
     );
 
-    // Pagado a Peritos de Calle: se reconoce cuando REALIZAN la IP
-    // Usa fecha_inspeccion_real si existe, sino fallback a fecha_cierre (datos migrados)
+    // Pagado a Peritos de Calle: se reconoce cuando caso pasa a pendiente_carga
+    // Fecha: fecha_inspeccion_real || fecha_carga_sistema (trabajo del perito de calle completado)
+    // EXCLUYE anuladas
     const totalPagadoPeritoCalle = casosFiltroPrincipal
         .filter(c => {
-            const fechaIP = c.fecha_inspeccion_real || c.fecha_cierre;
-            return fechaIP && isDateInRange(fechaIP) && Number(c.monto_pagado_perito_calle) > 0;
+            if (c.estado === "inspeccion_anulada") return false;
+            const fechaCalle = c.fecha_inspeccion_real || c.fecha_carga_sistema;
+            return fechaCalle && isDateInRange(fechaCalle) && Number(c.monto_pagado_perito_calle) > 0;
         })
         .reduce((s: number, c: any) => s + (Number(c.monto_pagado_perito_calle) || 0), 0);
 

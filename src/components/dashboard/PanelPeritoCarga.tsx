@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { Clock, CheckCircle2, AlertTriangle, Briefcase, FileText } from "lucide-react";
+import { Clock, CheckCircle2, AlertTriangle, Briefcase, FileText, Car } from "lucide-react";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
@@ -11,61 +11,92 @@ interface Props { userId: string; }
 export async function PanelPeritoCarga({ userId }: Props) {
     const supabase = await createClient();
 
-    const { data: misCasos } = await supabase
+    // ═══ 1. Query ALL cases where this user is perito_carga OR perito_calle ═══
+    const { data: allCasos } = await supabase
         .from("casos")
-        .select("id, numero_siniestro, estado, dominio, marca, modelo, tipo_inspeccion, monto_facturado_estudio, monto_pagado_perito_carga, updated_at, fecha_cierre")
-        .eq("perito_carga_id", userId)
+        .select("id, numero_siniestro, estado, dominio, marca, modelo, tipo_inspeccion, monto_facturado_estudio, monto_pagado_perito_calle, monto_pagado_perito_carga, updated_at, fecha_cierre, fecha_carga_sistema, fecha_inspeccion_real, perito_calle_id, perito_carga_id")
+        .or(`perito_carga_id.eq.${userId},perito_calle_id.eq.${userId}`)
         .order("updated_at", { ascending: false });
 
-    const casos = misCasos || [];
+    const casos = allCasos || [];
     const now = new Date();
     const mesActualStr = format(now, "MMMM yyyy", { locale: es });
 
-    // Month calculations
-    const isThisMonth = (d: string | null) => {
-        if (!d) return false;
-        const date = new Date(d);
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    // ═══ 2. Separate by role ═══
+    const casosCarga = casos.filter(c => c.perito_carga_id === userId);
+    const casosCalle = casos.filter(c => c.perito_calle_id === userId);
+    const isDualRole = casosCalle.length > 0 && casosCarga.length > 0;
+
+    // ═══ 3. Month boundaries (local time, precise) ═══
+    const mesInicio = new Date(now.getFullYear(), now.getMonth(), 1);
+    const mesFin = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const mesAnteriorInicio = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const mesAnteriorFin = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    const isInMonth = (dateStr: string | null, start: Date, end: Date) => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr).getTime();
+        return d >= start.getTime() && d <= end.getTime();
     };
 
-    const pendientes = casos.filter(c => c.estado === "pendiente_carga");
-    const pendientePpto = casos.filter(c => c.estado === "pendiente_presupuesto");
-    const licitando = casos.filter(c => c.estado === "licitando_repuestos");
-    const enConsulta = casos.filter(c => c.estado === "en_consulta_cia");
-    const enProceso = [...pendientePpto, ...licitando, ...enConsulta];
-    const cerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
+    const isThisMonth = (d: string | null) => isInMonth(d, mesInicio, mesFin);
+    const isLastMonth = (d: string | null) => isInMonth(d, mesAnteriorInicio, mesAnteriorFin);
 
-    const cargadosEsteMes = casos.filter(c => isThisMonth(c.fecha_cierre));
-    const cerradosEsteMes = cargadosEsteMes.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
+    // ═══ 4. PERITO CARGA metrics — billing recognized at fecha_cierre (ip_cerrada) ═══
+    const pendientesCarga = casosCarga.filter(c => c.estado === "pendiente_carga");
+    const pendientePpto = casosCarga.filter(c => c.estado === "pendiente_presupuesto");
+    const licitando = casosCarga.filter(c => c.estado === "licitando_repuestos");
+    const enConsulta = casosCarga.filter(c => c.estado === "en_consulta_cia");
+    const enProcesoCarga = [...pendientesCarga, ...pendientePpto, ...licitando, ...enConsulta];
 
-    // Billing data
-    const mesActualInicio = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const mesAnteriorInicio = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-    const mesAnteriorFin = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
+    // Cerrados: ip_cerrada or facturada (NOT anulada)
+    const cerradosCarga = casosCarga.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
+    const cerradosCargaMesActual = cerradosCarga.filter(c => isThisMonth(c.fecha_cierre));
+    const cerradosCargaMesAnterior = cerradosCarga.filter(c => isLastMonth(c.fecha_cierre));
 
-    const casosCerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
-    const casosMesActual = casosCerrados.filter(c => c.fecha_cierre && c.fecha_cierre >= mesActualInicio);
-    const casosMesAnterior = casosCerrados.filter(c => c.fecha_cierre && c.fecha_cierre >= mesAnteriorInicio && c.fecha_cierre <= mesAnteriorFin);
-
-    const calcDesglose = (lista: typeof casos) => {
-        const total = lista.reduce((s, c) => s + (c.monto_pagado_perito_carga || 0), 0);
+    const calcDesgloseCarga = (lista: typeof casos) => {
+        const total = lista.reduce((s, c) => s + (Number(c.monto_pagado_perito_carga) || 0), 0);
         const desglose = lista.reduce((acc, c) => {
             const tipo = c.tipo_inspeccion || "otros";
             if (!acc[tipo]) acc[tipo] = { count: 0, sum: 0 };
             acc[tipo].count += 1;
-            acc[tipo].sum += (c.monto_pagado_perito_carga || 0);
+            acc[tipo].sum += (Number(c.monto_pagado_perito_carga) || 0);
             return acc;
         }, {} as Record<string, { count: number, sum: number }>);
         return { total, desglose, count: lista.length };
     };
 
-    const mesActualData = calcDesglose(casosMesActual);
-    const mesAnteriorData = calcDesglose(casosMesAnterior);
+    const cargaMesActualData = calcDesgloseCarga(cerradosCargaMesActual);
+    const cargaMesAnteriorData = calcDesgloseCarga(cerradosCargaMesAnterior);
 
-    // Actividad reciente (últimos 10)
-    const recientes = casos.slice(0, 10);
+    // ═══ 5. PERITO CALLE metrics — billing recognized at fecha_carga_sistema (pendiente_carga) ═══
+    // fecha_carga_sistema = when IP enters pendiente_carga = perito calle's work is done
+    const calleBillingDate = (c: any): string | null => c.fecha_inspeccion_real || c.fecha_carga_sistema || null;
+    const casosCalleBillable = casosCalle.filter(c =>
+        c.estado !== "inspeccion_anulada" && Number(c.monto_pagado_perito_calle) > 0
+    );
+    const calleMesActual = casosCalleBillable.filter(c => isThisMonth(calleBillingDate(c)));
+    const calleMesAnterior = casosCalleBillable.filter(c => isLastMonth(calleBillingDate(c)));
 
-    // Tareas
+    const calcDesgloseCalle = (lista: typeof casos) => {
+        const total = lista.reduce((s, c) => s + (Number(c.monto_pagado_perito_calle) || 0), 0);
+        const desglose = lista.reduce((acc, c) => {
+            const tipo = c.tipo_inspeccion || "otros";
+            if (!acc[tipo]) acc[tipo] = { count: 0, sum: 0 };
+            acc[tipo].count += 1;
+            acc[tipo].sum += (Number(c.monto_pagado_perito_calle) || 0);
+            return acc;
+        }, {} as Record<string, { count: number, sum: number }>);
+        return { total, desglose, count: lista.length };
+    };
+
+    const calleMesActualData = calcDesgloseCalle(calleMesActual);
+    const calleMesAnteriorData = calcDesgloseCalle(calleMesAnterior);
+
+    // ═══ 6. Actividad Reciente (últimos 10 de carga) ═══
+    const recientes = casosCarga.slice(0, 10);
+
+    // ═══ 7. Tareas ═══
     const { data: tareasPendientes } = await supabase
         .from("tareas")
         .select("id, titulo, prioridad, estado")
@@ -81,11 +112,36 @@ export async function PanelPeritoCarga({ userId }: Props) {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard icon={FileText} label="Cargados este mes" value={cargadosEsteMes.length.toString()} color="text-brand-primary" />
-                <KpiCard icon={AlertTriangle} label="En cola" value={pendientes.length.toString()} color="text-color-danger" />
-                <KpiCard icon={CheckCircle2} label="Cerrados este mes" value={cerradosEsteMes.length.toString()} color="text-color-success" />
-                <FacturacionMensualCarga mesActual={mesActualData} mesAnterior={mesAnteriorData} />
+                <KpiCard icon={AlertTriangle} label="En cola (carga)" value={pendientesCarga.length.toString()} color="text-color-danger" />
+                <KpiCard icon={Briefcase} label="En proceso" value={enProcesoCarga.length.toString()} color="text-color-warning" />
+                <KpiCard icon={CheckCircle2} label="Cerrados este mes" value={cerradosCargaMesActual.length.toString()} color="text-color-success" />
+                <FacturacionMensualCarga
+                    mesActual={cargaMesActualData}
+                    mesAnterior={cargaMesAnteriorData}
+                    label="Hon. Carga"
+                />
             </div>
+
+            {/* ═══ Bloque 1b: Hon. Calle (solo si es dual role) ═══ */}
+            {isDualRole && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <KpiCard icon={Car} label="IPs realizadas (calle)" value={calleMesActual.length.toString()} color="text-orange-400" />
+                    <FacturacionMensualCarga
+                        mesActual={calleMesActualData}
+                        mesAnterior={calleMesAnteriorData}
+                        label="Hon. Calle"
+                    />
+                    <div className="bg-bg-secondary border border-brand-primary/20 rounded-xl p-4 col-span-2 flex items-center justify-between">
+                        <div>
+                            <p className="text-[11px] text-text-muted font-medium uppercase tracking-wide">Total Generado (Calle + Carga)</p>
+                            <p className="text-xs text-text-muted mt-0.5">{calleMesActual.length + cerradosCargaMesActual.length} casos</p>
+                        </div>
+                        <p className="text-2xl font-bold text-brand-secondary">
+                            {formatCurrency(cargaMesActualData.total + calleMesActualData.total)}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* ═══ Bloque 2: Actividad Reciente ═══ */}
             <div className="bg-bg-secondary border border-border rounded-xl p-4">
@@ -111,28 +167,28 @@ export async function PanelPeritoCarga({ userId }: Props) {
                 )}
             </div>
 
-            {/* ═══ Bloque 3: Distribución por Estado ═══ */}
+            {/* ═══ Bloque 3: Distribución por Estado (Carga) ═══ */}
             <div className="bg-bg-secondary border border-border rounded-xl p-4">
                 <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2 text-sm">
-                    <FileText className="w-4 h-4 text-brand-primary" /> Distribución por Estado
+                    <FileText className="w-4 h-4 text-brand-primary" /> Distribución por Estado (Carga)
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                    <EstadoChip label="Pdte. Carga" count={pendientes.length} color="bg-danger/10 text-danger border-danger/20" />
+                    <EstadoChip label="Pdte. Carga" count={pendientesCarga.length} color="bg-danger/10 text-danger border-danger/20" />
                     <EstadoChip label="Pdte. Presupuesto" count={pendientePpto.length} color="bg-color-warning/10 text-color-warning border-color-warning/20" />
                     <EstadoChip label="Licitando" count={licitando.length} color="bg-brand-primary/10 text-brand-primary border-brand-primary/20" />
                     <EstadoChip label="En Consulta" count={enConsulta.length} color="bg-color-critical/10 text-color-critical border-color-critical/20" />
-                    <EstadoChip label="Cerrados / Fact." count={cerrados.length} color="bg-color-success/10 text-color-success border-color-success/20" />
+                    <EstadoChip label="Cerrados / Fact." count={cerradosCarga.length} color="bg-color-success/10 text-color-success border-color-success/20" />
                 </div>
             </div>
 
             {/* Pendientes de carga */}
-            {pendientes.length > 0 && (
+            {pendientesCarga.length > 0 && (
                 <div className="bg-bg-secondary border border-danger/20 rounded-xl p-4">
                     <h2 className="font-semibold text-danger mb-3 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" /> Pendientes de Carga ({pendientes.length})
+                        <AlertTriangle className="w-4 h-4" /> Pendientes de Carga ({pendientesCarga.length})
                     </h2>
                     <div className="space-y-2">
-                        {pendientes.map(c => (
+                        {pendientesCarga.map(c => (
                             <Link key={c.id} href={`/casos/${c.id}`}
                                 className="flex items-center justify-between bg-bg-tertiary border border-border rounded-lg px-3 py-2 hover:border-danger/40 transition-colors">
                                 <div className="flex items-center gap-2">
@@ -149,13 +205,13 @@ export async function PanelPeritoCarga({ userId }: Props) {
             )}
 
             {/* En proceso */}
-            {enProceso.length > 0 && (
+            {enProcesoCarga.length > 0 && (
                 <div className="bg-bg-secondary border border-border rounded-xl p-4">
                     <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-color-info" /> En Proceso ({enProceso.length})
+                        <FileText className="w-4 h-4 text-color-info" /> En Proceso ({enProcesoCarga.length})
                     </h2>
                     <div className="space-y-3">
-                        {enProceso.map(c => {
+                        {enProcesoCarga.map(c => {
                             const days = differenceInDays(new Date(), new Date(c.updated_at));
                             return (
                                 <Link key={c.id} href={`/casos/${c.id}`}

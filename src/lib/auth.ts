@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -14,11 +15,14 @@ export interface UsuarioSession {
 
 /**
  * Obtiene el usuario actual autenticado y su información de la tabla usuarios.
+ * Wrapped with React cache() so that multiple server components calling this
+ * in the same request only trigger ONE getUser() network call to Supabase Auth.
+ *
  * Si el usuario está autenticado pero no existe en usuarios, lo crea como admin
  * (asumiendo que es el primer usuario del sistema).
  * Redirige a /login SOLO si no hay sesión de auth.
  */
-export async function getUsuarioActual(): Promise<UsuarioSession> {
+export const getUsuarioActual = cache(async (): Promise<UsuarioSession> => {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -86,4 +90,4 @@ export async function getUsuarioActual(): Promise<UsuarioSession> {
         nombre: nuevoUsuario.nombre,
         apellido: nuevoUsuario.apellido,
     };
-}
+});

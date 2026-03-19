@@ -1174,3 +1174,11 @@ COMO: (1) middleware.ts: Agregado array PUBLIC_PREFIXES con /landing, /ip/, /seg
 ARCHIVOS AFECTADOS: middleware.ts, lib/supabase/middleware.ts, app/landing/page.tsx
 EFECTOS COLATERALES: Las rutas públicas (/ip/, /seguimiento/, /api/cron/, /landing) ya no pasan por updateSession, lo cual significa que no refrescan cookies de sesión. Esto es correcto porque son rutas públicas sin usuario autenticado.
 TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 19/03/2026
+QUE SE CAMBIO: Deduplicación de llamadas a Supabase Auth — fix de "context deadline exceeded".
+POR QUE: Supabase Auth devolvía 504 timeout ("context deadline exceeded" en GET /user) por exceso de llamadas concurrentes a getUser(). Cada page load generaba 3-5+ llamadas a getUser(): middleware + Topbar + getUsuarioActual() en la página + server actions. Cada una es un HTTP request al Auth API de Supabase, saturando el connection pool.
+COMO: (1) lib/supabase/middleware.ts: Reemplazado getUser() por getSession(). getSession() lee el JWT de la cookie localmente (0 network calls), mientras que getUser() hace un HTTP request al Auth API. El middleware solo necesita saber si hay sesión para decidir redirect, no validar contra el server. (2) lib/auth.ts: getUsuarioActual envuelto con React cache(). Múltiples server components (Topbar, Sidebar, Page) que llaman getUsuarioActual() ahora comparten UNA sola llamada a getUser() por request lifecycle. (3) Topbar.tsx: Reemplazado supabase.auth.getUser() directo por getUsuarioActual() cacheado. Resultado: de ~5 HTTP calls al Auth API por pageview a exactamente 1.
+ARCHIVOS AFECTADOS: lib/supabase/middleware.ts, lib/auth.ts, components/layout/Topbar.tsx
+EFECTOS COLATERALES: El middleware ya no valida el JWT contra el Auth API en cada request (usa getSession local). La validación real ocurre una vez por request en getUsuarioActual(). Si el JWT está expirado/revocado, la detección ocurre al llegar al primer server component, no en el middleware.
+TESTEADO: TypeScript --noEmit OK.

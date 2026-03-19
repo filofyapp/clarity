@@ -27,13 +27,13 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    // IMPORTANT: Avoid writing any logic between createServerClient and
-    // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-    // issues with users being randomly logged out.
-
+    // Use getSession() instead of getUser() in middleware.
+    // getSession() reads the JWT from cookies locally (zero network calls).
+    // getUser() makes a network request to Supabase Auth API on every call.
+    // Validation against the Auth API happens once per request in getUsuarioActual().
     const {
-        data: { user },
-    } = await supabase.auth.getUser()
+        data: { session },
+    } = await supabase.auth.getSession()
 
     const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
 
@@ -41,15 +41,16 @@ export async function updateSession(request: NextRequest) {
     // are short-circuited in middleware.ts BEFORE this function is called.
     // Only /login and authenticated routes reach here.
 
-    if (!user && !isAuthRoute) {
-        // no user, redirect to login
+    if (!session && !isAuthRoute) {
+        // no session, redirect to login
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
 
 
-    if (user && isAuthRoute) {
+
+    if (session && isAuthRoute) {
         // user is already logged in, redirect away from login
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'

@@ -1,104 +1,199 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useMemo } from "react";
 
-const CIUDADES = [
-    { nombre: "Buenos Aires", x: 63, y: 63, delay: 0 },
-    { nombre: "Córdoba", x: 52, y: 52, delay: 0.3 },
-    { nombre: "Rosario", x: 55, y: 56, delay: 0.5 },
-    { nombre: "Mendoza", x: 36, y: 55, delay: 0.7 },
-    { nombre: "Tucumán", x: 50, y: 38, delay: 0.9 },
-    { nombre: "Salta", x: 48, y: 32, delay: 1.1 },
-    { nombre: "Mar del Plata", x: 61, y: 69, delay: 1.3 },
-    { nombre: "Neuquén", x: 40, y: 70, delay: 1.5 },
-    { nombre: "Bariloche", x: 38, y: 74, delay: 1.7 },
-    { nombre: "Corrientes", x: 62, y: 40, delay: 1.9 },
-    { nombre: "Comodoro Rivadavia", x: 42, y: 82, delay: 2.1 },
-    { nombre: "Ushuaia", x: 42, y: 96, delay: 2.3 },
+// ═══════════════════════════════════════════════
+// REAL GeoJSON coordinates from world.geo.json
+// Tierra del Fuego island
+// ═══════════════════════════════════════════════
+const TDF_COORDS: [number, number][] = [
+    [-65.5, -55.2], [-66.45, -55.25], [-66.96, -54.9], [-67.56, -54.87],
+    [-68.63, -54.87], [-68.63, -52.64], [-68.25, -53.1], [-67.75, -53.85],
+    [-66.45, -54.45], [-65.05, -54.7], [-65.5, -55.2],
 ];
 
-// Proper Argentina outline SVG path (simplified but recognizable)
-const ARGENTINA_PATH = `
-M 50 4 L 48 5 L 46 8 L 44 10 L 43 14 L 45 16 L 48 17 L 50 16 L 52 17 L 55 18 L 58 20
-L 60 22 L 62 21 L 65 23 L 67 26 L 68 28 L 70 30 L 72 32 L 74 33 L 73 35 L 72 37 L 70 38
-L 69 40 L 70 42 L 72 43 L 73 44 L 72 46 L 70 47 L 68 48 L 67 50 L 68 52
-L 70 53 L 71 55 L 70 57 L 68 58 L 67 60 L 68 62 L 70 63 L 71 65 L 69 67 L 67 68
-L 65 69 L 63 71 L 61 72 L 59 73 L 57 72 L 55 73 L 53 75
-L 51 76 L 49 77 L 47 79 L 45 81 L 44 83 L 43 85 L 42 87 L 41 89 L 40 91
-L 39 93 L 40 95 L 42 96 L 44 97 L 46 97 L 48 96 L 50 97 L 48 98 L 45 99
-L 42 98 L 39 97 L 37 95 L 35 93 L 34 91 L 33 89 L 32 87 L 31 85
-L 30 83 L 29 81 L 28 79 L 27 77 L 26 75 L 25 73 L 26 71 L 27 69
-L 28 67 L 29 65 L 30 63 L 29 61 L 28 59 L 27 57 L 26 55 L 27 53
-L 28 51 L 30 50 L 32 49 L 33 47 L 32 45 L 30 43 L 29 41
-L 30 39 L 32 38 L 34 37 L 35 35 L 34 33 L 33 31 L 34 29
-L 36 28 L 38 27 L 40 25 L 41 23 L 42 21 L 43 19 L 44 17
-L 42 15 L 41 13 L 42 11 L 44 9 L 46 7 L 48 5 L 50 4 Z
-`;
+// ═══════════════════════════════════════════════
+// Mainland Argentina (simplified from GeoJSON)
+// ═══════════════════════════════════════════════
+const MAINLAND_COORDS: [number, number][] = [
+    [-64.96, -22.08], [-64.38, -22.8], [-63.99, -21.99], [-62.85, -22.03],
+    [-62.69, -22.25], [-60.85, -23.88], [-60.03, -24.03], [-58.81, -24.77],
+    [-57.78, -25.16], [-57.63, -25.6], [-58.62, -27.12], [-57.61, -27.4],
+    [-56.49, -27.55], [-55.7, -27.39], [-54.79, -26.62], [-54.63, -25.74],
+    [-54.13, -25.55], [-53.63, -26.12], [-53.65, -26.92], [-54.49, -27.47],
+    [-55.16, -27.88], [-56.29, -28.85], [-57.63, -30.22], [-57.87, -31.02],
+    [-58.14, -32.04], [-58.13, -33.04], [-58.35, -33.26], [-58.43, -33.91],
+    [-58.5, -34.43], [-57.23, -35.29], [-57.36, -35.98], [-56.74, -36.41],
+    [-56.79, -36.9], [-57.75, -38.18], [-59.23, -38.72], [-61.24, -38.93],
+    [-62.34, -38.83], [-62.13, -39.42], [-62.33, -40.17], [-62.15, -40.68],
+    [-62.75, -41.03], [-63.77, -41.17], [-64.73, -40.8], [-65.12, -41.06],
+    [-64.98, -42.06], [-64.3, -42.36], [-63.76, -42.04], [-63.46, -42.56],
+    [-64.38, -42.87], [-65.18, -43.5], [-65.33, -44.5], [-65.57, -45.04],
+    [-66.51, -45.04], [-67.29, -45.55], [-67.58, -46.3], [-66.6, -47.03],
+    [-65.64, -47.24], [-65.99, -48.13], [-67.17, -48.7], [-67.82, -49.87],
+    [-68.73, -50.26], [-69.14, -50.73], [-68.82, -51.77], [-68.15, -52.35],
+    [-68.57, -52.3], [-69.5, -52.14], [-71.91, -52.01], [-72.33, -51.43],
+    [-72.31, -50.68], [-72.98, -50.74], [-73.33, -50.38], [-73.42, -49.32],
+    [-72.65, -48.88], [-72.33, -48.24], [-72.45, -47.74], [-71.92, -46.88],
+    [-71.55, -45.56], [-71.66, -44.97], [-71.22, -44.78], [-71.33, -44.41],
+    [-71.79, -44.21], [-71.46, -43.79], [-71.92, -43.41], [-72.15, -42.25],
+    [-71.75, -42.05], [-71.92, -40.83], [-71.68, -39.81], [-71.41, -38.92],
+    [-70.81, -38.55], [-71.12, -37.58], [-71.12, -36.66], [-70.36, -36.01],
+    [-70.39, -35.17], [-69.82, -34.19], [-69.81, -33.27], [-70.07, -33.09],
+    [-70.54, -31.37], [-69.92, -30.34], [-70.01, -29.37], [-69.66, -28.46],
+    [-69.0, -27.52], [-68.3, -26.9], [-68.59, -26.51], [-68.39, -26.19],
+    [-68.42, -24.52], [-67.33, -24.03], [-66.99, -22.99], [-67.11, -22.74],
+    [-66.27, -21.83], [-64.96, -22.08],
+];
+
+// Cities with approximate geographic positions
+const CIUDADES = [
+    { nombre: "Buenos Aires", lon: -58.44, lat: -34.6 },
+    { nombre: "Córdoba", lon: -64.18, lat: -31.42 },
+    { nombre: "Rosario", lon: -60.65, lat: -32.95 },
+    { nombre: "Mendoza", lon: -68.84, lat: -32.89 },
+    { nombre: "Tucumán", lon: -65.22, lat: -26.82 },
+    { nombre: "Salta", lon: -65.41, lat: -24.79 },
+    { nombre: "Mar del Plata", lon: -57.55, lat: -38.0 },
+    { nombre: "Neuquén", lon: -68.06, lat: -38.95 },
+    { nombre: "Bariloche", lon: -71.31, lat: -41.13 },
+    { nombre: "Corrientes", lon: -58.83, lat: -27.47 },
+    { nombre: "C. Rivadavia", lon: -67.5, lat: -45.87 },
+    { nombre: "Ushuaia", lon: -68.3, lat: -54.8 },
+];
+
+// Convert geo coords [lon, lat] to SVG [x, y]
+function geoToSvg(
+    lon: number,
+    lat: number,
+    bounds: { minLon: number; maxLon: number; minLat: number; maxLat: number },
+    width: number,
+    height: number,
+    padding: number = 5,
+): [number, number] {
+    const lonRange = bounds.maxLon - bounds.minLon;
+    const latRange = bounds.maxLat - bounds.minLat;
+    const x = padding + ((lon - bounds.minLon) / lonRange) * (width - 2 * padding);
+    // Flip Y because SVG Y goes down but latitude goes up
+    const y = padding + ((bounds.maxLat - lat) / latRange) * (height - 2 * padding);
+    return [x, y];
+}
+
+function coordsToPath(
+    coords: [number, number][],
+    bounds: { minLon: number; maxLon: number; minLat: number; maxLat: number },
+    w: number, h: number,
+): string {
+    return coords.map((c, i) => {
+        const [x, y] = geoToSvg(c[0], c[1], bounds, w, h);
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(" ") + " Z";
+}
+
+const SVG_W = 200;
+const SVG_H = 340;
+
+// Calculate bounds from all coordinates
+const allCoords = [...MAINLAND_COORDS, ...TDF_COORDS];
+const BOUNDS = {
+    minLon: Math.min(...allCoords.map(c => c[0])) - 0.5,
+    maxLon: Math.max(...allCoords.map(c => c[0])) + 0.5,
+    minLat: Math.min(...allCoords.map(c => c[1])) - 0.5,
+    maxLat: Math.max(...allCoords.map(c => c[1])) + 0.5,
+};
 
 export function ArgentinaMap() {
+    const mainlandPath = useMemo(() => coordsToPath(MAINLAND_COORDS, BOUNDS, SVG_W, SVG_H), []);
+    const tdfPath = useMemo(() => coordsToPath(TDF_COORDS, BOUNDS, SVG_W, SVG_H), []);
+
+    const cityPositions = useMemo(() =>
+        CIUDADES.map(c => ({
+            ...c,
+            pos: geoToSvg(c.lon, c.lat, BOUNDS, SVG_W, SVG_H),
+        })),
+        []
+    );
+
     return (
-        <div className="relative w-full max-w-md mx-auto" style={{ aspectRatio: "3 / 4" }}>
-            {/* Map SVG */}
+        <div className="relative w-full max-w-sm mx-auto" style={{ aspectRatio: `${SVG_W} / ${SVG_H}` }}>
             <svg
-                viewBox="0 0 100 102"
+                viewBox={`0 0 ${SVG_W} ${SVG_H}`}
                 className="w-full h-full"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
             >
-                {/* Country fill */}
+                {/* Mainland */}
                 <motion.path
-                    d={ARGENTINA_PATH}
+                    d={mainlandPath}
                     fill="rgba(214, 0, 110, 0.06)"
-                    stroke="rgba(214, 0, 110, 0.2)"
-                    strokeWidth="0.5"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    whileInView={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 2, ease: "easeInOut" }}
+                    stroke="rgba(214, 0, 110, 0.25)"
+                    strokeWidth="0.8"
+                    strokeLinejoin="round"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    transition={{ duration: 1 }}
+                    viewport={{ once: true }}
+                />
+
+                {/* Tierra del Fuego */}
+                <motion.path
+                    d={tdfPath}
+                    fill="rgba(214, 0, 110, 0.06)"
+                    stroke="rgba(214, 0, 110, 0.25)"
+                    strokeWidth="0.8"
+                    strokeLinejoin="round"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    transition={{ duration: 1, delay: 0.3 }}
                     viewport={{ once: true }}
                 />
 
                 {/* Cities */}
-                {CIUDADES.map((city) => (
+                {cityPositions.map((city, idx) => (
                     <g key={city.nombre}>
                         {/* Pulse ring */}
                         <motion.circle
-                            cx={city.x}
-                            cy={city.y}
-                            r="3"
+                            cx={city.pos[0]}
+                            cy={city.pos[1]}
+                            r="4"
                             fill="none"
                             stroke="#D6006E"
-                            strokeWidth="0.3"
+                            strokeWidth="0.5"
                             initial={{ scale: 0, opacity: 0 }}
-                            whileInView={{ scale: [1, 2, 2], opacity: [0.6, 0.2, 0] }}
+                            whileInView={{
+                                scale: [1, 2.5, 2.5],
+                                opacity: [0.5, 0.1, 0],
+                            }}
                             transition={{
-                                delay: city.delay + 0.5,
+                                delay: 0.8 + idx * 0.2,
                                 duration: 2,
                                 repeat: Infinity,
                                 ease: "easeOut",
                             }}
                             viewport={{ once: true }}
                         />
-                        {/* City dot */}
+                        {/* Dot */}
                         <motion.circle
-                            cx={city.x}
-                            cy={city.y}
-                            r="1.2"
+                            cx={city.pos[0]}
+                            cy={city.pos[1]}
+                            r="2"
                             fill="#D6006E"
                             initial={{ scale: 0, opacity: 0 }}
                             whileInView={{ scale: 1, opacity: 1 }}
-                            transition={{ delay: city.delay + 0.3, duration: 0.4, type: "spring" }}
+                            transition={{ delay: 0.6 + idx * 0.15, duration: 0.4, type: "spring" }}
                             viewport={{ once: true }}
                         />
                         {/* Label */}
                         <motion.text
-                            x={city.x + 3}
-                            y={city.y + 0.8}
+                            x={city.pos[0] + 5}
+                            y={city.pos[1] + 1.5}
                             fill="#A1A1AA"
-                            fontSize="2.5"
+                            fontSize="5"
                             fontFamily="system-ui, sans-serif"
                             initial={{ opacity: 0 }}
-                            whileInView={{ opacity: 0.8 }}
-                            transition={{ delay: city.delay + 0.5 }}
+                            whileInView={{ opacity: 0.7 }}
+                            transition={{ delay: 0.8 + idx * 0.15 }}
                             viewport={{ once: true }}
                         >
                             {city.nombre}

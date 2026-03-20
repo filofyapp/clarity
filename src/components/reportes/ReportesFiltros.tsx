@@ -96,11 +96,11 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
     );
 
     // Casos con IP REALIZADA en el rango
-    // Fecha: fecha_inspeccion_real || fecha_carga_sistema (NO fecha_cierre — eso es para carga)
+    // Fecha: fecha_inspeccion_real (cuándo se completó la inspección)
     // EXCLUYE anuladas
     const casosIPRealizadaRango = casosFiltroPrincipal.filter(c => {
         if (c.estado === "inspeccion_anulada") return false;
-        const fechaIP = c.fecha_inspeccion_real || c.fecha_carga_sistema;
+        const fechaIP = c.fecha_inspeccion_real;
         return fechaIP && isDateInRange(fechaIP);
     });
 
@@ -159,13 +159,13 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
         (s: number, c: any) => s + (Number(c.monto_pagado_perito_carga) || 0), 0
     );
 
-    // Pagado a Peritos de Calle: se reconoce cuando caso pasa a pendiente_carga
-    // Fecha: fecha_inspeccion_real || fecha_carga_sistema (trabajo del perito de calle completado)
+    // Pagado a Peritos de Calle: se reconoce cuando IP se completó
+    // Fecha: fecha_inspeccion_real (trabajo del perito de calle completado)
     // EXCLUYE anuladas
     const totalPagadoPeritoCalle = casosFiltroPrincipal
         .filter(c => {
             if (c.estado === "inspeccion_anulada") return false;
-            const fechaCalle = c.fecha_inspeccion_real || c.fecha_carga_sistema;
+            const fechaCalle = c.fecha_inspeccion_real;
             return fechaCalle && isDateInRange(fechaCalle) && Number(c.monto_pagado_perito_calle) > 0;
         })
         .reduce((s: number, c: any) => s + (Number(c.monto_pagado_perito_calle) || 0), 0);

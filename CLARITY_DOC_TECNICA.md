@@ -695,9 +695,24 @@ ARCHIVOS AFECTADOS: `supabase/migrations/030_optimizacion_indices_db.sql` (NUEVO
 EFECTOS COLATERALES: Ninguno. Los índices son aditivos (IF NOT EXISTS). La Cola de Carga sigue renderizando exactamente los mismos datos. getCasos() (tabla principal) ya tenía selects explícitos — no requirió cambios.
 TESTEADO: TypeScript `npx tsc --noEmit` 0 errores. Migración SQL debe ejecutarse en Supabase SQL Editor.
 
+FECHA: 20/03/2026
+QUE SE CAMBIO: BUG-023 — Semántica de `fecha_carga_sistema`: ahora registra SALIDA de PTE CARGA.
+POR QUE: `fecha_carga_sistema` se grababa al ENTRAR a `pendiente_carga` (cuando la inspección se completaba). El usuario necesita que registre cuándo el perito de CARGA procesó el caso (cuando SALE de `pendiente_carga`), para medir tiempos de gestión del perito de carga.
+COMO: (1) `casos/[id]/actions.ts` — `marcarInspeccionRealizada`: eliminada escritura de `fecha_carga_sistema` al pasar a pendiente_carga. `cambiarEstadoCaso`: cambiada condición de `nuevoEstado === 'pendiente_carga'` a `caso.estado === 'pendiente_carga' && nuevoEstado !== 'pendiente_carga'` — graba la fecha cuando el caso SALE de pte carga. (2) `inspeccion-remota/complete/route.ts` — eliminada escritura de `fecha_carga_sistema` en completar inspección remota. (3) `ReportesFiltros.tsx` — eliminado fallback `fecha_carga_sistema` en filtro de IPs realizadas y billing de perito calle, ahora usa solo `fecha_inspeccion_real`. (4) `PanelPeritoCarga.tsx` — billing date de perito calle cambiado a usar solo `fecha_inspeccion_real`.
+ARCHIVOS AFECTADOS: `src/app/(dashboard)/casos/[id]/actions.ts`, `src/app/api/inspeccion-remota/complete/route.ts`, `src/components/reportes/ReportesFiltros.tsx`, `src/components/dashboard/PanelPeritoCarga.tsx`.
+EFECTOS COLATERALES: Casos futuros en cola de carga tendrán `fecha_carga_sistema` NULL hasta que el perito de carga los procese. La Cola de Carga ya usaba fallback `updated_at` así que sigue funcionando. Datos históricos no se modifican retroactivamente. Si `pte_carga → ip_cerrada` directo, graba AMBAS fechas simultáneamente.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
+
 ---
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-023: fecha_carga_sistema registraba ENTRADA a PTE CARGA en vez de SALIDA (RESUELTO)
+- PROBLEMA: `fecha_carga_sistema` se grababa cuando el caso entraba a `pendiente_carga` (al completar la inspección). Esto hacía imposible medir cuánto tiempo tardaba el perito de carga en gestionar cada pericia. Además, si un caso pasaba directo de `pendiente_carga` a `ip_cerrada`, solo se grababa `fecha_cierre` sin `fecha_carga_sistema`.
+- CAUSA: La lógica original en `cambiarEstadoCaso` condicionaba la escritura a `nuevoEstado === 'pendiente_carga'` (ENTRADA). Las funciones `marcarInspeccionRealizada` e `inspeccion-remota/complete` también grababan la fecha prematuramente al transicionar a `pendiente_carga`.
+- SOLUCION: Cambiada la condición a `caso.estado === 'pendiente_carga' && nuevoEstado !== 'pendiente_carga'` (SALIDA). Eliminada la escritura prematura en los otros 2 puntos de entrada. Los reportes y billing del perito calle ahora usan `fecha_inspeccion_real` en vez de `fecha_carga_sistema` como fallback.
+- FECHA: 20/03/2026
+- NO REPETIR: `fecha_carga_sistema` mide el PROCESAMIENTO del perito de carga, no la entrada al estado. Si se necesita registrar cuándo un caso entró a `pendiente_carga`, usar `historial_estados` con `estado_nuevo = 'pendiente_carga'`.
 
 ### BUG-022: Throttling de Disk IO por Sequential Scans y Payload pesado (RESUELTO)
 - PROBLEMA: Supabase reportaba Disk IO Budget Throttling al 82%+. Las queries principales del sistema (filtros en CasosTable, JOINs de Kilometraje v2, reportes, timeline) provocaban Sequential Scans completos en disco porque ninguna columna de filtrado/JOIN tenía índice.

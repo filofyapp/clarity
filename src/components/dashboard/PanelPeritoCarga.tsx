@@ -69,9 +69,9 @@ export async function PanelPeritoCarga({ userId }: Props) {
     const cargaMesActualData = calcDesgloseCarga(cerradosCargaMesActual);
     const cargaMesAnteriorData = calcDesgloseCarga(cerradosCargaMesAnterior);
 
-    // ═══ 5. PERITO CALLE metrics — billing recognized at fecha_carga_sistema (pendiente_carga) ═══
-    // fecha_carga_sistema = when IP enters pendiente_carga = perito calle's work is done
-    const calleBillingDate = (c: any): string | null => c.fecha_inspeccion_real || c.fecha_carga_sistema || null;
+    // ═══ 5. PERITO CALLE metrics — billing recognized at fecha_inspeccion_real (IP completada) ═══
+    // fecha_inspeccion_real = when perito calle completed the inspection = perito calle's work is done
+    const calleBillingDate = (c: any): string | null => c.fecha_inspeccion_real || null;
     const casosCalleBillable = casosCalle.filter(c =>
         c.estado !== "inspeccion_anulada" && Number(c.monto_pagado_perito_calle) > 0
     );

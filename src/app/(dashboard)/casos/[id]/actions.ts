@@ -36,7 +36,6 @@ export async function marcarInspeccionRealizada(casoId: string) {
         .update({
             estado: "pendiente_carga",
             fecha_inspeccion_real: new Date().toISOString(),
-            fecha_carga_sistema: caso.fecha_carga_sistema || new Date().toISOString(),
             updated_at: new Date().toISOString(),
         })
         .eq("id", casoId);
@@ -110,7 +109,8 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
     const updateData: any = { estado: nuevoEstado, updated_at: new Date().toISOString() };
     
     // Auto-dates according to state
-    if (!caso.fecha_carga_sistema && nuevoEstado === "pendiente_carga") {
+    // fecha_carga_sistema = cuándo el perito de carga procesó el caso (SALIDA de pendiente_carga)
+    if (!caso.fecha_carga_sistema && caso.estado === "pendiente_carga" && nuevoEstado !== "pendiente_carga") {
         updateData.fecha_carga_sistema = new Date().toISOString();
     }
     if (!caso.fecha_cierre && (nuevoEstado === "ip_cerrada" || nuevoEstado === "inspeccion_anulada")) {

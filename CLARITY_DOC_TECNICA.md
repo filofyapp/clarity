@@ -687,9 +687,24 @@ ARCHIVOS AFECTADOS: `CasosTable.tsx`.
 EFECTOS COLATERALES: Ninguno. El botón Limpiar resetea el select a `fecha_derivacion` por default para evitar confusiones de sesión.
 TESTEADO: Compilación Next/Turbopack superada sin errores.
 
+FECHA: 20/03/2026
+QUE SE CAMBIO: BUG-022 — Optimización de rendimiento DB: 14 índices B-Tree + selects explícitos en Cola de Carga.
+POR QUE: Supabase reportaba Disk IO Budget Throttling al 82%+. Los filtros múltiples en CasosTable, los JOINs del módulo Kilometraje v2, y las consultas de reportes provocaban Sequential Scans masivos porque las columnas críticas de filtrado/JOIN no estaban indexadas. Además, `getCasosParaCarga()` usaba `select('*')` trayendo campos pesados (datos_crudos_sancor, campos financieros, tags, etc.) que la Cola de Carga no renderiza.
+COMO: (1) Migración SQL `030_optimizacion_indices_db.sql` con 14 índices B-Tree: 8 en `casos` (estado, fecha_derivacion, fecha_inspeccion_programada, fecha_carga_sistema, fecha_cierre, perito_calle_id, perito_carga_id, gestor_id), 3 en `historial_estados` (caso_id, estado_nuevo, created_at — ultra críticos para JOINs de km y reportes), 3 en `tareas` (caso_id, estado, asignado_id). (2) `carga/actions.ts`: reemplazado `select('*')` por 16 columnas explícitas + 4 JOINs nominales, eliminando datos_crudos_sancor, tags, campos financieros, y datos detallados del asegurado del payload. (3) `carga/page.tsx`: cast de tipo para compatibilidad con Supabase TS types en FK 1:1.
+ARCHIVOS AFECTADOS: `supabase/migrations/030_optimizacion_indices_db.sql` (NUEVO), `src/app/(dashboard)/carga/actions.ts`, `src/app/(dashboard)/carga/page.tsx`.
+EFECTOS COLATERALES: Ninguno. Los índices son aditivos (IF NOT EXISTS). La Cola de Carga sigue renderizando exactamente los mismos datos. getCasos() (tabla principal) ya tenía selects explícitos — no requirió cambios.
+TESTEADO: TypeScript `npx tsc --noEmit` 0 errores. Migración SQL debe ejecutarse en Supabase SQL Editor.
+
 ---
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-022: Throttling de Disk IO por Sequential Scans y Payload pesado (RESUELTO)
+- PROBLEMA: Supabase reportaba Disk IO Budget Throttling al 82%+. Las queries principales del sistema (filtros en CasosTable, JOINs de Kilometraje v2, reportes, timeline) provocaban Sequential Scans completos en disco porque ninguna columna de filtrado/JOIN tenía índice.
+- CAUSA: Las tablas `casos`, `historial_estados` y `tareas` carecían de índices en las columnas usadas en WHERE, JOIN, ORDER BY e IN(). Cada query escaneaba la tabla completa. Agravado por `getCasosParaCarga()` usando `select('*')` que traía campos pesados innecesarios (datos_crudos_sancor, campos financieros).
+- SOLUCION: (1) 14 índices B-Tree distribuidos en 3 tablas (casos: 8, historial_estados: 3, tareas: 3). (2) `select('*')` reemplazado por 16 columnas explícitas en la Cola de Carga.
+- FECHA: 20/03/2026
+- NO REPETIR: Toda columna que se use en WHERE, JOIN ON, ORDER BY, o filtros `.in()` de PostgREST DEBE tener un índice B-Tree. Toda query que alimente grillas o listas DEBE usar selects explícitos — nunca `select('*')` si la tabla tiene campos de texto largo o JSONB.
 
 ### BUG-020: Notificaciones por correo violan RLS de mail_queue para No-Admins (RESUELTO)
 - PROBLEMA: Al cambiar el estado de un siniestro a uno disparador de mail preconfigurado (ej: Contactado), los usuarios sin rol 'admin' recibían un error `new row violates row-level security policy for table "mail queue"` en la consola del server y el mail no se encolaba.

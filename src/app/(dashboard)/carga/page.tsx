@@ -19,7 +19,7 @@ async function ColaCarga() {
         );
     }
 
-    return <ColaDeCargaBoard casos={casos || []} />;
+    return <ColaDeCargaBoard casos={(casos || []) as any} />;
 }
 
 export default function CargaPage() {

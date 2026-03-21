@@ -37,6 +37,7 @@ export async function getCasosParaCarga() {
             fecha_derivacion,
             fecha_inspeccion_programada,
             fecha_carga_sistema,
+            fecha_inspeccion_real,
             fecha_cierre,
             updated_at,
             created_at,

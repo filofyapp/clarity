@@ -28,6 +28,7 @@ interface CasoCarga {
     tipo_inspeccion?: string;
     created_at: string;
     updated_at: string;
+    fecha_inspeccion_real?: string;
     fecha_carga_sistema?: string;
     nombre_asegurado?: string;
     compania?: { nombre: string } | null;
@@ -103,7 +104,7 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
 
     // Sort by time in pendiente_carga (oldest first)
     const sorted = [...casos].sort((a, b) =>
-        new Date(a.fecha_carga_sistema || a.updated_at).getTime() - new Date(b.fecha_carga_sistema || b.updated_at).getTime()
+        new Date(a.fecha_inspeccion_real || a.fecha_carga_sistema || a.updated_at).getTime() - new Date(b.fecha_inspeccion_real || b.fecha_carga_sistema || b.updated_at).getTime()
     );
 
     const handleProcesar = async () => {
@@ -184,7 +185,7 @@ export function ColaDeCargaBoard({ casos: initialCasos }: ColaDeCargaBoardProps)
             {/* Cards */}
             <div className="space-y-3 mt-4">
                 {sorted.map((caso, idx) => {
-                    const antiguedad = getAntiguedad(caso.fecha_carga_sistema || caso.updated_at);
+                    const antiguedad = getAntiguedad(caso.fecha_inspeccion_real || caso.fecha_carga_sistema || caso.updated_at);
                     return (
                         <div
                             key={caso.id}

@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
         const updateData: Record<string, any> = {
             estado: "pendiente_carga",
             fecha_inspeccion_real: caso?.fecha_inspeccion_real || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
         };
         if (observaciones_pericia && observaciones_pericia.trim()) {
             updateData.observaciones_pericia = observaciones_pericia.trim();

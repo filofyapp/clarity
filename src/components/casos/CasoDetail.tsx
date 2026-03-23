@@ -13,6 +13,7 @@ import { SelectorEstado } from "./SelectorEstado";
 import { ZonaArchivos } from "./ZonaArchivos";
 import { TimelineExpediente } from "./TimelineExpediente";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ObservacionesPericia } from "./ObservacionesPericia";
 import { Car, MapPin, ClipboardList, Users, ClipboardType, FileText, Calendar, CheckCircle } from "lucide-react";
 import { EditableLinkOrion } from "./EditableLinkOrion";
@@ -123,10 +124,43 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
         { value: "ip_final_intermedia", label: "IP Final/Intermedia" },
     ];
 
+    const esPeritoCalleDueno = currentUserId === caso.perito_calle_id;
+
     return (
         <div className="space-y-8 overflow-x-hidden">
-            {/* Cabecera del caso */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-6">
+            {/* ═══ MOBILE HEADER COMPACTO (md:hidden) ═══ */}
+            <div className="block md:hidden border-b border-border pb-4 space-y-3">
+                <div className="flex items-center justify-between">
+                    <span className="text-3xl font-black font-mono uppercase tracking-wider text-text-primary">
+                        {caso.dominio || "S/P"}
+                    </span>
+                    <EstadoBadge estado={caso.estado} />
+                </div>
+                <div className="space-y-0.5">
+                    <p className="text-sm font-mono text-text-muted">#{caso.numero_siniestro}</p>
+                    <p className="text-sm text-text-secondary">{caso.marca} {caso.modelo}</p>
+                    <TipoIPBadge tipo={caso.tipo_inspeccion} />
+                </div>
+                {caso.direccion_inspeccion && (
+                    <div className="flex items-start gap-1.5 text-xs text-text-muted">
+                        <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        <span>{caso.direccion_inspeccion}{caso.localidad ? `, ${caso.localidad}` : ''}</span>
+                    </div>
+                )}
+                <SelectorEstado casoId={caso.id} estadoActual={caso.estado} userRol={rol} />
+
+                {/* Mobile CTA: Comenzar Inspección */}
+                {rol === "calle" && caso.estado === "ip_coordinada" && (
+                    <Link href={`/inspeccion-campo/${caso.id}`} className="block">
+                        <button className="w-full py-4 bg-brand-primary text-white rounded-xl font-bold text-lg hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2">
+                            📷 Comenzar Inspección
+                        </button>
+                    </Link>
+                )}
+            </div>
+
+            {/* ═══ DESKTOP HEADER (hidden md:flex) ═══ */}
+            <div className="hidden md:flex flex-row justify-between items-center gap-4 border-b border-border pb-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-text-primary mb-2">
                         Siniestro: {caso.numero_siniestro} — Vehículo: {caso.marca} {caso.modelo} {caso.dominio ? `(${caso.dominio})` : ''}
@@ -236,8 +270,107 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                     />
                     )}
 
-                    {/* Tarjeta Unificada: Vehículo e Inspección */}
-                    <Card>
+                    {/* ═══ MOBILE ACCORDIONS (block md:hidden) ═══ */}
+                    <div className="block md:hidden">
+                        <Accordion type="multiple" className="space-y-2">
+                            {/* Accordion: Info General */}
+                            <AccordionItem value="info-general" className="border border-border rounded-xl overflow-hidden bg-bg-secondary">
+                                <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                                    <span className="flex items-center gap-2"><Car className="w-4 h-4 text-brand-secondary" /> Información General</span>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="text-xs text-text-muted mb-1">Vehículo</p>
+                                            <EditableField casoId={caso.id} campo="marca" valorActual={caso.marca} tipo="text" placeholder="Ej: FIAT CRONOS 2024" textClassName="font-semibold text-base" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-text-muted mb-1">Dominio</p>
+                                            <EditableField casoId={caso.id} campo="dominio" valorActual={caso.dominio} tipo="text" placeholder="Sin dominio" textClassName="font-semibold text-base uppercase tracking-wider" />
+                                        </div>
+                                        <EditableCoordinacion casoId={caso.id} estadoActual={caso.estado} direccionInicial={caso.direccion_inspeccion || ""} localidadInicial={caso.localidad || ""} fechaProgramadaInicial={caso.fecha_inspeccion_programada} rol={rol} />
+                                        <div>
+                                            <p className="text-xs text-text-muted mb-1">Observaciones Internas</p>
+                                            <EditableField casoId={caso.id} campo="notas_admin" valorActual={caso.notas_admin} tipo="textarea" placeholder="Agregar nota interna..." textClassName="text-sm" className="w-full" />
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            {/* Accordion: Fechas Administrativas */}
+                            <AccordionItem value="fechas" className="border border-border rounded-xl overflow-hidden bg-bg-secondary">
+                                <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                                    <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-brand-secondary" /> Fechas Administrativas</span>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4">
+                                    <div className="space-y-3">
+                                        {caso.fecha_carga_sistema && (
+                                            <div>
+                                                <p className="text-xs text-text-muted mb-0.5">Fecha de Carga</p>
+                                                <EditableField casoId={caso.id} campo="fecha_carga_sistema" valorActual={caso.fecha_carga_sistema} tipo="date" placeholder="No registrada" textClassName="font-medium text-sm" />
+                                            </div>
+                                        )}
+                                        {caso.fecha_cierre && (
+                                            <div>
+                                                <p className="text-xs text-text-muted mb-0.5">Fecha de Cierre</p>
+                                                <EditableField casoId={caso.id} campo="fecha_cierre" valorActual={caso.fecha_cierre} tipo="date" placeholder="No registrada" textClassName="font-medium text-sm" />
+                                            </div>
+                                        )}
+                                        <div>
+                                            <p className="text-xs text-text-muted mb-0.5">Ingreso</p>
+                                            <p className="text-sm text-text-primary">{format(new Date(caso.created_at), "dd MMM yyyy", { locale: es })}</p>
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            {/* Accordion: Datos Crudos Sancor */}
+                            {caso.datos_crudos_sancor && (
+                                <AccordionItem value="datos-sancor" className="border border-border rounded-xl overflow-hidden bg-bg-secondary">
+                                    <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                                        <span className="flex items-center gap-2"><ClipboardType className="w-4 h-4 text-brand-secondary" /> Datos Crudos Sancor</span>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="px-4">
+                                        {(rol === "admin" || esPeritoCalleDueno) ? (
+                                            <EditableField casoId={caso.id} campo="datos_crudos_sancor" valorActual={caso.datos_crudos_sancor} tipo="textarea" placeholder="Sin datos" textClassName="text-sm text-text-muted whitespace-pre-wrap leading-relaxed" className="w-full" />
+                                        ) : (
+                                            <p className="text-sm text-text-muted whitespace-pre-wrap leading-relaxed">{caso.datos_crudos_sancor}</p>
+                                        )}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            )}
+
+                            {/* Accordion: Asignaciones Operativas */}
+                            <AccordionItem value="asignaciones" className="border border-border rounded-xl overflow-hidden bg-bg-secondary">
+                                <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
+                                    <span className="flex items-center gap-2"><Users className="w-4 h-4 text-brand-secondary" /> Asignaciones Operativas</span>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4">
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-[11px] text-text-muted uppercase tracking-wider">Perito de Calle</p>
+                                            <p className="text-sm font-medium text-text-primary">{caso.perito_calle ? `${caso.perito_calle.nombre} ${caso.perito_calle.apellido}` : 'Sin asignar'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] text-text-muted uppercase tracking-wider">Perito de Carga</p>
+                                            <p className="text-sm font-medium text-text-primary">{caso.perito_carga ? `${caso.perito_carga.nombre} ${caso.perito_carga.apellido}` : 'Sin asignar'}</p>
+                                        </div>
+                                        {caso.gestor && (
+                                            <div>
+                                                <p className="text-[11px] text-text-muted uppercase tracking-wider">Gestor</p>
+                                                <p className="text-sm font-medium text-text-primary">{caso.gestor.nombre}</p>
+                                                {caso.gestor.email && <a href={`mailto:${caso.gestor.email}`} className="text-xs text-brand-primary hover:underline">{caso.gestor.email}</a>}
+                                            </div>
+                                        )}
+                                        <GenerarLinkInspeccion casoId={caso.id} />
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    </div>
+
+                    {/* ═══ DESKTOP: Info General Card (hidden md:block) ═══ */}
+                    <Card className="hidden md:block">
                         <CardHeader className="pb-3 border-b border-border/50">
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <Car className="w-5 h-5 text-brand-secondary" />
@@ -277,7 +410,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                     rol={rol}
                                 />
                                 
-                                {/* NUEVO: Bloque de fechas automáticas */}
+                                {/* Bloque de fechas automáticas */}
                                 <div className="md:col-span-2 mt-2 pt-4 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                                     <div>
                                         <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Fecha de Carga</p>
@@ -319,9 +452,9 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                         </CardContent>
                     </Card>
 
-                    {/* Información del Gestor */}
+                    {/* Información del Gestor — DESKTOP ONLY */}
                     {(caso.datos_crudos_sancor || caso.link_orion) && (
-                        <Card className="bg-gradient-to-br from-bg-secondary/50 to-bg-primary">
+                        <Card className="hidden md:block bg-gradient-to-br from-bg-secondary/50 to-bg-primary">
                             <CardHeader className="pb-3 border-b border-border/50">
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <ClipboardType className="w-5 h-5 text-brand-secondary" />
@@ -340,7 +473,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                 {caso.datos_crudos_sancor && (
                                     <div className="bg-bg-elevated border border-border/60 rounded-lg p-5 relative overflow-hidden">
                                         <div className="absolute top-0 left-0 w-1 h-full bg-brand-secondary/70"></div>
-                                        {rol === "admin" ? (
+                                        {(rol === "admin" || esPeritoCalleDueno) ? (
                                             <EditableField
                                                 casoId={caso.id}
                                                 campo="datos_crudos_sancor"
@@ -360,8 +493,8 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                         </Card>
                     )}
 
-                    {/* Asignaciones Operativas */}
-                    <Card>
+                    {/* Asignaciones Operativas — DESKTOP ONLY */}
+                    <Card className="hidden md:block">
                         <CardHeader className="pb-3 border-b border-border/50">
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <Users className="w-5 h-5 text-brand-secondary" />
@@ -437,9 +570,9 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
 
 
 
-                    {/* Módulo de Inspección (Solo Peritos de Calle en Estado IP Coordinada) */}
+                    {/* Módulo de Inspección (Solo Peritos de Calle en Estado IP Coordinada) — DESKTOP ONLY */}
                     {rol === "calle" && caso.estado === "ip_coordinada" && (
-                        <div className="mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
+                        <div className="hidden md:block mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
                             <div className="bg-bg-secondary border border-border rounded-xl p-6 text-center space-y-4">
                                 <h3 className="text-lg font-bold text-text-primary">Inspección Presencial</h3>
                                 <p className="text-sm text-text-muted">Iniciá el flujo completo: fotos → informe → firma del taller</p>

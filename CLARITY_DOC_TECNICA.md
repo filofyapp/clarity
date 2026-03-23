@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 23/03/2026
+QUE SE CAMBIO: Sprint Rediseño UX/UI Mobile-First completo: (1) PanelPeritoCalle radar proactivo, (2) CasoDetail reestructurado con Accordions mobile, (3) Permisos edición perpetua perito calle.
+POR QUE: (1) PanelPeritoCalle tenía "Actividad Reciente" pasiva mostrando los últimos 10 casos sin filtro — ruido puro, sin alertas. (2) CasoDetail volcaba toda la info en una sola columna en mobile (Data Dump + Scroll Fatigue): info general, datos sancor, asignaciones, fechas, todo visible y expandido. El CTA "Comenzar Inspección" quedaba enterrado debajo de N scroll. (3) El perito de calle no podía editar datos_crudos_sancor de sus casos.
+COMO: (1) Se reescribió PanelPeritoCalle.tsx: eliminada sección "Actividad Reciente" (Clock icon), reemplazada por "🚨 Atención Requerida" que filtra casos demorados (ip_coordinada con fecha_inspeccion_programada < hoy O sin fecha y >3 días estancado) y pendiente_presupuesto. Tarjetas con border-color-danger/warning, patente text-lg font-black. Empty state verde "¡Todo al día!". (2) CasoDetail.tsx: Nuevo header mobile compacto (block md:hidden) con patente text-3xl font-black, estado, dirección, y botón "Comenzar Inspección" (si corresponde) SIN scroll. Header desktop preservado (hidden md:flex). Info General, Fechas, Datos Sancor, Asignaciones envueltas en <Accordion> Shadcn colapsados por defecto en mobile. Cards desktop originales con hidden md:block. Se instaló @radix-ui/react-accordion + componente ui/accordion.tsx vía shadcn. (3) Variable esPeritoCalleDueno = (currentUserId === caso.perito_calle_id). Ahora datos_crudos_sancor es editable para admin O perito dueño, tanto en desktop como en mobile (via EditableField directo, sin restricción de estado).
+ARCHIVOS AFECTADOS: PanelPeritoCalle.tsx, CasoDetail.tsx, accordion.tsx (NEW via shadcn)
+EFECTOS COLATERALES: Desktop: 0 cambios visibles para admin/carga. La edición de datos_crudos_sancor ahora es accesible también al perito calle dueño (antes solo admin). ZonaArchivos y ObservacionesPericia sin cambios (ya funcionaban sin restricciones).
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 22/03/2026
 QUE SE CAMBIO: Sprint UX Mobile + Permisos Perito de Calle (3 pasos: aislamiento de datos, UX mobile-first, edición post-inspección).
 POR QUE: (1) El perito de calle podía ver todos los casos del sistema en /casos, sin filtrar por los suyos. (2) La UI estaba pensada 100% desktop, inutilizable en móvil para peritos de calle que trabajan desde el celular. (3) El perito de calle no podía editar observaciones_pericia de sus inspecciones desde CasoDetail.

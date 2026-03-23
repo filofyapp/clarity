@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { Clock, CheckCircle2, AlertTriangle, Briefcase, TrendingUp, Calendar, MapPin } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { CheckCircle2, AlertTriangle, Briefcase, TrendingUp, Calendar, MapPin, ChevronRight, AlertCircle } from "lucide-react";
+import { format, formatDistanceToNow, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -12,7 +12,7 @@ export async function PanelPeritoCalle({ userId }: Props) {
 
     const { data: misCasos } = await supabase
         .from("casos")
-        .select("id, numero_siniestro, estado, dominio, marca, modelo, fecha_inspeccion_programada, fecha_inspeccion_real, tipo_inspeccion, monto_pagado_perito_calle, localidad, updated_at")
+        .select("id, numero_siniestro, estado, dominio, marca, modelo, fecha_inspeccion_programada, fecha_inspeccion_real, tipo_inspeccion, monto_pagado_perito_calle, localidad, updated_at, created_at")
         .eq("perito_calle_id", userId)
         .order("updated_at", { ascending: false });
 
@@ -20,7 +20,6 @@ export async function PanelPeritoCalle({ userId }: Props) {
 
     const now = new Date();
     const mesActualStr = format(now, "MMMM yyyy", { locale: es });
-    const mesActualInicio = new Date(now.getFullYear(), now.getMonth(), 1);
 
     // Month calculations
     const isThisMonth = (d: string | null) => {
@@ -48,8 +47,21 @@ export async function PanelPeritoCalle({ userId }: Props) {
     const activos = casos.filter(c => c.estado === "ip_coordinada" || c.estado === "pendiente_coordinacion" || c.estado === "contactado");
     const cerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
 
-    // Actividad reciente (últimos 10)
-    const recientes = casos.slice(0, 10);
+    // 🚨 Atención Requerida: casos demorados
+    const alertas = casos.filter(c => {
+        // ip_coordinada con fecha pasada
+        if (c.estado === "ip_coordinada") {
+            if (c.fecha_inspeccion_programada) {
+                return new Date(c.fecha_inspeccion_programada) < now;
+            }
+            // Sin fecha y estancado >3 días
+            const diasEnEstado = differenceInDays(now, new Date(c.updated_at));
+            return diasEnEstado > 3;
+        }
+        // pendiente_presupuesto
+        if (c.estado === "pendiente_presupuesto") return true;
+        return false;
+    });
 
     // Tareas
     const { data: tareasPendientes } = await supabase
@@ -88,31 +100,53 @@ export async function PanelPeritoCalle({ userId }: Props) {
                 </div>
             </div>
 
-            {/* ═══ Bloque 2: Actividad Reciente ═══ */}
-            <div className="bg-bg-secondary border border-border rounded-xl p-4">
+            {/* ═══ Bloque 2: 🚨 Atención Requerida ═══ */}
+            <div className={`border rounded-xl p-4 ${alertas.length > 0 ? "bg-color-danger/5 border-color-danger/30" : "bg-color-success/5 border-color-success/30"}`}>
                 <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-brand-secondary" /> Actividad Reciente
+                    {alertas.length > 0 ? (
+                        <><AlertCircle className="w-4 h-4 text-color-danger" /> 🚨 Atención Requerida ({alertas.length})</>
+                    ) : (
+                        <><CheckCircle2 className="w-4 h-4 text-color-success" /> ✅ ¡Todo al día!</>
+                    )}
                 </h2>
-                {recientes.length === 0 ? (
-                    <p className="text-xs text-text-muted text-center py-4">Sin actividad reciente.</p>
+                {alertas.length === 0 ? (
+                    <p className="text-sm text-color-success text-center py-4">Buen trabajo. No hay casos demorados ni pendientes.</p>
                 ) : (
                     <div className="space-y-2">
-                        {recientes.map(c => (
-                            <Link key={c.id} href={`/casos/${c.id}`}
-                                className="flex items-center justify-between bg-bg-tertiary border border-border rounded-lg px-3 py-2 hover:border-border-hover transition-colors">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <span className="font-mono text-sm text-text-primary shrink-0">{c.numero_siniestro}</span>
-                                    <span className="text-xs text-text-muted truncate">{c.dominio} · {c.marca}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-secondary text-text-muted capitalize shrink-0">{c.estado.replace(/_/g, " ")}</span>
-                                </div>
-                                <span className="text-xs text-text-muted shrink-0">{formatDistanceToNow(new Date(c.updated_at), { locale: es, addSuffix: true })}</span>
-                            </Link>
-                        ))}
+                        {alertas.map(c => {
+                            const esDemorado = c.estado === "ip_coordinada";
+                            const borderColor = esDemorado ? "border-color-danger/40" : "border-color-warning/40";
+                            const bgColor = esDemorado ? "bg-color-danger/5" : "bg-color-warning/5";
+                            return (
+                                <Link key={c.id} href={`/casos/${c.id}`}
+                                    className={`flex items-center gap-3 ${bgColor} border ${borderColor} rounded-xl px-4 py-3 hover:brightness-110 transition-all active:scale-[0.99]`}>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="text-lg font-black font-mono uppercase tracking-wider text-text-primary">
+                                                {c.dominio || "S/P"}
+                                            </span>
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${esDemorado ? "bg-color-danger/15 text-color-danger" : "bg-color-warning/15 text-color-warning"}`}>
+                                                {esDemorado ? "DEMORADO" : "PTE. PRESUPUESTO"}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs text-text-muted font-mono">#{c.numero_siniestro}</span>
+                                        {c.fecha_inspeccion_programada && esDemorado && (
+                                            <span className="text-[10px] text-color-danger ml-2">
+                                                IP: {format(new Date(c.fecha_inspeccion_programada), "dd/MM", { locale: es })}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-center w-10 h-10 shrink-0 rounded-lg bg-bg-primary/50 border border-border">
+                                        <ChevronRight className="w-5 h-5 text-text-muted" />
+                                    </div>
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            {/* ═══ Bloque 3: Datos Históricos (más chico) ═══ */}
+            {/* ═══ Bloque 3: Datos Históricos ═══ */}
             <div className="grid grid-cols-3 gap-3">
                 <div className="bg-bg-secondary/50 border border-border/50 rounded-lg p-3 text-center">
                     <p className="text-xs text-text-muted">Total asignados</p>

@@ -340,7 +340,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-1.5 bg-bg-tertiary p-0.5 rounded-md border border-border">
+                    <div className="hidden md:flex items-center gap-1.5 bg-bg-tertiary p-0.5 rounded-md border border-border">
                         <button onClick={() => toggleLayout("list")} className={`p-1.5 rounded ${layoutMode === "list" ? "bg-bg-primary shadow-sm text-text-primary" : "text-text-muted hover:text-text-secondary"} transition-all`} title="Vista Tabla">
                             <LayoutList className="w-3.5 h-3.5" />
                         </button>
@@ -384,8 +384,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                     })}
                 </div>
 
-                {/* Row 3: Advanced filters (FilterDropdown components) */}
-                <div className="flex flex-wrap items-center gap-1.5">
+                {/* Row 3: Advanced filters — hidden on mobile */}
+                <div className="hidden md:flex flex-wrap items-center gap-1.5">
                     <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mr-1"><Filter className="w-3 h-3 inline mr-0.5" />Filtros</span>
 
                     <FilterDropdown
@@ -452,7 +452,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                     />
                 </div>
             </div>
-            {/* MAIN TABLE OR GRID CONTAINER */}
+            {/* MOBILE CARD LIST — visible only on small screens */}
             {procesados.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-text-muted gap-3 p-8">
                     <p className="text-sm">No hay casos que coincidan con los filtros aplicados.</p>
@@ -462,8 +462,49 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         </button>
                     )}
                 </div>
-            ) : layoutMode === "list" ? (
-                <div className="flex-1 overflow-auto bg-bg-primary relative" ref={parentRef}>
+            ) : (
+            <>
+            <div className="block md:hidden flex-1 overflow-auto bg-bg-primary">
+                <div className="divide-y divide-border">
+                    {procesados.map(caso => {
+                        const rowColor = estadoStylesRow[caso.estado] || '';
+                        return (
+                            <Link
+                                href={`/casos/${caso.id}`}
+                                key={caso.id}
+                                className={`flex items-center gap-3 px-4 py-3 active:bg-bg-tertiary transition-colors ${rowColor}`}
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-lg font-black font-mono uppercase tracking-wider text-text-primary">
+                                            {caso.dominio || "S/P"}
+                                        </span>
+                                        <EstadoBadge estado={caso.estado} compacto />
+                                    </div>
+                                    <div className="text-xs text-text-muted font-mono">
+                                        #{caso.numero_siniestro}
+                                    </div>
+                                    <div className="text-xs text-text-secondary mt-0.5 truncate">
+                                        {caso.marca} {caso.modelo}
+                                    </div>
+                                    {caso.perito_calle && (
+                                        <div className="text-[10px] text-brand-primary mt-0.5">
+                                            Calle: {caso.perito_calle.nombre} {caso.perito_calle.apellido}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-center w-12 h-12 shrink-0 rounded-xl bg-bg-secondary border border-border">
+                                    <ChevronRight className="w-5 h-5 text-text-muted" />
+                                </div>
+                            </Link>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* DESKTOP TABLE/GRID — hidden on mobile */}
+            {layoutMode === "list" ? (
+                <div className="hidden md:flex flex-1 overflow-auto bg-bg-primary relative" ref={parentRef}>
                     <div className="min-w-max w-full flex flex-col pointer-events-auto">
                         {/* THEAD */}
                         <div className="flex sticky top-0 z-20 bg-bg-secondary shadow-[0_1px_0_var(--tw-shadow-color)] shadow-border font-medium text-[11px] text-text-muted uppercase select-none backdrop-blur-md tracking-wider pl-[3px]">
@@ -826,7 +867,7 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                     </div>
                 </div>
             ) : (
-                <div className="flex-1 overflow-auto p-4 bg-bg-primary">
+                <div className="hidden md:block flex-1 overflow-auto p-4 bg-bg-primary">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {procesados.map(caso => {
                             const { days, color: daysColor } = formatDays(caso.updated_at);
@@ -892,6 +933,8 @@ export function CasosTable({ casos, peritos = [], gestores = [], userRol = "admi
                         })}
                     </div>
                 </div>
+            )}
+            </>
             )}
         </div>
     );

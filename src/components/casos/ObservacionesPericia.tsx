@@ -1,18 +1,39 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Download } from "lucide-react";
+import { useState, useRef, useEffect, useTransition } from "react";
+import { Play, Pause, Download, Save, Loader2 } from "lucide-react";
+import { updateCasoRapido } from "@/app/(dashboard)/casos/actions";
+import { toast } from "sonner";
 
 const SPEEDS = [1, 1.25, 1.5, 2] as const;
 
 interface Props {
+    casoId?: string;
     texto?: string | null;
     audioUrl?: string | null;
+    puedeEditar?: boolean;
 }
 
-export function ObservacionesPericia({ texto, audioUrl }: Props) {
-    // Don't render if empty
-    if (!texto && !audioUrl) return null;
+export function ObservacionesPericia({ casoId, texto, audioUrl, puedeEditar = false }: Props) {
+    // Don't render if empty and can't edit
+    if (!texto && !audioUrl && !puedeEditar) return null;
+
+    const [editando, setEditando] = useState(false);
+    const [draft, setDraft] = useState(texto || "");
+    const [isPending, startTransition] = useTransition();
+
+    const handleGuardar = () => {
+        if (!casoId) return;
+        startTransition(async () => {
+            try {
+                const result = await updateCasoRapido(casoId, "observaciones_pericia", draft);
+                if (result.error) toast.error(result.error);
+                else { toast.success("Observaciones guardadas"); setEditando(false); }
+            } catch (e) {
+                toast.error("Error al guardar");
+            }
+        });
+    };
 
     return (
         <div className="mt-6 pt-4 border-t border-border">
@@ -24,9 +45,41 @@ export function ObservacionesPericia({ texto, audioUrl }: Props) {
                 </span>
             </div>
 
-            {texto && (
-                <div className="bg-bg-secondary border border-border/50 rounded-xl p-4 mb-3">
-                    <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">{texto}</p>
+            {puedeEditar && editando ? (
+                <div className="space-y-2">
+                    <textarea
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        className="w-full min-h-[100px] p-3 rounded-xl bg-bg-secondary border border-border/50 text-sm text-text-primary leading-relaxed resize-y focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                        placeholder="Escribí las observaciones de la pericia..."
+                    />
+                    <div className="flex gap-2 justify-end">
+                        <button
+                            onClick={() => { setDraft(texto || ""); setEditando(false); }}
+                            className="text-xs text-text-muted hover:text-text-primary px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleGuardar}
+                            disabled={isPending}
+                            className="flex items-center gap-1.5 text-xs font-medium bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-primary-hover transition-colors disabled:opacity-50"
+                        >
+                            {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                            Guardar
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div
+                    onClick={() => puedeEditar && setEditando(true)}
+                    className={`bg-bg-secondary border border-border/50 rounded-xl p-4 mb-3 ${puedeEditar ? "cursor-pointer hover:border-brand-primary/30 transition-colors" : ""}`}
+                >
+                    {texto ? (
+                        <p className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">{texto}</p>
+                    ) : puedeEditar ? (
+                        <p className="text-sm text-text-muted italic">Clic para agregar observaciones...</p>
+                    ) : null}
                 </div>
             )}
 

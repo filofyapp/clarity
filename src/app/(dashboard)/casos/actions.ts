@@ -131,6 +131,15 @@ export interface CasosFilters {
 export async function getCasos(filters?: CasosFilters) {
     const supabase = await createClient();
 
+    // Aislamiento: perito calle puro solo ve sus propios casos
+    const { data: { user } } = await supabase.auth.getUser();
+    let esPeritoCallePuro = false;
+    if (user) {
+        const { data: u } = await supabase.from("usuarios").select("roles, rol").eq("id", user.id).single();
+        const roles = u?.roles || [u?.rol];
+        esPeritoCallePuro = roles.includes("calle") && !roles.includes("admin") && !roles.includes("carga");
+    }
+
     let query = supabase
         .from("casos")
         .select(`
@@ -158,6 +167,11 @@ export async function getCasos(filters?: CasosFilters) {
             perito_calle:usuarios!casos_perito_calle_id_fkey(nombre, apellido),
             perito_carga:usuarios!casos_perito_carga_id_fkey(nombre, apellido)
         `);
+
+    // Inyectar filtro de seguridad para perito calle puro
+    if (esPeritoCallePuro && user) {
+        query = query.eq("perito_calle_id", user.id);
+    }
 
     // Apply server-side filters
     if (filters) {

@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 22/03/2026
+QUE SE CAMBIO: Sprint UX Mobile + Permisos Perito de Calle (3 pasos: aislamiento de datos, UX mobile-first, edición post-inspección).
+POR QUE: (1) El perito de calle podía ver todos los casos del sistema en /casos, sin filtrar por los suyos. (2) La UI estaba pensada 100% desktop, inutilizable en móvil para peritos de calle que trabajan desde el celular. (3) El perito de calle no podía editar observaciones_pericia de sus inspecciones desde CasoDetail.
+COMO: (1) En getCasos() de casos/actions.ts se inyecta .eq('perito_calle_id', user.id) si el usuario es perito calle puro (tiene rol 'calle' y NO tiene 'admin' ni 'carga'). (2) Nuevo componente BottomNavMobile.tsx (4 tabs: Agenda/Casos/Tareas/Perfil, min 48×48px touch targets, fixed bottom z-50 md:hidden). layout.tsx agrega pb-24 en mobile. CasosTable.tsx agrega vista de tarjetas touch-friendly (block md:hidden) con patente text-lg, estado badge, botón 48×48 de acceso, mientras la tabla y filtros avanzados usan hidden md:flex/hidden md:block. (3) ObservacionesPericia.tsx recibe props casoId y puedeEditar. Si puedeEditar (currentUserId === perito_calle_id || rol admin), el texto es clickeable para editar, con guardado vía updateCasoRapido.
+ARCHIVOS AFECTADOS: casos/actions.ts, layout.tsx, BottomNavMobile.tsx (NEW), CasosTable.tsx, CasoDetail.tsx, ObservacionesPericia.tsx
+EFECTOS COLATERALES: Vista desktop intacta (0 cambios visibles). Los filtros avanzados de CasosTable se ocultan en mobile; solo badge counters de estado + search quedan visibles. El view toggle list/grid se oculta en mobile (la vista mobile siempre usa cards).
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 11/03/2026
 QUE SE CAMBIO: Cambio global de paleta de colores a ámbar/dorado + Rediseño completo del Tablero de Tareas (Kanban).
 POR QUE: (1) La paleta anterior (azul/púrpura/cyan) generaba confusión visual con los colores institucionales de Federación Patronal (azul) y Sancor Seguros (magenta/fucsia), los dos clientes principales. CLARITY necesita identidad visual propia y neutral. (2) El tablero de tareas Kanban tenía cards sin jerarquía visual: todas iguales en tamaño y color, sin indicadores de antigüedad ni de urgencia, descripciones largas y sin densidad.

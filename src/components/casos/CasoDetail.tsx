@@ -468,7 +468,12 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                     {/* Galería Fotográfica Unificada */}
                     <div className="mt-8 pt-6 border-t border-border animate-in fade-in duration-500">
                         <GaleriaFotosResponsive casoId={caso.id} />
-                        <ObservacionesPericia texto={caso.observaciones_pericia} audioUrl={caso.audio_pericia_url} />
+                        <ObservacionesPericia
+                            casoId={caso.id}
+                            texto={caso.observaciones_pericia}
+                            audioUrl={caso.audio_pericia_url}
+                            puedeEditar={currentUserId === caso.perito_calle_id || rol === "admin"}
+                        />
                     </div>
 
                     {/* F1.9: Zona de Archivos */}

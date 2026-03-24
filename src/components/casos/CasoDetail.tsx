@@ -340,14 +340,14 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                             </AccordionItem>
 
                             {/* Accordion: Inspección */}
-                            {(esAdminOCarga || (rol === "calle" && caso.estado === "ip_coordinada")) && (
+                            {(esAdminOCarga || rol === "calle") && (
                                 <AccordionItem value="inspeccion" className="border border-border rounded-xl overflow-hidden bg-bg-secondary">
                                     <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
                                         <span className="flex items-center gap-2"><Camera className="w-4 h-4 text-brand-secondary" /> Inspección</span>
                                     </AccordionTrigger>
                                     <AccordionContent className="px-4 pb-4">
                                         <div className="space-y-3">
-                                            {esAdminOCarga && <GenerarLinkInspeccion casoId={caso.id} />}
+                                            <GenerarLinkInspeccion casoId={caso.id} />
                                             {rol === "calle" && caso.estado === "ip_coordinada" && (
                                                 <>
                                                     <Link href={`/inspeccion-campo/${caso.id}`} className="block">
@@ -500,7 +500,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                     {/* ════════════════════════════════════════════════════════════
                         DESKTOP: Bloque Inspección (hidden md:block)
                     ════════════════════════════════════════════════════════════ */}
-                    {(esAdminOCarga || (rol === "calle" && caso.estado === "ip_coordinada")) && (
+                    {(esAdminOCarga || rol === "calle") && (
                         <Card className="hidden md:block">
                             <CardHeader className="pb-3 border-b border-border/50">
                                 <CardTitle className="text-lg flex items-center gap-2">
@@ -509,7 +509,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-6 space-y-4">
-                                {esAdminOCarga && <GenerarLinkInspeccion casoId={caso.id} />}
+                                <GenerarLinkInspeccion casoId={caso.id} />
                                 {rol === "calle" && caso.estado === "ip_coordinada" && (
                                     <div className="space-y-3">
                                         <div className="bg-bg-secondary border border-border rounded-xl p-6 text-center space-y-4">

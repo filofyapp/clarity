@@ -18,6 +18,7 @@ import { ObservacionesPericia } from "./ObservacionesPericia";
 import { Car, MapPin, ClipboardList, Users, ClipboardType, FileText, Calendar, CheckCircle } from "lucide-react";
 import { EditableLinkOrion } from "./EditableLinkOrion";
 import { GenerarLinkInspeccion } from "./GenerarLinkInspeccion";
+import { BotonAusente } from "./BotonAusente";
 import { GestorRepliesBanner } from "./GestorRepliesBanner";
 import EditableCoordinacion from "./EditableCoordinacion";
 import { EditableField } from "./EditableField";
@@ -160,13 +161,16 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                 </div>
                 <SelectorEstado casoId={caso.id} estadoActual={caso.estado} userRol={rol} />
 
-                {/* Mobile CTA: Comenzar Inspección */}
+                {/* Mobile CTA: Comenzar Inspección + Ausente */}
                 {rol === "calle" && caso.estado === "ip_coordinada" && (
-                    <Link href={`/inspeccion-campo/${caso.id}`} className="block">
-                        <button className="w-full py-4 bg-brand-primary text-white rounded-xl font-bold text-lg hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2">
-                            📷 Comenzar Inspección
-                        </button>
-                    </Link>
+                    <div className="space-y-2">
+                        <Link href={`/inspeccion-campo/${caso.id}`} className="block">
+                            <button className="w-full py-4 bg-brand-primary text-white rounded-xl font-bold text-lg hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2">
+                                📷 Comenzar Inspección
+                            </button>
+                        </Link>
+                        <BotonAusente casoId={caso.id} />
+                    </div>
                 )}
             </div>
 
@@ -567,6 +571,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                         📷 Comenzar Inspección
                                     </button>
                                 </Link>
+                                <BotonAusente casoId={caso.id} />
                             </div>
                         </div>
                     )}

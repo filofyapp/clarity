@@ -144,37 +144,39 @@ export function VistaInformeCampo({ casoId }: Props) {
                 <div className="space-y-5">
                     {/* Mano de Obra */}
                     {hasMO && (
-                        <div className="bg-bg-tertiary rounded-xl p-5 border border-border space-y-4">
-                            <h4 className="font-bold text-text-primary flex items-center gap-2 border-b border-border/50 pb-3">
-                                <BadgeDollarSign className="w-5 h-5 text-color-success" />
+                        <div className="bg-bg-tertiary rounded-xl p-3 sm:p-5 border border-border space-y-4">
+                            <h4 className="font-bold text-text-primary flex items-center gap-2 border-b border-border/50 pb-3 text-sm sm:text-base">
+                                <BadgeDollarSign className="w-5 h-5 text-color-success shrink-0" />
                                 Mano de Obra Acordada
                             </h4>
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="text-xs text-text-muted uppercase tracking-wider">
-                                        <th className="text-left pb-2">Concepto</th>
-                                        <th className="text-right pb-2">Valor Unit.</th>
-                                        <th className="text-center pb-2">Cantidad</th>
-                                        <th className="text-right pb-2">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/30">
-                                    {manoDeObra.filter(r => r.cantidad > 0).map((r, i) => (
-                                        <tr key={i} className="text-text-secondary">
-                                            <td className="py-1.5">{r.concepto}</td>
-                                            <td className="py-1.5 text-right font-mono text-text-primary">{formatCurrency(r.valor)}<span className="text-text-muted text-xs">/{r.unidad}</span></td>
-                                            <td className="py-1.5 text-center">{r.cantidad} {r.unidad}</td>
-                                            <td className="py-1.5 text-right font-mono font-medium text-text-primary">{formatCurrency(r.valor * r.cantidad)}</td>
+                            <div className="overflow-x-auto -mx-1">
+                                <table className="w-full text-xs sm:text-sm table-fixed min-w-[280px]">
+                                    <thead>
+                                        <tr className="text-[10px] sm:text-xs text-text-muted uppercase tracking-wider">
+                                            <th className="text-left pb-2 w-[35%]">Concepto</th>
+                                            <th className="text-right pb-2 w-[25%]">V.Unit</th>
+                                            <th className="text-center pb-2 w-[15%]">Cant.</th>
+                                            <th className="text-right pb-2 w-[25%]">Total</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot>
-                                    <tr className="border-t border-border">
-                                        <td colSpan={3} className="pt-3 font-bold text-text-primary">Total MO</td>
-                                        <td className="pt-3 text-right text-xl font-black text-color-success font-mono">{formatCurrency(informe.total_mano_de_obra || 0)}</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/30">
+                                        {manoDeObra.filter(r => r.cantidad > 0).map((r, i) => (
+                                            <tr key={i} className="text-text-secondary">
+                                                <td className="py-1.5 pr-1 truncate">{r.concepto}</td>
+                                                <td className="py-1.5 text-right font-mono text-text-primary text-[11px] sm:text-sm">{formatCurrency(r.valor)}<span className="text-text-muted text-[9px] sm:text-xs">/{r.unidad}</span></td>
+                                                <td className="py-1.5 text-center">{r.cantidad}</td>
+                                                <td className="py-1.5 text-right font-mono font-medium text-text-primary text-[11px] sm:text-sm">{formatCurrency(r.valor * r.cantidad)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t border-border">
+                                            <td colSpan={2} className="pt-3 font-bold text-text-primary text-xs sm:text-sm">Total MO</td>
+                                            <td colSpan={2} className="pt-3 text-right text-base sm:text-xl font-black text-color-success font-mono">{formatCurrency(informe.total_mano_de_obra || 0)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     )}
 

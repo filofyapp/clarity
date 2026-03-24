@@ -64,6 +64,85 @@ export async function marcarInspeccionRealizada(casoId: string) {
 }
 
 /**
+ * Marcar inspección como AUSENTE — Perito de calle confirma que el asegurado no se presentó.
+ * Sube la foto de ausencia, cambia tipo_inspeccion a "ausente" y estado directo a "ip_cerrada".
+ * No pasa por pendiente_carga (no hay nada que cargar).
+ */
+export async function marcarInspeccionAusente(casoId: string, formData: FormData) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "No autorizado." };
+
+    const { data: caso } = await supabase
+        .from("casos")
+        .select("estado, perito_calle_id")
+        .eq("id", casoId)
+        .single();
+
+    if (!caso) return { error: "Caso no encontrado." };
+    if (caso.estado !== "ip_coordinada") return { error: "El caso no está en estado IP Coordinada." };
+
+    const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+    if (!usuario) return { error: "Usuario no encontrado." };
+    if (usuario.rol !== "admin" && caso.perito_calle_id !== user.id) {
+        return { error: "Solo el perito de calle asignado puede marcar ausente." };
+    }
+
+    // Upload photo
+    const fotoFile = formData.get("foto") as File | null;
+    if (!fotoFile) return { error: "Debés subir la foto de ausencia." };
+
+    const ext = fotoFile.name.split(".").pop() || "jpg";
+    const filePath = `${casoId}/ausente_${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+        .from("fotos-inspecciones")
+        .upload(filePath, fotoFile, { contentType: fotoFile.type, upsert: false });
+
+    if (uploadError) return { error: `Error subiendo foto: ${uploadError.message}` };
+
+    const { data: urlData } = supabase.storage.from("fotos-inspecciones").getPublicUrl(filePath);
+
+    // Insert photo record
+    await supabase.from("fotos_inspeccion").insert({
+        caso_id: casoId,
+        usuario_id: user.id,
+        url: urlData.publicUrl,
+        tipo: "ausente",
+        descripcion: "Foto de ausencia",
+        orden: 0,
+    });
+
+    // Update case: ip_cerrada + tipo ausente
+    const { error: updateError } = await supabase
+        .from("casos")
+        .update({
+            estado: "ip_cerrada",
+            tipo_inspeccion: "ausente",
+            fecha_inspeccion_real: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", casoId);
+
+    if (updateError) return { error: updateError.message };
+
+    // Historial
+    await supabase.from("historial_estados").insert({
+        caso_id: casoId,
+        usuario_id: user.id,
+        estado_anterior: "ip_coordinada",
+        estado_nuevo: "ip_cerrada",
+        motivo: "Inspección marcada como AUSENTE por perito de calle",
+    });
+
+    revalidatePath("/mi-agenda");
+    revalidatePath(`/casos/${casoId}`);
+    revalidatePath("/carga");
+    revalidatePath("/dashboard");
+    return { success: true };
+}
+
+/**
  * Cambio de estado manual — Usado por admin y peritos según permisos.
  * DOC_TECNICA §5: Cada rol tiene estados permitidos.
  */

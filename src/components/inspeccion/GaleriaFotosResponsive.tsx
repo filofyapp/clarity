@@ -252,40 +252,41 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
     return (
         <div className="mt-6 space-y-4">
             {/* Header + Tabs */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <h3 className="font-semibold text-text-primary text-lg flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5 text-brand-secondary" />
-                    Galería de Inspección
-                    <span className="text-sm font-normal text-text-muted">({fotos.length})</span>
-                </h3>
-                <div className="flex items-center gap-2">
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-text-primary text-base sm:text-lg flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5 text-brand-secondary shrink-0" />
+                        Galería
+                        <span className="text-sm font-normal text-text-muted">({fotos.length})</span>
+                    </h3>
                     <button
                         onClick={downloadAll}
                         disabled={downloading || filteredFotos.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-bg-secondary border border-border/60 text-text-muted hover:text-text-primary hover:border-brand-primary/30 transition-all disabled:opacity-40"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-bg-secondary border border-border/60 text-text-muted hover:text-text-primary hover:border-brand-primary/30 transition-all disabled:opacity-40 shrink-0"
                     >
                         {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FolderDown className="w-3.5 h-3.5" />}
-                        Descargar {activeTab === "todas" ? "todas" : activeTab}
+                        <span className="hidden sm:inline">Descargar {activeTab === "todas" ? "todas" : activeTab}</span>
+                        <span className="sm:hidden">ZIP</span>
                     </button>
-                    <div className="flex gap-1 bg-bg-tertiary rounded-lg p-1 border border-border/50">
-                        {TABS.map(tab => {
-                            const count = tab.id === "todas" ? fotos.length : tab.id === "reglamentarias" ? countReglamentarias : countDanios;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${activeTab === tab.id
-                                        ? "bg-bg-primary text-text-primary shadow-sm border border-border/60"
-                                        : "text-text-muted hover:text-text-primary"
-                                        }`}
-                                >
-                                    {tab.label}
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? "bg-brand-primary/10 text-brand-primary" : "bg-bg-secondary text-text-muted"
-                                        }`}>{count}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                </div>
+                <div className="flex flex-wrap gap-1 bg-bg-tertiary rounded-lg p-1 border border-border/50">
+                    {TABS.map(tab => {
+                        const count = tab.id === "todas" ? fotos.length : tab.id === "reglamentarias" ? countReglamentarias : countDanios;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === tab.id
+                                    ? "bg-bg-primary text-text-primary shadow-sm border border-border/60"
+                                    : "text-text-muted hover:text-text-primary"
+                                    }`}
+                            >
+                                {tab.label}
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === tab.id ? "bg-brand-primary/10 text-brand-primary" : "bg-bg-secondary text-text-muted"
+                                    }`}>{count}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 

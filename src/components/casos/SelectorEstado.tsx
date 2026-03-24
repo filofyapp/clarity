@@ -35,7 +35,7 @@ export function SelectorEstado({ casoId, estadoActual, userRol }: SelectorEstado
     // Filtrar estados según rol
     const getEstadosPermitidos = () => {
         if (userRol === "admin" || userRol === "carga") return Object.keys(ESTADOS_DISPONIBLES);
-        if (userRol === "calle") return ["contactado"];
+        if (userRol === "calle") return []; // Perito calle no cambia estado manualmente
         return [];
     };
 

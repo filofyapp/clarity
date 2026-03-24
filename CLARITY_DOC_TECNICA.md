@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 23/03/2026 (noche 2)
+QUE SE CAMBIO: (A) Hamburguesa muerta eliminada de Topbar. (B) Tabla MO responsive en VistaInformeCampo. (C) Galería: tabs y download no se rompen en mobile. (D) Perito calle ya no puede cambiar estado manualmente. (E) Flujo AUSENTE: nuevo botón + photo upload + auto ip_cerrada.
+POR QUE: (A) El botón hamburguesa no tenía handler, era UI muerta. (B) La tabla MO de 4 columnas se desbordaba en pantallas <400px. (C) Las pastillas de filtro y el botón descargar se salían del contenedor. (D) El perito calle podía pasar a "contactado" manualmente, sin sentido operacional. (E) No existía flujo para inspecciones ausentes. El perito tenía que pedir al admin que cerrara el caso manualmente.
+COMO: (A) Topbar.tsx: eliminado bloque <Menu> L14-22, quitado import Menu. Spacer vacío para mobile. (B) VistaInformeCampo.tsx: table-fixed + overflow-x-auto container + column widths (35/25/15/25%) + headers abreviados (V.Unit, Cant.) + text-xs mobile + Total MO text-base. (C) GaleriaFotosResponsive.tsx: header stacks vertical, tabs en flex-wrap, download button con texto corto "ZIP" en mobile. (D) SelectorEstado.tsx: calle devuelve array vacío → componente retorna null (L43). (E) Nuevo componente BotonAusente.tsx: botón dashed "Marcar Ausente" → expande inline con upload (capture=environment), preview, confirmar. Nueva action marcarInspeccionAusente() en casos/[id]/actions.ts: sube foto a storage, inserta fotos_inspeccion(tipo:"ausente"), update caso estado=ip_cerrada + tipo_inspeccion=ausente + fecha_inspeccion_real=now(), historial_estados. NO pasa por pendiente_carga. Integrado en CasoDetail mobile (bloque CTA) y desktop (hidden md:block).
+ARCHIVOS AFECTADOS: Topbar.tsx, VistaInformeCampo.tsx, GaleriaFotosResponsive.tsx, SelectorEstado.tsx, CasoDetail.tsx, BotonAusente.tsx (NEW), casos/[id]/actions.ts
+EFECTOS COLATERALES: Perito calle pierde "Cambiar estado" completamente. Los estados solo los cambia admin/carga. Flujo ausente cierra caso sin pasar por perito de carga (no hay nada que cargar). "ausente" ya existía en tipo_inspeccion enum, no requiere migración.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 23/03/2026 (noche)
 QUE SE CAMBIO: Auditoría UX Mobile expediente: 6 fixes + badge Presencial/Remota.
 POR QUE: El expediente mobile tenía info duplicada (dirección en header + Info General, fechas en accordion propio + Info General), labels incorrectos ("Fecha Programada" → "Fecha de Inspección"), el badge "Desde inspección remota" aparecía en todas las inspecciones, y ObservacionesPericia se mostraba debajo de la galería incluso cuando VistaInformeCampo ya mostraba sus propias observaciones.

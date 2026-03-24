@@ -124,7 +124,7 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
         caso_id: casoId,
         usuario_id: user.id,
         url: urlData.publicUrl,
-        tipo: "ausente",
+        tipo: "otro",
         descripcion: "Foto de ausencia",
         orden: 0,
     });

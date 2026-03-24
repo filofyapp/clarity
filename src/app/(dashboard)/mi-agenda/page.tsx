@@ -113,7 +113,7 @@ async function AgendaList() {
     );
 }
 
-/* ═══ Separador visual de día ═══ */
+/* ═══ Separador visual de día — Full-width, solid, premium ═══ */
 function DaySeparator({ icon, label, count, colorScheme }: {
     icon: React.ReactNode;
     label: string;
@@ -122,34 +122,35 @@ function DaySeparator({ icon, label, count, colorScheme }: {
 }) {
     const schemes = {
         primary: {
-            bg: "bg-brand-primary/10",
-            border: "border-brand-primary/30",
+            container: "bg-brand-primary/15 border border-brand-primary/30",
+            accent: "bg-brand-primary",
             text: "text-brand-primary",
-            badge: "bg-brand-primary text-white",
+            badge: "bg-brand-primary text-white shadow-lg shadow-brand-primary/20",
             icon: "text-brand-primary",
         },
         info: {
-            bg: "bg-color-info/10",
-            border: "border-color-info/30",
+            container: "bg-color-info/10 border border-color-info/25",
+            accent: "bg-color-info",
             text: "text-color-info",
-            badge: "bg-color-info text-white",
+            badge: "bg-color-info text-white shadow-lg shadow-color-info/20",
             icon: "text-color-info",
         },
         muted: {
-            bg: "bg-bg-tertiary",
-            border: "border-border",
+            container: "bg-bg-secondary border border-border",
+            accent: "bg-text-muted",
             text: "text-text-secondary",
-            badge: "bg-bg-secondary text-text-muted border border-border",
+            badge: "bg-bg-tertiary text-text-muted border border-border",
             icon: "text-text-muted",
         },
     };
     const s = schemes[colorScheme];
 
     return (
-        <div className={`sticky top-0 z-10 ${s.bg} border-b-2 ${s.border} rounded-t-xl px-4 py-3 flex items-center gap-3`}>
-            <div className={s.icon}>{icon}</div>
-            <h2 className={`text-base font-bold ${s.text} capitalize`}>{label}</h2>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${s.badge}`}>
+        <div className={`${s.container} rounded-xl px-4 py-3.5 flex items-center gap-3 relative overflow-hidden`}>
+            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${s.accent} rounded-l-xl`} />
+            <div className={`${s.icon} ml-1`}>{icon}</div>
+            <h2 className={`text-lg font-extrabold ${s.text} capitalize flex-1`}>{label}</h2>
+            <span className={`text-sm font-bold px-3 py-1 rounded-full ${s.badge}`}>
                 {count}
             </span>
         </div>

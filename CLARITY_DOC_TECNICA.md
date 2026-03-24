@@ -276,6 +276,21 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 24/03/2026 (4)
+QUE SE CAMBIO: (A) Ausente: fix REAL de crash — constraint de DB + body size. (B) Agenda: separadores rediseñados sin sticky.
+POR QUE: (A) El crash "Application Error: server-side exception" al usar Ausente NO era por falta de try/catch sino por DOS causas reales: (1) fotos_inspeccion.tipo tiene CHECK constraint que solo permite [general, frente, lateral_izq, lateral_der, trasera, danio_detalle, kilometraje, motor, interior, documentacion, otro]. El insert usaba tipo="ausente" que no existe → constraint violation crash. (2) Next.js tiene serverActions.bodySizeLimit default de 1MB, fotos de celular pesan 3-8MB → crash sin error descriptivo. (B) Los separadores de día usaban sticky top-0 z-10 con fondos translúcidos que se superponían con el contenido al scrollear.
+COMO: (A1) actions.ts marcarInspeccionAusente: tipo="ausente" → tipo="otro" (la descripcion "Foto de ausencia" da el contexto). (A2) next.config.ts: agregado experimental.serverActions.bodySizeLimit="10mb". (B) DaySeparator: eliminado sticky top-0 z-10, rediseñado con container sólido (rounded-xl, border, bg fuerte), left accent stripe (w-1.5 absoluto), text-lg font-extrabold, badges con shadow-lg.
+ARCHIVOS AFECTADOS: next.config.ts, casos/[id]/actions.ts, mi-agenda/page.tsx
+EFECTOS COLATERALES: Todos los server actions aceptan ahora hasta 10MB de body. Las fotos de ausente se guardan como tipo="otro" en lugar de "ausente" (el CHECK constraint no permite "ausente").
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
+BUG RESUELTO:
+PROBLEMA: Al marcar Ausente y subir foto, la app crasheaba con "Application Error: a server-side exception has occurred".
+CAUSA: (1) fotos_inspeccion.tipo CHECK constraint no incluye "ausente" — el INSERT fallaba con constraint violation. (2) serverActions.bodySizeLimit por defecto es 1MB, fotos de celular son 3-8MB.
+SOLUCION: (1) Cambiar tipo a "otro" + descripcion="Foto de ausencia". (2) Agregar serverActions.bodySizeLimit="10mb" en next.config.ts.
+FECHA: 24/03/2026
+NO REPETIR: SIEMPRE verificar los CHECK constraints de la tabla ANTES de insertar valores nuevos. Si necesitas un nuevo tipo, primero ALTER TABLE.
+
 FECHA: 24/03/2026 (3)
 QUE SE CAMBIO: (A) Mi Agenda mobile: separadores de día sticky con color. (B) Ausente: try/catch + error guards. (C) PanelPeritoCalle: eliminado bloque duplicado "Requieren Acción".
 POR QUE: (A) Los headers "Hoy" y "Mañana" en la agenda eran textos pequeños sin contraste, fácilmente ignorables en mobile. Mañana se ocultaba si Hoy tenía casos (L42: mostrarManana = casosHoy.length === 0). (B) marcarInspeccionAusente podía generar "Application Error: server-side exception" si fotos_inspeccion insert fallaba o si compania_id era null, porque no tenía try/catch. (C) "Requieren Acción" (L168-187) mostraba la misma lista que "Atención Requerida" (L106-150) con menos info, redundante.

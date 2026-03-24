@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 24/03/2026 (5)
+QUE SE CAMBIO: Reorganización completa del layout del Expediente (CasoDetail) en desktop y mobile.
+POR QUE: La vista del expediente era un "Frankenstein" — secciones sueltas (Información General, Información del Gestor, Asignaciones Operativas) agregadas incrementalmente sin coherencia visual. Datos redundantes y desordenados.
+COMO: CasoDetail.tsx reescrito. DESKTOP: 3 cards separadas fusionadas en 1 "Datos del Expediente" con: (1) Vehículo+Dominio, (2) Coordinación, (3) Asignaciones (P.Calle/P.Carga/Gestor en grid 3 cols), (4) Fechas Carga/Cierre, (5) Observaciones del Gestor (antes "Información del Gestor"), (6) Observaciones Internas. Nuevo bloque "Inspección" separado con GenerarLinkInspeccion + Comenzar IP. Eliminados: Link de Orion (EditableLinkOrion), Taller de Destino selector. Nuevo componente InspeccionMetodoBadge (Presencial/Remota) visible en header desktop y mobile. MOBILE: Accordions reestructurados con misma lógica — "Datos del Expediente" (merged) + "Inspección". Accordion de datos abre por defecto.
+ARCHIVOS AFECTADOS: CasoDetail.tsx (reescrito), EditableLinkOrion.tsx (ya no se usa, import eliminado)
+EFECTOS COLATERALES: Link de Orion ya no se muestra en ninguna vista. Taller de destino no aparece (no se estaba usando). La sección "Información del Gestor" ahora se llama "Observaciones del Gestor" y está dentro del bloque principal. Badge Presencial/Remota ahora usa componente extraído InspeccionMetodoBadge.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 24/03/2026 (4)
 QUE SE CAMBIO: (A) Ausente: fix REAL de crash — constraint de DB + body size. (B) Agenda: separadores rediseñados sin sticky.
 POR QUE: (A) El crash "Application Error: server-side exception" al usar Ausente NO era por falta de try/catch sino por DOS causas reales: (1) fotos_inspeccion.tipo tiene CHECK constraint que solo permite [general, frente, lateral_izq, lateral_der, trasera, danio_detalle, kilometraje, motor, interior, documentacion, otro]. El insert usaba tipo="ausente" que no existe → constraint violation crash. (2) Next.js tiene serverActions.bodySizeLimit default de 1MB, fotos de celular pesan 3-8MB → crash sin error descriptivo. (B) Los separadores de día usaban sticky top-0 z-10 con fondos translúcidos que se superponían con el contenido al scrollear.

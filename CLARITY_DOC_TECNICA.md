@@ -276,6 +276,21 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 24/03/2026
+QUE SE CAMBIO: Fix CRITICO de timing de honorarios + migración retroactiva.
+POR QUE: monto_pagado_perito_calle y monto_pagado_perito_carga se asignaban AMBOS solo al llegar a ip_cerrada en cambiarEstadoCaso(). Resultado: perito de calle figuraba con $0 en métricas mientras el caso estaba en pendiente_carga/presupuesto. PanelPeritoCalle contaba "cerrados" por estado ip_cerrada/facturada (un número) pero "facturado este mes" filtraba por monto>0 (otro número), generando inconsistencia total. marcarInspeccionRealizada() nunca asignaba monto. marcarInspeccionAusente() tampoco.
+COMO: (1) marcarInspeccionRealizada(): ahora busca en precios por compania_id+tipo_inspeccion y asigna monto_pagado_perito_calle AL MOMENTO de completar la IP (antes de pasar a pendiente_carga). Anti-duplicación: solo si monto actual es 0/null. (2) marcarInspeccionAusente(): ahora asigna TODOS los montos (estudio+calle+carga) porque ausente cierra directo sin pasar por carga. También setea fecha_cierre que faltaba. (3) cambiarEstadoCaso(): SEPARADO en dos bloques: (a) al SALIR de ip_coordinada→pendiente_carga/presupuesto: asigna monto_pagado_perito_calle + fecha_inspeccion_real. (b) al LLEGAR a ip_cerrada: asigna monto_facturado_estudio + monto_pagado_perito_carga. Cada uno con guard individual de anti-duplicación. (4) PanelPeritoCalle: "cerrados" ahora = casos con fecha_inspeccion_real (no anulados), en vez de filtrar por estado ip_cerrada/facturada. totalMesCasos ya no requiere monto>0.
+ARCHIVOS AFECTADOS: casos/[id]/actions.ts, PanelPeritoCalle.tsx, 031_backfill_honorarios_timing_fix.sql (NEW)
+EFECTOS COLATERALES: Todos los casos NUEVOS asignan monto_pagado_perito_calle inmediatamente al completar IP. Los cerrados asignan carga+estudio como antes. La migración SQL 031 rellena retroactivamente los montos faltantes usando precios actuales. Perito calle verá sus honorarios reflejados sin esperar al cierre.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
+BUG RESUELTO:
+PROBLEMA: monto_pagado_perito_calle se asignaba únicamente al llegar a ip_cerrada, junto con monto_pagado_perito_carga. Esto generaba: (1) Perito calle con $0 mientras caso en pendiente_carga, (2) Métricas inconsistentes en PanelPeritoCalle, (3) Reportes con cantidades que no cuadran.
+CAUSA: cambiarEstadoCaso() L199-223 asignaba los 3 montos (estudio+calle+carga) en un solo bloque al llegar a ip_cerrada. marcarInspeccionRealizada() no asignaba ningún monto.
+SOLUCION: Separar timing: P.Calle se asigna al COMPLETAR la inspección (exit ip_coordinada), P.Carga+Estudio al llegar a ip_cerrada. Migración SQL retroactiva 031.
+FECHA: 24/03/2026
+NO REPETIR: NUNCA asignar honorarios de distintos roles en el mismo momento. Cada rol cobra cuando COMPLETA SU trabajo: perito calle al inspeccionar, perito carga al cerrar.
+
 FECHA: 23/03/2026 (noche 2)
 QUE SE CAMBIO: (A) Hamburguesa muerta eliminada de Topbar. (B) Tabla MO responsive en VistaInformeCampo. (C) Galería: tabs y download no se rompen en mobile. (D) Perito calle ya no puede cambiar estado manualmente. (E) Flujo AUSENTE: nuevo botón + photo upload + auto ip_cerrada.
 POR QUE: (A) El botón hamburguesa no tenía handler, era UI muerta. (B) La tabla MO de 4 columnas se desbordaba en pantallas <400px. (C) Las pastillas de filtro y el botón descargar se salían del contenedor. (D) El perito calle podía pasar a "contactado" manualmente, sin sentido operacional. (E) No existía flujo para inspecciones ausentes. El perito tenía que pedir al admin que cerrara el caso manualmente.

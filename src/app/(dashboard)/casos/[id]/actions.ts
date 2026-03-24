@@ -17,7 +17,7 @@ export async function marcarInspeccionRealizada(casoId: string) {
     // Verificar que el caso está en ip_coordinada y el usuario es el perito asignado o admin
     const { data: caso } = await supabase
         .from("casos")
-        .select("estado, perito_calle_id, fecha_carga_sistema")
+        .select("estado, perito_calle_id, fecha_carga_sistema, compania_id, tipo_inspeccion, monto_pagado_perito_calle")
         .eq("id", casoId)
         .single();
 
@@ -30,14 +30,29 @@ export async function marcarInspeccionRealizada(casoId: string) {
         return { error: "Solo el perito de calle asignado puede marcar la inspección." };
     }
 
-    // Transicionar directamente a pendiente_carga
+    // ═══ HONORARIO P.CALLE: se asigna al COMPLETAR la inspección ═══
+    const updateData: any = {
+        estado: "pendiente_carga",
+        fecha_inspeccion_real: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+
+    const yaTieneMontoCalle = caso.monto_pagado_perito_calle && Number(caso.monto_pagado_perito_calle) > 0;
+    if (!yaTieneMontoCalle && caso.tipo_inspeccion && caso.tipo_inspeccion !== 'sin_honorarios') {
+        const { data: precio } = await supabase.from('precios')
+            .select('valor_perito_calle')
+            .eq('compania_id', caso.compania_id)
+            .eq('concepto', caso.tipo_inspeccion)
+            .eq('tipo', 'honorario')
+            .maybeSingle();
+        if (precio) {
+            updateData.monto_pagado_perito_calle = precio.valor_perito_calle;
+        }
+    }
+
     const { error: updateError } = await supabase
         .from("casos")
-        .update({
-            estado: "pendiente_carga",
-            fecha_inspeccion_real: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", casoId);
 
     if (updateError) return { error: updateError.message };
@@ -75,7 +90,7 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
 
     const { data: caso } = await supabase
         .from("casos")
-        .select("estado, perito_calle_id")
+        .select("estado, perito_calle_id, compania_id")
         .eq("id", casoId)
         .single();
 
@@ -113,15 +128,31 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
         orden: 0,
     });
 
-    // Update case: ip_cerrada + tipo ausente
+    // ═══ AUSENTE cierra DIRECTO → asignar estudio + calle + carga de una ═══
+    const updateData: any = {
+        estado: "ip_cerrada",
+        tipo_inspeccion: "ausente",
+        fecha_inspeccion_real: new Date().toISOString(),
+        fecha_cierre: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+
+    const { data: precioAusente } = await supabase.from('precios')
+        .select('valor_estudio, valor_perito_calle, valor_perito_carga')
+        .eq('compania_id', caso.compania_id)
+        .eq('concepto', 'ausente')
+        .eq('tipo', 'honorario')
+        .maybeSingle();
+
+    if (precioAusente) {
+        updateData.monto_facturado_estudio = precioAusente.valor_estudio;
+        updateData.monto_pagado_perito_calle = precioAusente.valor_perito_calle;
+        updateData.monto_pagado_perito_carga = precioAusente.valor_perito_carga;
+    }
+
     const { error: updateError } = await supabase
         .from("casos")
-        .update({
-            estado: "ip_cerrada",
-            tipo_inspeccion: "ausente",
-            fecha_inspeccion_real: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", casoId);
 
     if (updateError) return { error: updateError.message };
@@ -196,28 +227,64 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
         updateData.fecha_cierre = new Date().toISOString();
     }
 
-    if (nuevoEstado === "ip_cerrada") {
-
-        // ANTI-DUPLICACIÓN: Solo asignar montos de facturación si es la PRIMERA vez que se cierra.
-        // Si ya tiene monto_facturado_estudio > 0, significa que ya fue cerrado antes y se reabrió.
-        // En ese caso NO se re-asignan los montos para evitar doble conteo.
-        const { data: casoReal } = await supabase.from('casos')
-            .select('compania_id, tipo_inspeccion, monto_facturado_estudio')
+    // ═══ HONORARIO P.CALLE: se asigna al SALIR de ip_coordinada (inspección completada) ═══
+    if (caso.estado === "ip_coordinada" && ["pendiente_carga", "pendiente_presupuesto"].includes(nuevoEstado)) {
+        const { data: casoCalleCheck } = await supabase.from('casos')
+            .select('compania_id, tipo_inspeccion, monto_pagado_perito_calle')
             .eq('id', casoId).single();
 
-        const yaCerradoAntes = casoReal?.monto_facturado_estudio && Number(casoReal.monto_facturado_estudio) > 0;
+        const yaTieneMontoCalle = casoCalleCheck?.monto_pagado_perito_calle && Number(casoCalleCheck.monto_pagado_perito_calle) > 0;
 
-        if (casoReal && !yaCerradoAntes) {
+        if (casoCalleCheck && !yaTieneMontoCalle && casoCalleCheck.tipo_inspeccion && casoCalleCheck.tipo_inspeccion !== 'sin_honorarios') {
+            const { data: precioCalle } = await supabase.from('precios')
+                .select('valor_perito_calle')
+                .eq('compania_id', casoCalleCheck.compania_id)
+                .eq('concepto', casoCalleCheck.tipo_inspeccion)
+                .eq('tipo', 'honorario')
+                .maybeSingle();
+
+            if (precioCalle) {
+                updateData.monto_pagado_perito_calle = precioCalle.valor_perito_calle;
+            }
+        }
+
+        // Also set fecha_inspeccion_real if not already set
+        if (!updateData.fecha_inspeccion_real) {
+            const { data: casoFIR } = await supabase.from('casos')
+                .select('fecha_inspeccion_real').eq('id', casoId).single();
+            if (casoFIR && !casoFIR.fecha_inspeccion_real) {
+                updateData.fecha_inspeccion_real = new Date().toISOString();
+            }
+        }
+    }
+
+    // ═══ HONORARIO P.CARGA + ESTUDIO: se asigna al llegar a ip_cerrada ═══
+    if (nuevoEstado === "ip_cerrada") {
+        const { data: casoReal } = await supabase.from('casos')
+            .select('compania_id, tipo_inspeccion, monto_facturado_estudio, monto_pagado_perito_calle, monto_pagado_perito_carga')
+            .eq('id', casoId).single();
+
+        if (casoReal && casoReal.tipo_inspeccion && casoReal.tipo_inspeccion !== 'sin_honorarios') {
             const { data: precio } = await supabase.from('precios')
                 .select('valor_estudio, valor_perito_calle, valor_perito_carga')
                 .eq('compania_id', casoReal.compania_id)
                 .eq('concepto', casoReal.tipo_inspeccion)
+                .eq('tipo', 'honorario')
                 .maybeSingle();
 
             if (precio) {
-                updateData.monto_facturado_estudio = precio.valor_estudio;
-                updateData.monto_pagado_perito_calle = precio.valor_perito_calle;
-                updateData.monto_pagado_perito_carga = precio.valor_perito_carga;
+                // Estudio: solo si no fue asignado antes
+                if (!casoReal.monto_facturado_estudio || Number(casoReal.monto_facturado_estudio) === 0) {
+                    updateData.monto_facturado_estudio = precio.valor_estudio;
+                }
+                // P.Calle: solo si no fue asignado antes (debió asignarse al completar IP)
+                if (!casoReal.monto_pagado_perito_calle || Number(casoReal.monto_pagado_perito_calle) === 0) {
+                    updateData.monto_pagado_perito_calle = precio.valor_perito_calle;
+                }
+                // P.Carga: solo si no fue asignado antes
+                if (!casoReal.monto_pagado_perito_carga || Number(casoReal.monto_pagado_perito_carga) === 0) {
+                    updateData.monto_pagado_perito_carga = precio.valor_perito_carga;
+                }
             }
         }
     }

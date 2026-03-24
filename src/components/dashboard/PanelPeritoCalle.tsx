@@ -40,12 +40,15 @@ export async function PanelPeritoCalle({ userId }: Props) {
         .filter(c => c.fecha_inspeccion_programada && new Date(c.fecha_inspeccion_programada) >= now && c.estado === "ip_coordinada")
         .sort((a, b) => new Date(a.fecha_inspeccion_programada!).getTime() - new Date(b.fecha_inspeccion_programada!).getTime())[0];
 
-    const totalMesCasos = casos.filter(c => isThisMonth(c.fecha_inspeccion_real) && (c.monto_pagado_perito_calle || 0) > 0);
+    // Honorario billing: count cases where monto is assigned (immediate after inspection)
+    // If monto is 0 (legacy data pre-fix), still count by fecha_inspeccion_real
+    const totalMesCasos = casos.filter(c => isThisMonth(c.fecha_inspeccion_real));
     const totalFacturado = totalMesCasos.reduce((s, c) => s + (c.monto_pagado_perito_calle || 0), 0);
 
     // Historical
     const activos = casos.filter(c => c.estado === "ip_coordinada" || c.estado === "pendiente_coordinacion" || c.estado === "contactado");
-    const cerrados = casos.filter(c => c.estado === "ip_cerrada" || c.estado === "facturada");
+    // "Cerrados" para perito de calle = inspecciones completadas (tiene fecha_inspeccion_real)
+    const cerrados = casos.filter(c => !!c.fecha_inspeccion_real && c.estado !== "inspeccion_anulada");
 
     // 🚨 Atención Requerida: casos demorados
     const alertas = casos.filter(c => {

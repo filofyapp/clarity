@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 24/03/2026 (2)
+QUE SE CAMBIO: updateCasoRapido ahora asigna honorarios automáticamente al editar campos de billing manualmente.
+POR QUE: Cuando un admin editaba manualmente estado, fecha_cierre, fecha_inspeccion_real o fecha_carga_sistema via EditableField o CasosTable inline edit, el update era "dumb" ({ [campo]: valor }) y nunca disparaba la lógica de asignación de honorarios. Resultado: casos cerrados manualmente quedaban con $0 en todos los montos.
+COMO: updateCasoRapido() en casos/actions.ts ahora tiene bloque POST-UPDATE: si el campo editado es uno de [estado, fecha_cierre, fecha_inspeccion_real, fecha_carga_sistema], refetch el caso, busca en precios, y asigna: (a) monto_pagado_perito_calle si hay fecha_inspeccion_real y monto=0, (b) monto_pagado_perito_carga + monto_facturado_estudio si estado=ip_cerrada/facturada y monto=0. Todo con anti-duplicación. También se añadieron revalidatePath de /casos/{id} y /dashboard.
+ARCHIVOS AFECTADOS: casos/actions.ts (updateCasoRapido)
+EFECTOS COLATERALES: Ediciones manuales de campos de billing ahora disparan honorarios automáticamente. El retroactivo ya fue cubierto por migración 031 del commit anterior.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 24/03/2026
 QUE SE CAMBIO: Fix CRITICO de timing de honorarios + migración retroactiva.
 POR QUE: monto_pagado_perito_calle y monto_pagado_perito_carga se asignaban AMBOS solo al llegar a ip_cerrada en cambiarEstadoCaso(). Resultado: perito de calle figuraba con $0 en métricas mientras el caso estaba en pendiente_carga/presupuesto. PanelPeritoCalle contaba "cerrados" por estado ip_cerrada/facturada (un número) pero "facturado este mes" filtraba por monto>0 (otro número), generando inconsistencia total. marcarInspeccionRealizada() nunca asignaba monto. marcarInspeccionAusente() tampoco.

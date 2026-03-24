@@ -338,14 +338,57 @@ export async function updateCasoRapido(id: string, campo: string, valor: string 
         return { error: "No tiene permisos para editar." };
     }
 
+    // Save the field
     const { error } = await supabase
         .from("casos")
-        .update({ [campo]: valor })
+        .update({ [campo]: valor, updated_at: new Date().toISOString() })
         .eq("id", id);
 
     if (error) return { error: error.message };
 
+    // ═══ POST-UPDATE: Asignar honorarios si se editó un campo relevante ═══
+    const BILLING_FIELDS = ["estado", "fecha_cierre", "fecha_inspeccion_real", "fecha_carga_sistema"];
+    if (BILLING_FIELDS.includes(campo)) {
+        const { data: caso } = await supabase.from("casos")
+            .select("estado, compania_id, tipo_inspeccion, monto_facturado_estudio, monto_pagado_perito_calle, monto_pagado_perito_carga, fecha_cierre, fecha_inspeccion_real")
+            .eq("id", id).single();
+
+        if (caso && caso.tipo_inspeccion && caso.tipo_inspeccion !== "sin_honorarios") {
+            const { data: precio } = await supabase.from("precios")
+                .select("valor_estudio, valor_perito_calle, valor_perito_carga")
+                .eq("compania_id", caso.compania_id)
+                .eq("concepto", caso.tipo_inspeccion)
+                .eq("tipo", "honorario")
+                .maybeSingle();
+
+            if (precio) {
+                const montoUpdate: any = {};
+
+                // P.CALLE: se asigna si hay fecha_inspeccion_real y no tiene monto
+                if (caso.fecha_inspeccion_real && (!caso.monto_pagado_perito_calle || Number(caso.monto_pagado_perito_calle) === 0)) {
+                    montoUpdate.monto_pagado_perito_calle = precio.valor_perito_calle;
+                }
+
+                // P.CARGA + ESTUDIO: se asigna si está en ip_cerrada/facturada
+                if (caso.estado === "ip_cerrada" || caso.estado === "facturada") {
+                    if (!caso.monto_pagado_perito_carga || Number(caso.monto_pagado_perito_carga) === 0) {
+                        montoUpdate.monto_pagado_perito_carga = precio.valor_perito_carga;
+                    }
+                    if (!caso.monto_facturado_estudio || Number(caso.monto_facturado_estudio) === 0) {
+                        montoUpdate.monto_facturado_estudio = precio.valor_estudio;
+                    }
+                }
+
+                if (Object.keys(montoUpdate).length > 0) {
+                    await supabase.from("casos").update(montoUpdate).eq("id", id);
+                }
+            }
+        }
+    }
+
     revalidatePath("/casos");
+    revalidatePath(`/casos/${id}`);
+    revalidatePath("/dashboard");
     return { success: true };
 }
 

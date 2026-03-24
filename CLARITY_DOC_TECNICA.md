@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 23/03/2026 (noche)
+QUE SE CAMBIO: Auditoría UX Mobile expediente: 6 fixes + badge Presencial/Remota.
+POR QUE: El expediente mobile tenía info duplicada (dirección en header + Info General, fechas en accordion propio + Info General), labels incorrectos ("Fecha Programada" → "Fecha de Inspección"), el badge "Desde inspección remota" aparecía en todas las inspecciones, y ObservacionesPericia se mostraba debajo de la galería incluso cuando VistaInformeCampo ya mostraba sus propias observaciones.
+COMO: (1) ObservacionesPericia.tsx: nueva prop esPresencial, si true no renderiza (VistaInformeCampo ya lo cubre). Se eliminó badge hardcoded "Desde inspección remota". (2) EditableCoordinacion.tsx: "Fecha Programada" → "Fecha de Inspección". (3) CasoDetail.tsx mobile: eliminado accordion "Fechas Administrativas" (datos duplicados), eliminada dirección del header mobile (queda solo en Info General accordion), nuevo badge Presencial (verde 📷) / Remota (azul 🔗) en header mobile para estados post-inspección, GenerarLinkInspeccion en desktop solo para admin/carga. (4) esPresencial se pasa a ObservacionesPericia basado en tipo_inspeccion !== ip_remota && estado post-inspección.
+ARCHIVOS AFECTADOS: CasoDetail.tsx, ObservacionesPericia.tsx, EditableCoordinacion.tsx
+EFECTOS COLATERALES: Desktop: 0 cambios visibles excepto GenerarLinkInspeccion ahora solo visible para admin/carga. ObservacionesPericia desaparece en expedientes con informe presencial (VistaInformeCampo cubre esa info).
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 23/03/2026
 QUE SE CAMBIO: Sprint Rediseño UX/UI Mobile-First completo: (1) PanelPeritoCalle radar proactivo, (2) CasoDetail reestructurado con Accordions mobile, (3) Permisos edición perpetua perito calle.
 POR QUE: (1) PanelPeritoCalle tenía "Actividad Reciente" pasiva mostrando los últimos 10 casos sin filtro — ruido puro, sin alertas. (2) CasoDetail volcaba toda la info en una sola columna en mobile (Data Dump + Scroll Fatigue): info general, datos sancor, asignaciones, fechas, todo visible y expandido. El CTA "Comenzar Inspección" quedaba enterrado debajo de N scroll. (3) El perito de calle no podía editar datos_crudos_sancor de sus casos.

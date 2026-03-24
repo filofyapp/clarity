@@ -12,9 +12,12 @@ interface Props {
     texto?: string | null;
     audioUrl?: string | null;
     puedeEditar?: boolean;
+    esPresencial?: boolean;
 }
 
-export function ObservacionesPericia({ casoId, texto, audioUrl, puedeEditar = false }: Props) {
+export function ObservacionesPericia({ casoId, texto, audioUrl, puedeEditar = false, esPresencial = false }: Props) {
+    // Don't render if inspection was presencial (VistaInformeCampo already shows observations)
+    if (esPresencial) return null;
     // Don't render if empty and can't edit
     if (!texto && !audioUrl && !puedeEditar) return null;
 
@@ -40,9 +43,6 @@ export function ObservacionesPericia({ casoId, texto, audioUrl, puedeEditar = fa
             <div className="flex items-center gap-2 mb-3">
                 <span className="text-lg">🔍</span>
                 <h3 className="text-sm font-semibold text-text-primary">Observaciones de la Pericia</h3>
-                <span className="text-[9px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full font-medium">
-                    Desde inspección remota
-                </span>
             </div>
 
             {puedeEditar && editando ? (

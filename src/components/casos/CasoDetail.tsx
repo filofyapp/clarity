@@ -136,17 +136,28 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                     </span>
                     <EstadoBadge estado={caso.estado} />
                 </div>
-                <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-mono text-text-muted">#{caso.numero_siniestro}</p>
+                    <span className="text-border">•</span>
                     <p className="text-sm text-text-secondary">{caso.marca} {caso.modelo}</p>
-                    <TipoIPBadge tipo={caso.tipo_inspeccion} />
                 </div>
-                {caso.direccion_inspeccion && (
-                    <div className="flex items-start gap-1.5 text-xs text-text-muted">
-                        <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                        <span>{caso.direccion_inspeccion}{caso.localidad ? `, ${caso.localidad}` : ''}</span>
-                    </div>
-                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <TipoIPBadge tipo={caso.tipo_inspeccion} />
+                    {/* Badge Presencial/Remota — solo si la IP ya pasó */}
+                    {(caso.estado === "pendiente_carga" || caso.estado === "pendiente_presupuesto" ||
+                      caso.estado === "licitando_repuestos" || caso.estado === "en_consulta_cia" ||
+                      caso.estado === "ip_cerrada" || caso.estado === "facturada" || caso.estado === "contactado") && (
+                        caso.tipo_inspeccion === "ip_remota" ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-color-info/10 text-color-info border border-color-info/20">
+                                🔗 Remota
+                            </span>
+                        ) : (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-color-success/10 text-color-success border border-color-success/20">
+                                📷 Presencial
+                            </span>
+                        )
+                    )}
+                </div>
                 <SelectorEstado casoId={caso.id} estadoActual={caso.estado} userRol={rol} />
 
                 {/* Mobile CTA: Comenzar Inspección */}
@@ -297,32 +308,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                 </AccordionContent>
                             </AccordionItem>
 
-                            {/* Accordion: Fechas Administrativas */}
-                            <AccordionItem value="fechas" className="border border-border rounded-xl overflow-hidden bg-bg-secondary">
-                                <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:no-underline">
-                                    <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-brand-secondary" /> Fechas Administrativas</span>
-                                </AccordionTrigger>
-                                <AccordionContent className="px-4">
-                                    <div className="space-y-3">
-                                        {caso.fecha_carga_sistema && (
-                                            <div>
-                                                <p className="text-xs text-text-muted mb-0.5">Fecha de Carga</p>
-                                                <EditableField casoId={caso.id} campo="fecha_carga_sistema" valorActual={caso.fecha_carga_sistema} tipo="date" placeholder="No registrada" textClassName="font-medium text-sm" />
-                                            </div>
-                                        )}
-                                        {caso.fecha_cierre && (
-                                            <div>
-                                                <p className="text-xs text-text-muted mb-0.5">Fecha de Cierre</p>
-                                                <EditableField casoId={caso.id} campo="fecha_cierre" valorActual={caso.fecha_cierre} tipo="date" placeholder="No registrada" textClassName="font-medium text-sm" />
-                                            </div>
-                                        )}
-                                        <div>
-                                            <p className="text-xs text-text-muted mb-0.5">Ingreso</p>
-                                            <p className="text-sm text-text-primary">{format(new Date(caso.created_at), "dd MMM yyyy", { locale: es })}</p>
-                                        </div>
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
+
 
                             {/* Accordion: Datos Crudos Sancor */}
                             {caso.datos_crudos_sancor && (
@@ -563,7 +549,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                     )}
                                 </div>
                                 <EditableLinkOrion casoId={caso.id} linkOrion={caso.link_orion} />
-                                <GenerarLinkInspeccion casoId={caso.id} />
+                                {(rol === "admin" || rol === "carga") && <GenerarLinkInspeccion casoId={caso.id} />}
                             </div>
                         </CardContent>
                     </Card>
@@ -606,6 +592,11 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                             texto={caso.observaciones_pericia}
                             audioUrl={caso.audio_pericia_url}
                             puedeEditar={currentUserId === caso.perito_calle_id || rol === "admin"}
+                            esPresencial={caso.tipo_inspeccion !== "ip_remota" && (
+                                caso.estado === "pendiente_carga" || caso.estado === "pendiente_presupuesto" ||
+                                caso.estado === "licitando_repuestos" || caso.estado === "en_consulta_cia" ||
+                                caso.estado === "ip_cerrada" || caso.estado === "facturada" || caso.estado === "contactado"
+                            )}
                         />
                     </div>
 

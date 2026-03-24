@@ -100,7 +100,7 @@ export default function EditableCoordinacion({
 
                     <div className="flex-1">
                         <p className="text-xs text-text-muted mb-1 flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5" /> Fecha Programada
+                            <Calendar className="w-3.5 h-3.5" /> Fecha de Inspección
                         </p>
                         <p className="font-medium text-text-primary">
                             {fechaProgramadaInicial ? (

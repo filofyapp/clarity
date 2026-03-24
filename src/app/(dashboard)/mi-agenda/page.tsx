@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { getMiAgenda } from "./actions";
 import { AgendaCard } from "@/components/mi-agenda/AgendaCard";
-import { CalendarDays, AlertCircle, Clock, Sun } from "lucide-react";
+import { CalendarDays, AlertCircle, Clock, Sun, CalendarCheck } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export const metadata = {
     title: "Mi Agenda - CLARITY"
@@ -31,93 +33,136 @@ async function AgendaList() {
         );
     }
 
-    // Group by Hoy / Mañana / Other
+    // Group by Hoy / Mañana / Próximas
     const casosHoy = casos.filter((c: any) => c.fecha_inspeccion_programada === hoy);
     const casosManana = casos.filter((c: any) => c.fecha_inspeccion_programada === manana);
     const casosOtros = casos.filter((c: any) =>
         c.fecha_inspeccion_programada !== hoy && c.fecha_inspeccion_programada !== manana
     );
 
-    // Mañana only visible if Hoy has no pending cases left
-    const mostrarManana = casosHoy.length === 0;
+    // Group "Otros" by specific date for clarity
+    const otrosPorFecha: Record<string, any[]> = {};
+    casosOtros.forEach((c: any) => {
+        const fecha = c.fecha_inspeccion_programada || "sin_fecha";
+        if (!otrosPorFecha[fecha]) otrosPorFecha[fecha] = [];
+        otrosPorFecha[fecha].push(c);
+    });
+    const fechasOrdenadas = Object.keys(otrosPorFecha).sort();
+
+    const formatDayLabel = (dateStr: string) => {
+        if (dateStr === "sin_fecha") return "Sin fecha definida";
+        const safeDateStr = dateStr.includes("T") ? dateStr : `${dateStr}T12:00:00`;
+        return format(new Date(safeDateStr), "EEEE d 'de' MMMM", { locale: es });
+    };
 
     return (
-        <div className="space-y-8">
-            {/* HOY */}
-            {casosHoy.length > 0 && (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <Sun className="w-5 h-5 text-brand-secondary" />
-                        <h2 className="text-lg font-bold text-text-primary">Hoy</h2>
-                        <span className="text-xs font-bold bg-brand-primary text-white px-2 py-0.5 rounded-full">
-                            {casosHoy.length}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {casosHoy.map((caso: any) => (
-                            <AgendaCard key={caso.id} caso={caso} />
-                        ))}
-                    </div>
+        <div className="space-y-2">
+            {/* ═══ HOY ═══ */}
+            <DaySeparator
+                icon={<Sun className="w-5 h-5" />}
+                label="Hoy"
+                count={casosHoy.length}
+                colorScheme="primary"
+            />
+            {casosHoy.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
+                    {casosHoy.map((caso: any) => (
+                        <AgendaCard key={caso.id} caso={caso} />
+                    ))}
+                </div>
+            ) : (
+                <div className="bg-color-success/5 border border-color-success/20 rounded-xl px-4 py-6 text-center mb-4">
+                    <p className="text-sm text-color-success font-medium">✅ Sin inspecciones para hoy</p>
                 </div>
             )}
 
-            {/* MAÑANA — only if Hoy is empty */}
-            {casosManana.length > 0 && mostrarManana && (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-color-info" />
-                        <h2 className="text-lg font-bold text-text-primary">Mañana</h2>
-                        <span className="text-xs font-bold bg-color-info text-white px-2 py-0.5 rounded-full">
-                            {casosManana.length}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* ═══ MAÑANA ═══ — Siempre visible */}
+            {casosManana.length > 0 && (
+                <>
+                    <DaySeparator
+                        icon={<Clock className="w-5 h-5" />}
+                        label="Mañana"
+                        count={casosManana.length}
+                        colorScheme="info"
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
                         {casosManana.map((caso: any) => (
                             <AgendaCard key={caso.id} caso={caso} />
                         ))}
                     </div>
-                </div>
+                </>
             )}
 
-            {/* Mañana hidden notice */}
-            {casosManana.length > 0 && !mostrarManana && (
-                <div className="bg-bg-secondary/50 border border-border rounded-xl p-4 flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-text-muted shrink-0" />
-                    <p className="text-sm text-text-muted">
-                        Tenés <span className="font-bold text-text-primary">{casosManana.length}</span> inspección{casosManana.length > 1 ? "es" : ""} para mañana.
-                        Terminá las de hoy para verlas.
-                    </p>
-                </div>
-            )}
-
-            {/* Otras fechas (edge case) */}
-            {casosOtros.length > 0 && (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <CalendarDays className="w-5 h-5 text-text-muted" />
-                        <h2 className="text-lg font-bold text-text-primary">Próximas</h2>
-                        <span className="text-xs font-bold bg-bg-tertiary text-text-muted px-2 py-0.5 rounded-full border border-border">
-                            {casosOtros.length}
-                        </span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {casosOtros.map((caso: any) => (
+            {/* ═══ PRÓXIMAS (agrupadas por fecha) ═══ */}
+            {fechasOrdenadas.map(fecha => (
+                <div key={fecha}>
+                    <DaySeparator
+                        icon={<CalendarCheck className="w-5 h-5" />}
+                        label={formatDayLabel(fecha)}
+                        count={otrosPorFecha[fecha].length}
+                        colorScheme="muted"
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
+                        {otrosPorFecha[fecha].map((caso: any) => (
                             <AgendaCard key={caso.id} caso={caso} />
                         ))}
                     </div>
                 </div>
-            )}
+            ))}
+        </div>
+    );
+}
+
+/* ═══ Separador visual de día ═══ */
+function DaySeparator({ icon, label, count, colorScheme }: {
+    icon: React.ReactNode;
+    label: string;
+    count: number;
+    colorScheme: "primary" | "info" | "muted";
+}) {
+    const schemes = {
+        primary: {
+            bg: "bg-brand-primary/10",
+            border: "border-brand-primary/30",
+            text: "text-brand-primary",
+            badge: "bg-brand-primary text-white",
+            icon: "text-brand-primary",
+        },
+        info: {
+            bg: "bg-color-info/10",
+            border: "border-color-info/30",
+            text: "text-color-info",
+            badge: "bg-color-info text-white",
+            icon: "text-color-info",
+        },
+        muted: {
+            bg: "bg-bg-tertiary",
+            border: "border-border",
+            text: "text-text-secondary",
+            badge: "bg-bg-secondary text-text-muted border border-border",
+            icon: "text-text-muted",
+        },
+    };
+    const s = schemes[colorScheme];
+
+    return (
+        <div className={`sticky top-0 z-10 ${s.bg} border-b-2 ${s.border} rounded-t-xl px-4 py-3 flex items-center gap-3`}>
+            <div className={s.icon}>{icon}</div>
+            <h2 className={`text-base font-bold ${s.text} capitalize`}>{label}</h2>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${s.badge}`}>
+                {count}
+            </span>
         </div>
     );
 }
 
 export default function MiAgendaPage() {
     return (
-        <div className="flex flex-col h-full max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col h-full max-w-7xl mx-auto space-y-4">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-text-primary mb-2">Mi Agenda Diaria</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-text-primary mb-1">Mi Agenda</h1>
                 <p className="text-text-muted text-sm">
-                    Revisa las inspecciones pautadas, llama al asegurado y reportá la evaluación física del vehículo in-situ.
+                    Todas tus inspecciones, organizadas por día.
                 </p>
             </div>
 

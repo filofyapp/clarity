@@ -84,6 +84,7 @@ export async function marcarInspeccionRealizada(casoId: string) {
  * No pasa por pendiente_carga (no hay nada que cargar).
  */
 export async function marcarInspeccionAusente(casoId: string, formData: FormData) {
+    try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "No autorizado." };
@@ -119,7 +120,7 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
     const { data: urlData } = supabase.storage.from("fotos-inspecciones").getPublicUrl(filePath);
 
     // Insert photo record
-    await supabase.from("fotos_inspeccion").insert({
+    const { error: fotoInsertError } = await supabase.from("fotos_inspeccion").insert({
         caso_id: casoId,
         usuario_id: user.id,
         url: urlData.publicUrl,
@@ -127,6 +128,8 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
         descripcion: "Foto de ausencia",
         orden: 0,
     });
+
+    if (fotoInsertError) return { error: `Error registrando foto: ${fotoInsertError.message}` };
 
     // ═══ AUSENTE cierra DIRECTO → asignar estudio + calle + carga de una ═══
     const updateData: any = {
@@ -137,17 +140,19 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
         updated_at: new Date().toISOString(),
     };
 
-    const { data: precioAusente } = await supabase.from('precios')
-        .select('valor_estudio, valor_perito_calle, valor_perito_carga')
-        .eq('compania_id', caso.compania_id)
-        .eq('concepto', 'ausente')
-        .eq('tipo', 'honorario')
-        .maybeSingle();
+    if (caso.compania_id) {
+        const { data: precioAusente } = await supabase.from('precios')
+            .select('valor_estudio, valor_perito_calle, valor_perito_carga')
+            .eq('compania_id', caso.compania_id)
+            .eq('concepto', 'ausente')
+            .eq('tipo', 'honorario')
+            .maybeSingle();
 
-    if (precioAusente) {
-        updateData.monto_facturado_estudio = precioAusente.valor_estudio;
-        updateData.monto_pagado_perito_calle = precioAusente.valor_perito_calle;
-        updateData.monto_pagado_perito_carga = precioAusente.valor_perito_carga;
+        if (precioAusente) {
+            updateData.monto_facturado_estudio = precioAusente.valor_estudio;
+            updateData.monto_pagado_perito_calle = precioAusente.valor_perito_calle;
+            updateData.monto_pagado_perito_carga = precioAusente.valor_perito_carga;
+        }
     }
 
     const { error: updateError } = await supabase
@@ -171,6 +176,10 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
     revalidatePath("/carga");
     revalidatePath("/dashboard");
     return { success: true };
+    } catch (err: any) {
+        console.error("marcarInspeccionAusente error:", err);
+        return { error: `Error interno: ${err?.message || "Error desconocido. Intentá de nuevo."}` };
+    }
 }
 
 /**

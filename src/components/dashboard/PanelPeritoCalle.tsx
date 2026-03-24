@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { CheckCircle2, AlertTriangle, Briefcase, TrendingUp, Calendar, MapPin, ChevronRight, AlertCircle } from "lucide-react";
-import { format, formatDistanceToNow, differenceInDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -164,27 +164,6 @@ export async function PanelPeritoCalle({ userId }: Props) {
                     <p className="text-lg font-bold text-color-success">{cerrados.length}</p>
                 </div>
             </div>
-
-            {/* Requieren acción */}
-            {activos.length > 0 && (
-                <div className="bg-bg-secondary border border-border rounded-xl p-4">
-                    <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-color-warning" /> Requieren Acción ({activos.length})
-                    </h2>
-                    <div className="space-y-2">
-                        {activos.slice(0, 10).map(c => (
-                            <Link key={c.id} href={`/casos/${c.id}`}
-                                className="flex items-center justify-between bg-bg-tertiary border border-border rounded-lg px-3 py-2 hover:border-border-hover transition-colors">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono text-sm text-text-primary">{c.numero_siniestro}</span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-color-warning/10 text-color-warning capitalize">{c.estado.replace(/_/g, " ")}</span>
-                                </div>
-                                <span className="text-xs text-text-muted">{formatDistanceToNow(new Date(c.updated_at), { locale: es, addSuffix: true })}</span>
-                            </Link>
-                        ))}
-                    </div>
-                </div>
-            )}
 
             {/* Tareas */}
             {(tareasPendientes || []).length > 0 && (

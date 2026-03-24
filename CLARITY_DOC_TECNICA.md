@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 24/03/2026 (3)
+QUE SE CAMBIO: (A) Mi Agenda mobile: separadores de día sticky con color. (B) Ausente: try/catch + error guards. (C) PanelPeritoCalle: eliminado bloque duplicado "Requieren Acción".
+POR QUE: (A) Los headers "Hoy" y "Mañana" en la agenda eran textos pequeños sin contraste, fácilmente ignorables en mobile. Mañana se ocultaba si Hoy tenía casos (L42: mostrarManana = casosHoy.length === 0). (B) marcarInspeccionAusente podía generar "Application Error: server-side exception" si fotos_inspeccion insert fallaba o si compania_id era null, porque no tenía try/catch. (C) "Requieren Acción" (L168-187) mostraba la misma lista que "Atención Requerida" (L106-150) con menos info, redundante.
+COMO: (A) mi-agenda/page.tsx: reescrito completo. Nuevo componente DaySeparator con sticky positioning, color-coded (primary=Hoy, info=Mañana, muted=Próximas). SIEMPRE muestra Mañana (antes se ocultaba). Futuras se agrupan por fecha individual con formatDayLabel. (B) actions.ts marcarInspeccionAusente: envuelto en try/catch, fotos_inspeccion insert ahora captura error, precios query solo ejecuta si compania_id existe. (C) PanelPeritoCalle.tsx: eliminado bloque L168-187 (activos listado duplicado), quitado import formatDistanceToNow.
+ARCHIVOS AFECTADOS: mi-agenda/page.tsx, casos/[id]/actions.ts, PanelPeritoCalle.tsx
+EFECTOS COLATERALES: Agenda siempre muestra todos los días futuros (antes ocultaba mañana). Si la acción Ausente falla, ahora muestra toast con el error en vez de crashear la app.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 24/03/2026 (2)
 QUE SE CAMBIO: updateCasoRapido ahora asigna honorarios automáticamente al editar campos de billing manualmente.
 POR QUE: Cuando un admin editaba manualmente estado, fecha_cierre, fecha_inspeccion_real o fecha_carga_sistema via EditableField o CasosTable inline edit, el update era "dumb" ({ [campo]: valor }) y nunca disparaba la lógica de asignación de honorarios. Resultado: casos cerrados manualmente quedaban con $0 en todos los montos.

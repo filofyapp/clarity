@@ -70,8 +70,9 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
         const nuevoEstado = over.id as string;
         if (nuevoEstado === tarea.estado) return;
 
-        if (tarea.asignado_id !== currentUserId && currentUserRol !== "admin") {
-            toast.error("Solo el asignado o un admin puede mover tareas.");
+        const isParticipant = tarea.tarea_participantes?.some((p: any) => p.usuario_id === currentUserId);
+        if (tarea.asignado_id !== currentUserId && !isParticipant && currentUserRol !== "admin") {
+            toast.error("Solo un participante o un admin puede mover tareas.");
             return;
         }
 
@@ -152,7 +153,7 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
                                                 <TareaCard
                                                     tarea={t}
                                                     usuarios={usuarios}
-                                                    isAsignee={t.asignado_id === currentUserId || currentUserRol === "admin"}
+                                                    isAsignee={t.asignado_id === currentUserId || t.tarea_participantes?.some((p: any) => p.usuario_id === currentUserId) || currentUserRol === "admin"}
                                                     currentUserId={currentUserId}
                                                     currentUserNombre={currentUserNombre}
                                                     currentUserRol={currentUserRol}

@@ -53,6 +53,10 @@ interface TareaData {
         usuario_id: string;
         usuario: { nombre: string; apellido: string; avatar_url: string | null };
     }[];
+    tarea_participantes?: {
+        usuario_id: string;
+        usuario: { nombre: string; apellido: string } | null;
+    }[];
 }
 
 interface TareaCardProps {
@@ -298,6 +302,26 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
         ? `${tarea.asignado.nombre?.charAt(0) || ""}${tarea.asignado.apellido?.charAt(0) || ""}`.toUpperCase()
         : "?";
 
+    // Build participants list: prefer tarea_participantes, fallback to legacy asignado
+    const participantsList: { usuario_id: string; nombre: string; apellido: string }[] = (() => {
+        if (tarea.tarea_participantes && tarea.tarea_participantes.length > 0) {
+            return tarea.tarea_participantes.map((tp: any) => ({
+                usuario_id: tp.usuario_id,
+                nombre: tp.usuario?.nombre || "?",
+                apellido: tp.usuario?.apellido || "",
+            }));
+        }
+        // Fallback: use legacy asignado if no tarea_participantes exist
+        if (tarea.asignado && tarea.asignado_id) {
+            return [{
+                usuario_id: tarea.asignado_id,
+                nombre: tarea.asignado.nombre,
+                apellido: tarea.asignado.apellido,
+            }];
+        }
+        return [];
+    })();
+
     return (
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             {/* ═══════ CARD (Compact, redesigned) ═══════ */}
@@ -397,7 +421,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                         )}
                     </div>
 
-                    {/* Right: priority badge + avatar */}
+                    {/* Right: priority badge + participant pills */}
                     <div className="flex items-center gap-2">
                         {!isResuelta && (
                             <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ${getPrioridadBadge(tarea.prioridad)}`}>
@@ -405,31 +429,24 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             </span>
                         )}
 
-                        <div className="relative" onClick={(e) => { e.stopPropagation(); setIsChangingAsignado(!isChangingAsignado); }}>
-                            <div className="flex flex-col items-center gap-1 cursor-pointer hover:scale-105 transition-transform" title={tarea.asignado ? assigneeName : "Sin asignar"}>
-                                <div
-                                    className={`px-2.5 py-1 rounded-full flex items-center justify-center text-[10px] font-bold text-white max-w-[80px] ${tarea.asignado ? getAvatarColor(assigneeName) : "bg-bg-tertiary text-text-muted border border-dashed border-border-default"}`}
-                                >
-                                    <span className="truncate">{tarea.asignado ? tarea.asignado.nombre : "Asignar"}</span>
-                                </div>
-                            </div>
-
-                            {isChangingAsignado && usuarios && (
-                                <div className="absolute bottom-full right-0 mb-2 w-48 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 py-1 overflow-hidden" onClick={e => e.stopPropagation()}>
-                                    <div className="px-3 py-2 text-[10px] font-semibold text-text-muted border-b border-border-subtle bg-bg-tertiary uppercase tracking-wider">
-                                        Reasignar Tarea
-                                    </div>
-                                    <div className="max-h-48 overflow-y-auto">
-                                        {usuarios.map(u => (
-                                            <button key={u.id} onClick={() => handleAssigneeChange(u.id)}
-                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-bg-tertiary transition-colors flex items-center gap-2 ${u.id === tarea.asignado_id ? 'text-brand-primary bg-brand-primary/5 font-medium' : 'text-text-primary'}`}>
-                                                <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] text-white uppercase shrink-0 ${getAvatarColor(`${u.nombre} ${u.apellido}`)}`}>
-                                                    {u.nombre.charAt(0)}{u.apellido.charAt(0)}
-                                                </div>
-                                                <span className="truncate">{u.nombre} {u.apellido}</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                        {/* Multi-participant pills */}
+                        <div className="flex items-center gap-1 flex-wrap justify-end max-w-[180px]">
+                            {participantsList.length > 0 ? (
+                                participantsList.map((p, i) => {
+                                    const pName = `${p.nombre} ${p.apellido}`;
+                                    return (
+                                        <div
+                                            key={p.usuario_id || i}
+                                            className={`px-2 py-0.5 rounded-full flex items-center justify-center text-[10px] font-bold text-white max-w-[80px] ${getAvatarColor(pName)}`}
+                                            title={pName}
+                                        >
+                                            <span className="truncate">{p.nombre}</span>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="px-2.5 py-1 rounded-full flex items-center justify-center text-[10px] font-bold bg-bg-tertiary text-text-muted border border-dashed border-border-default">
+                                    <span className="truncate">Sin asignar</span>
                                 </div>
                             )}
                         </div>
@@ -458,41 +475,28 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                     <div className="flex items-center justify-between">
                         <SheetTitle className="text-xl font-bold text-text-primary pr-4">{tarea.titulo}</SheetTitle>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-text-muted">
+                    <div className="flex items-center gap-2 text-xs text-text-muted flex-wrap">
                         <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" /> {format(new Date(tarea.created_at), "dd MMM yyyy HH:mm", { locale: es })}
                         </span>
-                        <span className="border-l border-border pl-2 relative">
-                            Responsable:{" "}
-                            {usuarios ? (
-                                <span className="relative inline-block">
-                                    <button
-                                        onClick={() => setIsChangingAsignado(!isChangingAsignado)}
-                                        className="font-medium text-text-primary hover:text-brand-primary hover:underline transition-colors"
-                                    >
-                                        {tarea.asignado ? `${tarea.asignado.nombre} ${tarea.asignado.apellido}` : "Sin asignar"}
-                                    </button>
-                                    {isChangingAsignado && (
-                                        <div className="absolute top-full left-0 mt-1 w-48 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 py-1 overflow-hidden">
-                                            <div className="px-3 py-2 text-[10px] font-semibold text-text-muted border-b border-border-subtle bg-bg-tertiary uppercase tracking-wider">
-                                                Reasignar Tarea
-                                            </div>
-                                            <div className="max-h-48 overflow-y-auto">
-                                                {usuarios.map(u => (
-                                                    <button key={u.id} onClick={() => handleAssigneeChange(u.id)}
-                                                        className={`w-full text-left px-3 py-2 text-xs hover:bg-bg-tertiary transition-colors flex items-center gap-2 ${u.id === tarea.asignado_id ? 'text-brand-primary bg-brand-primary/5 font-medium' : 'text-text-primary'}`}>
-                                                        <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] text-white uppercase shrink-0 ${getAvatarColor(`${u.nombre} ${u.apellido}`)}`}>
-                                                            {u.nombre.charAt(0)}{u.apellido.charAt(0)}
-                                                        </div>
-                                                        <span className="truncate">{u.nombre} {u.apellido}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                        <span className="border-l border-border pl-2">
+                            Participantes:{" "}
+                            {participantsList.length > 0 ? (
+                                <span className="inline-flex items-center gap-1 flex-wrap">
+                                    {participantsList.map((p, i) => {
+                                        const pName = `${p.nombre} ${p.apellido}`;
+                                        return (
+                                            <span
+                                                key={p.usuario_id || i}
+                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${getAvatarColor(pName)}`}
+                                            >
+                                                {p.nombre} {p.apellido}
+                                            </span>
+                                        );
+                                    })}
                                 </span>
                             ) : (
-                                <strong className="text-text-primary font-medium">{tarea.asignado ? tarea.asignado.nombre : "Sin asignar"}</strong>
+                                <strong className="text-text-primary font-medium">Sin asignar</strong>
                             )}
                         </span>
                     </div>

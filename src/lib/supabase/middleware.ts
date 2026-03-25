@@ -27,13 +27,17 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    // Use getSession() instead of getUser() in middleware.
-    // getSession() reads the JWT from cookies locally (zero network calls).
-    // getUser() makes a network request to Supabase Auth API on every call.
-    // Validation against the Auth API happens once per request in getUsuarioActual().
+    // Use getUser() instead of getSession().
+    // getUser() contacts the Supabase Auth API which:
+    // 1. Validates the JWT token
+    // 2. Refreshes the access_token using the refresh_token if expired
+    // 3. Mutates supabaseResponse cookies (sets new tokens or clears dead ones)
+    // This is REQUIRED by Supabase SSR docs to prevent redirect loops from stale tokens.
+    // Performance: config.matcher in middleware.ts ensures this only runs for real navigations,
+    // not for static assets. React.cache() on getUsuarioActual() prevents duplicate calls in pages.
     const {
-        data: { session },
-    } = await supabase.auth.getSession()
+        data: { user },
+    } = await supabase.auth.getUser()
 
     const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
 
@@ -41,16 +45,27 @@ export async function updateSession(request: NextRequest) {
     // are short-circuited in middleware.ts BEFORE this function is called.
     // Only /login and authenticated routes reach here.
 
-    if (!session && !isAuthRoute) {
-        // no session, redirect to login
+    if (!user && !isAuthRoute) {
+        // No valid session — redirect to /login.
+        // CRITICAL: We must propagate the cookies from supabaseResponse to the redirect.
+        // When getUser() fails, Supabase SSR clears the dead session cookies in supabaseResponse.
+        // If we don't copy those cookies to the redirect response, the browser keeps the dead
+        // cookies, and on the next navigation the middleware sees them again → redirect loop.
         const url = request.nextUrl.clone()
         url.pathname = '/login'
-        return NextResponse.redirect(url)
+        const redirectResponse = NextResponse.redirect(url)
+
+        // Copy ALL cookies from the mutated supabaseResponse to the redirect
+        supabaseResponse.cookies.getAll().forEach(cookie => {
+            redirectResponse.cookies.set(cookie.name, cookie.value, {
+                ...cookie,
+            })
+        })
+
+        return redirectResponse
     }
 
-
-
-    if (session && isAuthRoute) {
+    if (user && isAuthRoute) {
         // user is already logged in, redirect away from login
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'

@@ -33,7 +33,11 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
 
     // Filtrado
     const tareasFiltradas = tareas.filter(t => {
-        if (filtro === "mias") return t.asignado_id === currentUserId;
+        if (filtro === "mias") {
+            // Check both legacy asignado_id AND tarea_participantes
+            const isParticipant = t.tarea_participantes?.some((p: any) => p.usuario_id === currentUserId);
+            return t.asignado_id === currentUserId || isParticipant;
+        }
         if (filtro === "creadas") return t.creador_id === currentUserId;
         if (filtro === "urgentes") return t.prioridad === "urgente" || t.prioridad === "alfredo";
         return true;

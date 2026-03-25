@@ -239,7 +239,7 @@ Tabla comentario_lectura. Badge numerico en tarjetas kanban. Filtro Con respuest
 | Selector de estado | Vista caso | Cambia estado manual | Segun permisos |
 | Nueva tarea | Vista caso / tablero | Crea tarea vinculada | Admin, Perito Carga, Perito Calle |
 | Drag and drop tarjetas | Kanban (@dnd-kit) | Cambia estado tarea al soltar | Participantes + Admin |
-| Filtro tareas | Tablero tareas | Todas / Asignadas a mi / Creadas por mi | Todos |
+| Filtro tareas | Tablero tareas | Todas / Asignadas a mí (multi-participante) / Creadas por mí | Todos |
 | Badge sin leer | Tarjeta tarea | Comentarios no leidos | Automatico |
 | Chat con @menciones | Tarjeta tarea expandible | Autocomplete @nombre, notifica al mencionado | Todos |
 | Campana notificaciones | Navbar (Topbar) | Notificaciones pendientes con realtime | Todos |
@@ -275,6 +275,14 @@ Tabla comentario_lectura. Badge numerico en tarjetas kanban. Filtro Con respuest
 Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS COLATERALES / TESTEADO
 
 ### Historial:
+
+FECHA: 25/03/2026
+QUE SE CAMBIO: (A) Multi-asignado visual en Tareas — todas las pastillas de participantes se muestran en la tarjeta Kanban y en el panel lateral. (B) Fix crítico BUG-024: redirect loop ERR_TOO_MANY_REDIRECTS al expirar sesión Supabase.
+POR QUE: (A) Al seleccionar múltiples participantes en una tarea, solo se mostraba el primer `asignado_id` como pill de color. Los demás participantes no aparecían en la tarjeta ni en el filtro "Asignadas a mí". La infraestructura de `tarea_participantes` ya existía (insert en API) pero no se traía en el SELECT de la página ni se usaba en el frontend. (B) Cuando el token de sesión de Supabase expiraba, el middleware usaba `getSession()` que lee el JWT localmente sin validar/refrescar contra el server. Si el JWT expiraba, `getSession()` devolvía null, redirigía a `/login`, pero las cookies muertas persistían en el navegador → el middleware las veía de nuevo → loop infinito de redirects.
+COMO: (A) `tareas/page.tsx`: agregado `tarea_participantes(usuario_id, usuario:usuarios(nombre, apellido))` al SELECT. `KanbanBoard.tsx`: filtro "Asignadas a mí" ahora chequea `tarea_participantes[]` además de `asignado_id`. `TareaCard.tsx`: nueva propiedad `tarea_participantes` en interface `TareaData`, nueva variable `participantsList` con fallback a `asignado` legacy. Footer de card muestra pills de color para cada participante (mismos colores determinísticos existentes). Sheet header muestra todos los participantes como pills de color en vez de "Responsable: NombreUnico". (B) `lib/supabase/middleware.ts`: restaurado `getUser()` (reemplaza `getSession()`) para que el Supabase SSR client haga refresh automático del token o limpie cookies muertas. Al redirigir a `/login` por falta de usuario, se copian TODAS las cookies del response mutado por Supabase al redirect response, asegurando que las cookies de borrado lleguen al navegador. `config.matcher` en `middleware.ts` ya excluye assets estáticos (solo 1 call a getUser() por navegación real). `getUsuarioActual()` mantiene `React.cache()` para evitar duplicación.
+ARCHIVOS AFECTADOS: tareas/page.tsx, KanbanBoard.tsx, TareaCard.tsx, lib/supabase/middleware.ts
+EFECTOS COLATERALES: (A) Tareas legacy sin `tarea_participantes` usan fallback al campo `asignado` — sin regresión. (B) Se vuelve a hacer 1 request a Supabase Auth API por navegación en middleware (antes usaba getSession local sin network). La protección via `config.matcher` limita esto a rutas reales (no assets). Los 2 requests totales por pageview (middleware + getUsuarioActual cache) son aceptables.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
 
 FECHA: 24/03/2026 (5)
 QUE SE CAMBIO: Reorganización completa del layout del Expediente (CasoDetail) en desktop y mobile.
@@ -792,6 +800,13 @@ TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
 ---
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-024: Redirect loop ERR_TOO_MANY_REDIRECTS al expirar sesión Supabase (RESUELTO)
+- PROBLEMA: Un perito se loguea correctamente pero después de navegar un rato, la plataforma entra en un loop de redirects (ERR_TOO_MANY_REDIRECTS / HTTP 429). El navegador muestra "Demasiadas redirecciones" y la app queda inaccesible.
+- CAUSA: El middleware usaba `supabase.auth.getSession()` que lee el JWT de las cookies LOCALMENTE, sin hacer refresh. Cuando el access_token expiraba: (1) `getSession()` devolvía null porque el JWT era inválido. (2) El middleware redirigía a `/login`. (3) Pero las cookies muertas (con JWT expirado) NO se limpiaban porque el redirect response no propagaba las cookies del Supabase SSR client. (4) En `/login`, el middleware volvía a leer las cookies muertas → loop. La asimetría entre la validación local (`getSession`) y la validación server-side (`getUser` en pages) también contribuía — el middleware dejaba pasar tokens que luego fallaban en las páginas.
+- SOLUCION: (1) Restaurado `supabase.auth.getUser()` en middleware (hace refresh automático del token O limpia las cookies si el refresh falla). (2) Al redirigir a `/login`, se copian TODAS las cookies del response mutado por Supabase (incluidas las de borrado) al redirect response. (3) `config.matcher` ya excluye static assets, así que `getUser()` solo se ejecuta 1 vez por navegación real.
+- FECHA: 25/03/2026
+- NO REPETIR: NUNCA usar `getSession()` en middleware de Supabase SSR. Siempre usar `getUser()` que es el único que hace refresh del token y limpia cookies muertas. Al crear un `NextResponse.redirect()`, SIEMPRE copiar las cookies del response original de Supabase (`response.cookies.getAll().forEach(c => redirect.cookies.set(c.name, c.value, ...c))`), o las limpiezas de sesión nunca llegarán al navegador.
 
 ### BUG-023: fecha_carga_sistema registraba ENTRADA a PTE CARGA en vez de SALIDA (RESUELTO)
 - PROBLEMA: `fecha_carga_sistema` se grababa cuando el caso entraba a `pendiente_carga` (al completar la inspección). Esto hacía imposible medir cuánto tiempo tardaba el perito de carga en gestionar cada pericia. Además, si un caso pasaba directo de `pendiente_carga` a `ip_cerrada`, solo se grababa `fecha_cierre` sin `fecha_carga_sistema`.

@@ -292,65 +292,75 @@ export function ComentariosTarea({ tareaId, currentUserId, currentUserNombre }: 
             mentions.push(match[1]);
         }
 
-        const { data, error } = await supabase.from("comentarios_tarea").insert({
-            tarea_id: tareaId,
-            usuario_id: currentUserId,
-            contenido: textoOriginal.trim(),
-            adjuntos: adjuntosSubidos.length > 0 ? adjuntosSubidos : null
-        }).select("id, contenido, created_at, adjuntos, usuario_id").single();
+        try {
+            const { data, error } = await supabase.from("comentarios_tarea").insert({
+                tarea_id: tareaId,
+                usuario_id: currentUserId,
+                contenido: textoOriginal.trim(),
+                adjuntos: adjuntosSubidos.length > 0 ? adjuntosSubidos : null
+            }).select("id, contenido, created_at, adjuntos, usuario_id").single();
 
-        if (!error && data) {
-            setComentarios(prev => prev.map(c => c.id === tempId ? {
-                ...data,
-                usuario: { nombre: currentUserNombre.split(" ")[0], apellido: currentUserNombre.split(" ").slice(1).join(" ") },
-            } : c));
-            setNuevoComentario("");
-            setArchivosPendientes([]);
+            if (error) throw error;
 
-            // Fetch the task assignees
-            const { data: tareaInfo } = await supabase.from("tareas").select("asignado_id, creador_id").eq("id", tareaId).single();
+            if (data) {
+                setComentarios(prev => prev.map(c => c.id === tempId ? {
+                    ...data,
+                    usuario: { nombre: currentUserNombre.split(" ")[0], apellido: currentUserNombre.split(" ").slice(1).join(" ") },
+                } : c));
 
-            // Create explicit notifications for mentioned users
-            const mentionedUserIds = new Set<string>();
-            for (const mentionName of mentions) {
-                const mentionedUser = usuarios.find(u =>
-                    `${u.nombre} ${u.apellido}`.toLowerCase() === mentionName.toLowerCase()
-                );
-                if (mentionedUser && mentionedUser.id !== currentUserId) {
-                    mentionedUserIds.add(mentionedUser.id);
-                    await supabase.from("notificaciones").insert({
-                        usuario_destino_id: mentionedUser.id,
-                        tipo: "mencion",
-                        tarea_id: tareaId,
-                        mensaje: `${currentUserNombre} te mencionó en un comentario`,
-                    });
-                }
-            }
+                // Fetch the task participants for notifications
+                const { data: tareaInfo } = await supabase.from("tareas").select("asignado_id, creador_id").eq("id", tareaId).single();
 
-            // Also notify the assignee and creator if they weren't explicitly mentioned
-            if (tareaInfo) {
-                const autoNotify = new Set([tareaInfo.asignado_id, tareaInfo.creador_id]);
-                autoNotify.delete(currentUserId); // don't notify myself
-                mentionedUserIds.forEach(id => autoNotify.delete(id)); // already notified
-
-                for (const u_id of Array.from(autoNotify)) {
-                    if (u_id) {
+                // Create explicit notifications for mentioned users
+                const mentionedUserIds = new Set<string>();
+                for (const mentionName of mentions) {
+                    const mentionedUser = usuarios.find(u =>
+                        `${u.nombre} ${u.apellido}`.toLowerCase() === mentionName.toLowerCase()
+                    );
+                    if (mentionedUser && mentionedUser.id !== currentUserId) {
+                        mentionedUserIds.add(mentionedUser.id);
                         await supabase.from("notificaciones").insert({
-                            usuario_destino_id: u_id,
-                            tipo: "tarea_comentario",
+                            usuario_destino_id: mentionedUser.id,
+                            tipo: "mencion",
                             tarea_id: tareaId,
-                            mensaje: `${currentUserNombre} comentó en una tarea asignada a vos`,
+                            mensaje: `${currentUserNombre} te mencionó en un comentario`,
                         });
                     }
                 }
-            }
 
-            // Also trigger a background fetch just in case to sync perfectly
-            fetchComentarios(false);
-        } else if (error) {
-            console.error(error);
-            // Revert optimistic update on failure
+                // Also notify the assignee and creator if they weren't explicitly mentioned
+                if (tareaInfo) {
+                    const autoNotify = new Set([tareaInfo.asignado_id, tareaInfo.creador_id]);
+                    autoNotify.delete(currentUserId); // don't notify myself
+                    mentionedUserIds.forEach(id => autoNotify.delete(id)); // already notified
+
+                    for (const u_id of Array.from(autoNotify)) {
+                        if (u_id) {
+                            await supabase.from("notificaciones").insert({
+                                usuario_destino_id: u_id,
+                                tipo: "tarea_comentario",
+                                tarea_id: tareaId,
+                                mensaje: `${currentUserNombre} comentó en una tarea asignada a vos`,
+                            });
+                        }
+                    }
+                }
+
+                // Background fetch to sync perfectly
+                fetchComentarios(false);
+            }
+        } catch (err: any) {
+            // CRITICAL: Show explicit error to the user, NEVER lose their text
+            const errorMsg = err?.message || "Error desconocido al enviar el comentario";
+            toast.error(`Error al enviar comentario: ${errorMsg}`);
+            console.error("[ComentariosTarea] Insert failed:", err);
+
+            // Revert optimistic update
             setComentarios(prev => prev.filter(c => c.id !== tempId));
+
+            // Restore the text so the user can retry
+            setNuevoComentario(textoOriginal);
+            setArchivosPendientes(adjuntosOriginales);
         }
         setEnviando(false);
     };

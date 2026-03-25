@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { updateTareaEstado, updateTareaAsignado } from "@/app/(dashboard)/tareas/actions";
+import { updateTareaEstado } from "@/app/(dashboard)/tareas/actions";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { ComentariosTarea } from "./ComentariosTarea";
@@ -20,6 +20,7 @@ import { ImageLightbox, type LightboxImage } from "@/components/ui/ImageLightbox
 import { Trash2 } from "lucide-react";
 
 import { TareaForm } from "./TareaForm";
+import { ParticipantesPopover } from "./ParticipantesPopover";
 
 export type EstadoTarea = "pendiente" | "en_proceso" | "resuelta";
 export type PrioridadTarea = "baja" | "normal" | "alta" | "urgente" | "alfredo";
@@ -125,7 +126,6 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
     const searchParams = useSearchParams();
     const [sheetOpen, setSheetOpen] = useState(false);
     const [panelWidth, setPanelWidth] = useState(600);
-    const [isChangingAsignado, setIsChangingAsignado] = useState(false);
 
     // Lightbox state for task attachments
     const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
@@ -233,15 +233,8 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
     };
     const totalComments = tarea.comentarios_tarea?.length || 0;
 
-    const handleAssigneeChange = (newId: string) => {
-        setIsChangingAsignado(false);
-        if (newId === tarea.asignado_id) return;
-        startTransition(async () => {
-            const result = await updateTareaAsignado(tarea.id, newId);
-            if (result.error) toast.error(result.error);
-            else toast.success("Responsable actualizado");
-        });
-    };
+    // Permission: admin/carga can edit participants, calle is read-only
+    const canEditParticipants = currentUserRol === "admin" || currentUserRol === "carga";
 
     useEffect(() => {
         const saved = localStorage.getItem("clarity_task_panel_width");
@@ -332,7 +325,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                         ? "opacity-60 hover:opacity-85 bg-bg-secondary border-l-[3px] border-l-transparent"
                         : `bg-bg-secondary hover:bg-bg-surface hover:border-border-hover hover:-translate-y-[1px] hover:shadow-md border-l-[3px] ${tarea.prioridad === "alfredo" ? "border-l-red-500 animate-pulse-border" : getPrioridadBorderColor(tarea.prioridad)}`
                     }
-                    ${isChangingAsignado ? "z-50" : ""}`}
+                    }`}
             >
                 {/* Row 1: Siniestro prominente + Quick Actions */}
                 <div className="flex justify-between items-start w-full">
@@ -429,48 +422,32 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                             </span>
                         )}
 
-                        {/* Multi-participant pills — clickable to reassign */}
-                        <div className="relative" onClick={(e) => { e.stopPropagation(); setIsChangingAsignado(!isChangingAsignado); }}>
-                            <div className="flex items-center gap-1 flex-wrap justify-end max-w-[180px] cursor-pointer hover:scale-105 transition-transform">
-                                {participantsList.length > 0 ? (
-                                    participantsList.map((p, i) => {
-                                        const pName = `${p.nombre} ${p.apellido}`;
-                                        return (
-                                            <div
-                                                key={p.usuario_id || i}
-                                                className={`px-2 py-0.5 rounded-full flex items-center justify-center text-[10px] font-bold text-white max-w-[80px] ${getAvatarColor(pName)}`}
-                                                title={pName}
-                                            >
-                                                <span className="truncate">{p.nombre}</span>
-                                            </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="px-2.5 py-1 rounded-full flex items-center justify-center text-[10px] font-bold bg-bg-tertiary text-text-muted border border-dashed border-border-default">
-                                        <span className="truncate">Asignar</span>
-                                    </div>
-                                )}
+                        {/* Multi-participant pills — Notion-style popover */}
+                        {usuarios && (
+                            <ParticipantesPopover
+                                tareaId={tarea.id}
+                                participantes={participantsList}
+                                usuarios={usuarios}
+                                canEdit={canEditParticipants}
+                                onUpdate={() => router.refresh()}
+                            />
+                        )}
+                        {!usuarios && participantsList.length > 0 && (
+                            <div className="flex items-center gap-1 flex-wrap justify-end max-w-[180px]">
+                                {participantsList.map((p, i) => {
+                                    const pName = `${p.nombre} ${p.apellido}`;
+                                    return (
+                                        <div
+                                            key={p.usuario_id || i}
+                                            className={`px-2 py-0.5 rounded-full flex items-center justify-center text-[10px] font-bold text-white max-w-[80px] ${getAvatarColor(pName)}`}
+                                            title={pName}
+                                        >
+                                            <span className="truncate">{p.nombre}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
-
-                            {isChangingAsignado && usuarios && (
-                                <div className="absolute bottom-full right-0 mb-2 w-48 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 py-1 overflow-hidden" onClick={e => e.stopPropagation()}>
-                                    <div className="px-3 py-2 text-[10px] font-semibold text-text-muted border-b border-border-subtle bg-bg-tertiary uppercase tracking-wider">
-                                        Reasignar Tarea
-                                    </div>
-                                    <div className="max-h-48 overflow-y-auto">
-                                        {usuarios.map(u => (
-                                            <button key={u.id} onClick={() => handleAssigneeChange(u.id)}
-                                                className={`w-full text-left px-3 py-2 text-xs hover:bg-bg-tertiary transition-colors flex items-center gap-2 ${u.id === tarea.asignado_id ? 'text-brand-primary bg-brand-primary/5 font-medium' : 'text-text-primary'}`}>
-                                                <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] text-white uppercase shrink-0 ${getAvatarColor(`${u.nombre} ${u.apellido}`)}`}>
-                                                    {u.nombre.charAt(0)}{u.apellido.charAt(0)}
-                                                </div>
-                                                <span className="truncate">{u.nombre} {u.apellido}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -500,49 +477,16 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                         <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" /> {format(new Date(tarea.created_at), "dd MMM yyyy HH:mm", { locale: es })}
                         </span>
-                        <span className="border-l border-border pl-2 relative">
+                        <span className="border-l border-border pl-2">
                             Participantes:{" "}
                             {usuarios ? (
-                                <span className="relative inline-block">
-                                    <button
-                                        onClick={() => setIsChangingAsignado(!isChangingAsignado)}
-                                        className="inline-flex items-center gap-1 flex-wrap hover:opacity-80 transition-opacity"
-                                    >
-                                        {participantsList.length > 0 ? (
-                                            participantsList.map((p, i) => {
-                                                const pName = `${p.nombre} ${p.apellido}`;
-                                                return (
-                                                    <span
-                                                        key={p.usuario_id || i}
-                                                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold text-white ${getAvatarColor(pName)}`}
-                                                    >
-                                                        {p.nombre} {p.apellido}
-                                                    </span>
-                                                );
-                                            })
-                                        ) : (
-                                            <strong className="text-text-primary font-medium">Sin asignar</strong>
-                                        )}
-                                    </button>
-                                    {isChangingAsignado && (
-                                        <div className="absolute top-full left-0 mt-1 w-48 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 py-1 overflow-hidden">
-                                            <div className="px-3 py-2 text-[10px] font-semibold text-text-muted border-b border-border-subtle bg-bg-tertiary uppercase tracking-wider">
-                                                Reasignar Tarea
-                                            </div>
-                                            <div className="max-h-48 overflow-y-auto">
-                                                {usuarios.map(u => (
-                                                    <button key={u.id} onClick={() => handleAssigneeChange(u.id)}
-                                                        className={`w-full text-left px-3 py-2 text-xs hover:bg-bg-tertiary transition-colors flex items-center gap-2 ${u.id === tarea.asignado_id ? 'text-brand-primary bg-brand-primary/5 font-medium' : 'text-text-primary'}`}>
-                                                        <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] text-white uppercase shrink-0 ${getAvatarColor(`${u.nombre} ${u.apellido}`)}`}>
-                                                            {u.nombre.charAt(0)}{u.apellido.charAt(0)}
-                                                        </div>
-                                                        <span className="truncate">{u.nombre} {u.apellido}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </span>
+                                <ParticipantesPopover
+                                    tareaId={tarea.id}
+                                    participantes={participantsList}
+                                    usuarios={usuarios}
+                                    canEdit={canEditParticipants}
+                                    onUpdate={() => router.refresh()}
+                                />
                             ) : (
                                 <span className="inline-flex items-center gap-1 flex-wrap">
                                     {participantsList.length > 0 ? (

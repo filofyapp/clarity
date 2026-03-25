@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 25/03/2026 (3)
+QUE SE CAMBIO: Refactor profundo del módulo de Tareas (Kanban). (A) Saneamiento RLS, (B) Fix comentarios fantasma, (C) Multi-asignado Notion-style con popover multi-select.
+POR QUE: BUG-026. (A) Las políticas RLS de `comentarios_tarea` y `tarea_participantes` usaban `FOR ALL USING (auth.uid() IS NOT NULL)` sin `WITH CHECK`, bloqueando silenciosamente los INSERT. (B) `ComentariosTarea.tsx` no mostraba errores de inserción — el optimistic update se revertía pero el texto se perdía. (C) La asignación de participantes usaba un dropdown single-select legacy que llamaba a `updateTareaAsignado` para cambiar `asignado_id`, en vez de gestionar la tabla relacional `tarea_participantes`.
+COMO: (A) Migración `032_tareas_colaborativas_rls.sql`: DROP de todas las políticas `FOR ALL` y creación de políticas separadas por operación (SELECT/INSERT/UPDATE/DELETE) con `WITH CHECK` explícito para INSERT. Cubre `comentarios_tarea`, `tarea_participantes`, `comentario_lectura`, `reacciones_comentario`, `reacciones_tarea`. (B) `ComentariosTarea.tsx`: insert envuelto en try/catch estricto. En fallo: `toast.error()` con mensaje de Supabase, revert del optimistic update, y RESTAURACIÓN del texto y adjuntos al textarea (el usuario no pierde NADA). (C) Nuevo componente `ParticipantesPopover.tsx`: popover multi-select estilo Notion con checkboxes. Al cerrar: diff contra estado inicial, DELETE+INSERT masivo en `tarea_participantes`, actualiza legacy `asignado_id` para retrocompat. Solo abre para roles admin/carga (peritos calle = read-only). Integrado en `TareaCard.tsx` en card footer y sheet header. Eliminado `handleAssigneeChange`, `isChangingAsignado`, e import de `updateTareaAsignado`.
+ARCHIVOS AFECTADOS: 032_tareas_colaborativas_rls.sql (NEW), ParticipantesPopover.tsx (NEW), ComentariosTarea.tsx, TareaCard.tsx
+EFECTOS COLATERALES: Ninguno destructivo. Legacy `asignado_id` se sigue actualizando automáticamente al primer participante seleccionado.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 25/03/2026 (2)
 QUE SE CAMBIO: Fix "Descargar todas" — el ZIP solo incluía fotos reglamentarias + 1 de daño en vez de todas las fotos.
 POR QUE: BUG-025. Las fotos de daño (`danio_detalle`) compartían el mismo `tipo` y potencialmente el mismo `orden`, generando nombres de archivo idénticos (`Detalle_Daño_1.jpg`). `JSZip.folder.file()` sobrescribe archivos con el mismo nombre, así que solo sobrevivía la última foto de cada nombre.
@@ -808,6 +816,13 @@ TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
 ---
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-026: Comentarios fantasma + asignaciones single-select rotas (RESUELTO)
+- PROBLEMA: (A) Los comentarios en el chat de tareas desaparecían silenciosamente al dar Enter — el usuario perdía lo que escribió sin recibir ningún error visible. (B) La UI de asignación de tareas usaba un dropdown single-select legacy que solo cambiaba `asignado_id`, ignorando la tabla relacional `tarea_participantes`.
+- CAUSA: (A) Las políticas RLS de `comentarios_tarea` usaban `FOR ALL USING (auth.uid() IS NOT NULL)` SIN `WITH CHECK`. PostgreSQL usa `USING` para SELECT/UPDATE/DELETE pero REQUIERE `WITH CHECK` para INSERT. El INSERT fallaba silenciosamente devolviendo null. El frontend hacía un optimistic update, recibía el error, revertía el update PERO no mostraba toast de error y limpiaba el textarea → el usuario perdía su texto. (B) `handleAssigneeChange()` llamaba a `updateTareaAsignado()` que solo actualizaba la columna legacy `asignado_id` en la tabla `tareas`, sin tocar `tarea_participantes`.
+- SOLUCION: (A) Migración `032_tareas_colaborativas_rls.sql`: políticas explícitas por operación con `WITH CHECK` para INSERT en todas las tablas del ecosistema de tareas. Frontend: try/catch estricto en `handleEnviar()`, `toast.error()` con mensaje de Supabase, y restauración del texto en caso de fallo. (B) Nuevo componente `ParticipantesPopover.tsx`: multi-select con checkboxes, gestiona directamente la tabla `tarea_participantes` (DELETE+INSERT masivo), y actualiza `asignado_id` para retrocompat. Permission-gated: solo admin/carga pueden editar.
+- FECHA: 25/03/2026
+- NO REPETIR: (A) NUNCA usar `FOR ALL USING` sin `WITH CHECK` en RLS. Siempre crear políticas separadas por operación para evitar bloqueos silenciosos de INSERT. Todo fallo de DB debe resultar en un toast.error visible. (B) NO gestionar asignaciones via columna legacy `asignado_id`. Siempre usar la tabla relacional `tarea_participantes`.
 
 ### BUG-025: "Descargar todas" solo descargaba reglamentarias + 1 foto de daño (RESUELTO)
 - PROBLEMA: Al presionar "Descargar todas" en la galería de fotos de un caso, el ZIP solo contenía las fotos reglamentarias y 1 foto de daño, aunque el informe tenía 27+ fotos.

@@ -28,9 +28,10 @@ interface ParticipantesPopoverProps {
     usuarios: { id: string; nombre: string; apellido: string; rol: string }[];
     canEdit: boolean; // admin/carga = true, calle = false
     onUpdate?: () => void;
+    openDirection?: "up" | "down"; // default: "up" (for card footer), "down" for sheet header
 }
 
-export function ParticipantesPopover({ tareaId, participantes, usuarios, canEdit, onUpdate }: ParticipantesPopoverProps) {
+export function ParticipantesPopover({ tareaId, participantes, usuarios, canEdit, onUpdate, openDirection = "up" }: ParticipantesPopoverProps) {
     const [open, setOpen] = useState(false);
     const [selected, setSelected] = useState<Set<string>>(new Set(participantes.map(p => p.usuario_id)));
     const [saving, setSaving] = useState(false);
@@ -152,7 +153,7 @@ export function ParticipantesPopover({ tareaId, participantes, usuarios, canEdit
             {/* Popover multi-select */}
             {open && canEdit && (
                 <div
-                    className="absolute bottom-full right-0 mb-2 w-56 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                    className={`absolute ${openDirection === "down" ? "top-full mt-2" : "bottom-full mb-2"} right-0 w-56 bg-bg-secondary border border-border-default rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150`}
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="px-3 py-2 text-[10px] font-semibold text-text-muted border-b border-border-subtle bg-bg-tertiary uppercase tracking-wider flex items-center gap-1.5">

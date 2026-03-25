@@ -486,6 +486,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
                                     usuarios={usuarios}
                                     canEdit={canEditParticipants}
                                     onUpdate={() => router.refresh()}
+                                    openDirection="down"
                                 />
                             ) : (
                                 <span className="inline-flex items-center gap-1 flex-wrap">

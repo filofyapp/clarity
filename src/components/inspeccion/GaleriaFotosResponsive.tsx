@@ -202,12 +202,14 @@ export function GaleriaFotosResponsive({ casoId }: Props) {
             const zip = new JSZip();
             const folder = zip.folder("inspeccion")!;
             let done = 0;
-            await Promise.all(filteredFotos.map(async (foto) => {
+            await Promise.all(filteredFotos.map(async (foto, idx) => {
                 try {
                     const res = await fetch(foto.url);
                     const blob = await res.blob();
                     const ext = foto.url.split(".").pop()?.split("?")[0] || "jpg";
-                    const name = `${(TIPO_LABELS[foto.tipo] || foto.tipo).replace(/[\s\/]/g, "_")}_${foto.orden}.${ext}`;
+                    // Use idx+1 for unique numbering — prevents collisions when
+                    // multiple photos share the same tipo (e.g. danio_detalle)
+                    const name = `${String(idx + 1).padStart(2, "0")}_${(TIPO_LABELS[foto.tipo] || foto.tipo).replace(/[\s\/]/g, "_")}.${ext}`;
                     folder.file(name, blob);
                     done++;
                     toast.loading(`Descargando ${done} / ${filteredFotos.length}...`, { id: toastId });

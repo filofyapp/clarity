@@ -276,6 +276,14 @@ Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS C
 
 ### Historial:
 
+FECHA: 25/03/2026 (2)
+QUE SE CAMBIO: Fix "Descargar todas" — el ZIP solo incluía fotos reglamentarias + 1 de daño en vez de todas las fotos.
+POR QUE: BUG-025. Las fotos de daño (`danio_detalle`) compartían el mismo `tipo` y potencialmente el mismo `orden`, generando nombres de archivo idénticos (`Detalle_Daño_1.jpg`). `JSZip.folder.file()` sobrescribe archivos con el mismo nombre, así que solo sobrevivía la última foto de cada nombre.
+COMO: Cambiado el esquema de nombrado de `{tipo}_{orden}.ext` a `{idx_secuencial_padded}_{tipo}.ext` (ej: `01_Frontal.jpg`, `07_Detalle_Daño.jpg`, `08_Detalle_Daño.jpg`). Cada foto tiene un índice único garantizado.
+ARCHIVOS AFECTADOS: GaleriaFotosResponsive.tsx
+EFECTOS COLATERALES: Ninguno. Solo cambia el nombre de los archivos dentro del ZIP.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
+
 FECHA: 25/03/2026
 QUE SE CAMBIO: (A) Multi-asignado visual en Tareas — todas las pastillas de participantes se muestran en la tarjeta Kanban y en el panel lateral. (B) Fix crítico BUG-024: redirect loop ERR_TOO_MANY_REDIRECTS al expirar sesión Supabase.
 POR QUE: (A) Al seleccionar múltiples participantes en una tarea, solo se mostraba el primer `asignado_id` como pill de color. Los demás participantes no aparecían en la tarjeta ni en el filtro "Asignadas a mí". La infraestructura de `tarea_participantes` ya existía (insert en API) pero no se traía en el SELECT de la página ni se usaba en el frontend. (B) Cuando el token de sesión de Supabase expiraba, el middleware usaba `getSession()` que lee el JWT localmente sin validar/refrescar contra el server. Si el JWT expiraba, `getSession()` devolvía null, redirigía a `/login`, pero las cookies muertas persistían en el navegador → el middleware las veía de nuevo → loop infinito de redirects.
@@ -800,6 +808,13 @@ TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
 ---
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-025: "Descargar todas" solo descargaba reglamentarias + 1 foto de daño (RESUELTO)
+- PROBLEMA: Al presionar "Descargar todas" en la galería de fotos de un caso, el ZIP solo contenía las fotos reglamentarias y 1 foto de daño, aunque el informe tenía 27+ fotos.
+- CAUSA: El nombre del archivo en el ZIP se generaba como `${TIPO_LABEL}_${foto.orden}.ext`. Todas las fotos de daño tienen `tipo = 'danio_detalle'` (mismo label "Detalle_Daño") y pueden compartir el mismo valor de `orden`. `JSZip.folder.file(name, blob)` sobrescribe silenciosamente si el nombre ya existe → solo la última foto de cada nombre sobrevivía.
+- SOLUCION: Usar índice secuencial único como prefijo: `${String(idx+1).padStart(2,'0')}_${tipo_label}.ext`. Ejemplo: `01_Frontal.jpg`, `07_Detalle_Daño.jpg`, `08_Detalle_Daño.jpg`. Cada archivo tiene nombre garantizado único.
+- FECHA: 25/03/2026
+- NO REPETIR: Al generar archivos en un ZIP con JSZip, NUNCA usar campos de la DB como nombre de archivo sin garantizar unicidad. Siempre usar un índice secuencial o el ID del registro.
 
 ### BUG-024: Redirect loop ERR_TOO_MANY_REDIRECTS al expirar sesión Supabase (RESUELTO)
 - PROBLEMA: Un perito se loguea correctamente pero después de navegar un rato, la plataforma entra en un loop de redirects (ERR_TOO_MANY_REDIRECTS / HTTP 429). El navegador muestra "Demasiadas redirecciones" y la app queda inaccesible.

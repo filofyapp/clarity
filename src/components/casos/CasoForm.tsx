@@ -350,7 +350,20 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
                                 ) : (
                                     <div className="flex gap-2">
                                         <button type="button"
-                                            onClick={() => setCasoOrigenId(existingCaso.id)}
+                                            onClick={() => {
+                                                setCasoOrigenId(existingCaso.id);
+                                                // Auto-fill fields from existing caso
+                                                if (existingCaso.dominio && !dominio) setDominio(existingCaso.dominio);
+                                                if (existingCaso.marca && !marca) setMarca(existingCaso.marca);
+                                                if (existingCaso.taller_id && !tallerId) setTallerId(existingCaso.taller_id);
+                                                if (existingCaso.direccion_inspeccion && !direccion) setDireccion(existingCaso.direccion_inspeccion);
+                                                if (existingCaso.localidad && !localidad) setLocalidad(existingCaso.localidad);
+                                                if (existingCaso.perito_calle_id && !peritoCelleId) setPeritoCelleId(existingCaso.perito_calle_id);
+                                                if (existingCaso.perito_carga_id && !peritoCargaId) setPeritoCargaId(existingCaso.perito_carga_id);
+                                                if (existingCaso.gestor_id && !gestorId) setGestorId(existingCaso.gestor_id);
+                                                setTipoIp("ampliacion");
+                                                toast.success("Datos copiados del caso original. Tipo → Ampliación.");
+                                            }}
                                             className="px-3 py-1 rounded-md text-xs font-medium bg-brand-primary text-white hover:bg-brand-primary/90 transition-colors">
                                             Vincular como Ampliación
                                         </button>

@@ -176,9 +176,11 @@ export function InspeccionCampoWizard({
     const totalMO = manoObra.reduce((s, r) => s + r.valor * r.cantidad, 0);
     const hayDatos = totalMO > 0 || piezasCambiar.trim() || piezasReparar.trim() || piezasPintar.trim() || observaciones.trim();
 
-    // ═══ UPLOAD BLOCKER: STRICT — any photo NOT fully uploaded blocks the button ═══
-    // This includes photos with errors — user MUST retry or delete them.
-    const pendingUploads = [...fotosReg, ...fotosDanios].filter(f => !f.uploaded).length;
+    // ═══ UPLOAD BLOCKER: STRICT — split into uploading vs errored for proper UX ═══
+    const allPhotos = [...fotosReg, ...fotosDanios];
+    const uploadingCount = allPhotos.filter(f => f.uploading).length;
+    const failedCount = allPhotos.filter(f => !f.uploaded && !f.uploading && f.error).length;
+    const pendingUploads = allPhotos.filter(f => !f.uploaded).length;
 
     // ═══ DRAFT AUTO-SAVE (disabled in edit mode to prevent cache collision) ═══
     const DRAFT_KEY = `draft_inspeccion_${casoId}`;
@@ -241,6 +243,61 @@ export function InspeccionCampoWizard({
             setter(prev => prev.map(f => f.id === id ? { ...f, uploading: false, error: err.message } : f));
         }
     }, [casoId, peritoId, supabase]);
+
+    // ═══ Retry failed photo ═══
+    const retryPhoto = useCallback(async (fotoId: string) => {
+        // Find the photo in either array
+        const allFotos = [...fotosReg, ...fotosDanios];
+        const foto = allFotos.find(f => f.id === fotoId);
+        if (!foto || !foto.preview || foto.uploaded) return;
+
+        // Determine which setter to use
+        const isReg = fotosReg.some(f => f.id === fotoId);
+        const setter = isReg ? setFotosReg : setFotosDanios;
+
+        // Mark as uploading again
+        setter(prev => prev.map(f => f.id === fotoId ? { ...f, uploading: true, error: undefined } : f));
+
+        try {
+            // Re-fetch the blob from the preview URL
+            const res = await fetch(foto.preview);
+            const blob = await res.blob();
+            const processed = await procesarImagen(blob);
+            const fileName = `${casoId}/${Date.now()}_${foto.tipo}.jpg`;
+            const { error } = await supabase.storage
+                .from("fotos-inspecciones")
+                .upload(fileName, processed, { cacheControl: "3600", upsert: false });
+
+            if (error) throw error;
+
+            const { data: pub } = supabase.storage.from("fotos-inspecciones").getPublicUrl(fileName);
+            const url = pub.publicUrl;
+
+            await supabase.from("fotos_inspeccion").insert({
+                caso_id: casoId, usuario_id: peritoId, url, tipo: foto.tipo, descripcion: foto.tipo,
+            });
+
+            setter(prev => prev.map(f => f.id === fotoId ? { ...f, url, uploading: false, uploaded: true, error: undefined } : f));
+            toast.success('Foto resubida correctamente');
+        } catch (err: any) {
+            setter(prev => prev.map(f => f.id === fotoId ? { ...f, uploading: false, error: err.message } : f));
+            toast.error('Error al reintentar: ' + err.message);
+        }
+    }, [fotosReg, fotosDanios, casoId, peritoId, supabase]);
+
+    // ═══ Remove failed photo ═══
+    const removePhoto = useCallback((fotoId: string) => {
+        setFotosReg(prev => {
+            const foto = prev.find(f => f.id === fotoId);
+            if (foto?.preview) URL.revokeObjectURL(foto.preview);
+            return prev.filter(f => f.id !== fotoId);
+        });
+        setFotosDanios(prev => {
+            const foto = prev.find(f => f.id === fotoId);
+            if (foto?.preview) URL.revokeObjectURL(foto.preview);
+            return prev.filter(f => f.id !== fotoId);
+        });
+    }, []);
 
     const handleReglamentariaCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -626,6 +683,32 @@ export function InspeccionCampoWizard({
                 </button>
 
                 <div ref={resumenRef} className="max-w-lg mx-auto p-6 space-y-6">
+                    {/* Failed uploads banner — ABOVE resumenRef content but inside scroll area */}
+                    {failedCount > 0 && (
+                        <div className="bg-danger/10 border border-danger/30 rounded-xl p-4 space-y-3 animate-in fade-in">
+                            <p className="text-sm font-bold text-danger">⚠️ {failedCount} foto{failedCount > 1 ? 's' : ''} no se pudieron subir</p>
+                            <p className="text-xs text-text-muted">Reintentá o eliminá las fotos fallidas para poder continuar.</p>
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {[...fotosReg, ...fotosDanios].filter(f => f.error && !f.uploaded).map(f => (
+                                    <div key={f.id} className="flex items-center gap-2 bg-bg-primary rounded-lg p-2">
+                                        <img src={f.preview} alt="" className="w-10 h-10 object-cover rounded" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-text-primary truncate">{f.tipo}</p>
+                                            <p className="text-[10px] text-danger truncate">{f.error}</p>
+                                        </div>
+                                        <button onClick={() => retryPhoto(f.id)} disabled={f.uploading}
+                                            className="px-2 py-1 text-[10px] font-bold bg-brand-primary text-white rounded hover:bg-brand-primary-hover disabled:opacity-40">
+                                            {f.uploading ? '...' : '🔄 Reintentar'}
+                                        </button>
+                                        <button onClick={() => removePhoto(f.id)} disabled={f.uploading}
+                                            className="px-2 py-1 text-[10px] font-bold bg-danger/20 text-danger rounded hover:bg-danger/30 disabled:opacity-40">
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     {/* Resumen content (captured by html2canvas) */}
                     <div className="text-center space-y-1">
                         <h1 className="text-lg font-bold text-text-primary uppercase tracking-wide">Resumen de Inspección</h1>
@@ -751,8 +834,10 @@ export function InspeccionCampoWizard({
                     >
                         {saving ? (
                             <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</>
-                        ) : pendingUploads > 0 ? (
-                            <><Loader2 className="w-5 h-5 animate-spin" /> ⏳ Esperando red... Subiendo {pendingUploads} foto{pendingUploads > 1 ? 's' : ''}</>
+                        ) : uploadingCount > 0 ? (
+                            <><Loader2 className="w-5 h-5 animate-spin" /> Subiendo {uploadingCount} foto{uploadingCount > 1 ? 's' : ''}...</>
+                        ) : failedCount > 0 ? (
+                            <><X className="w-5 h-5" /> {failedCount} foto{failedCount > 1 ? 's' : ''} con error — Volvé para reintentar</>
                         ) : (
                             <><CheckCircle2 className="w-5 h-5" /> Confirmar y Enviar</>
                         )}

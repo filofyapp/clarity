@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     const supabase = await createClient();
     const { data } = await supabase
         .from("casos")
-        .select("id, numero_siniestro, tipo_inspeccion, estado, fecha_derivacion, dominio, marca")
+        .select("id, numero_siniestro, tipo_inspeccion, estado, fecha_derivacion, dominio, marca, taller_id, direccion_inspeccion, localidad, perito_calle_id, perito_carga_id, gestor_id")
         .eq("numero_siniestro", numero.trim())
         .order("created_at", { ascending: false })
         .limit(1)

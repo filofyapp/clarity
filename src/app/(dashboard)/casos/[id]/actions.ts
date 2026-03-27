@@ -211,7 +211,7 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
         "esperando_respuesta_tercero", "pendiente_presupuesto"
     ];
 
-    const estadosCalle = ["contactado"]; // Muy limitado
+    const estadosCalle = ["contactado", "pendiente_carga"];
 
     let permitido = false;
     const roles = usuario.roles || [usuario.rol];

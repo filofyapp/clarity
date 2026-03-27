@@ -63,6 +63,29 @@ export async function guardarInspeccionCampo(data: InspeccionCampoData) {
             return { error: "Error al actualizar estado: " + updateError.message };
         }
 
+        // 2b. ═══ HONORARIO P.CALLE: se asigna al COMPLETAR la inspección ═══
+        const { data: casoData } = await supabase
+            .from("casos")
+            .select("compania_id, tipo_inspeccion, monto_pagado_perito_calle")
+            .eq("id", data.casoId)
+            .single();
+
+        if (casoData && casoData.monto_pagado_perito_calle == null
+            && casoData.tipo_inspeccion && casoData.tipo_inspeccion !== 'sin_honorarios') {
+            const { data: precio } = await supabase.from('precios')
+                .select('valor_perito_calle')
+                .eq('compania_id', casoData.compania_id)
+                .eq('concepto', casoData.tipo_inspeccion)
+                .eq('tipo', 'honorario')
+                .maybeSingle();
+
+            if (precio) {
+                await supabase.from("casos")
+                    .update({ monto_pagado_perito_calle: precio.valor_perito_calle })
+                    .eq("id", data.casoId);
+            }
+        }
+
         // 3. Historial de estados
         await supabase.from("historial_estados").insert({
             caso_id: data.casoId,

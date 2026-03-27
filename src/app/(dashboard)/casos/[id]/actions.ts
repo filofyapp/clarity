@@ -37,7 +37,7 @@ export async function marcarInspeccionRealizada(casoId: string) {
         updated_at: new Date().toISOString(),
     };
 
-    const yaTieneMontoCalle = caso.monto_pagado_perito_calle && Number(caso.monto_pagado_perito_calle) > 0;
+    const yaTieneMontoCalle = caso.monto_pagado_perito_calle != null;
     if (!yaTieneMontoCalle && caso.tipo_inspeccion && caso.tipo_inspeccion !== 'sin_honorarios') {
         const { data: precio } = await supabase.from('precios')
             .select('valor_perito_calle')
@@ -242,7 +242,7 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
             .select('compania_id, tipo_inspeccion, monto_pagado_perito_calle')
             .eq('id', casoId).single();
 
-        const yaTieneMontoCalle = casoCalleCheck?.monto_pagado_perito_calle && Number(casoCalleCheck.monto_pagado_perito_calle) > 0;
+        const yaTieneMontoCalle = casoCalleCheck?.monto_pagado_perito_calle != null;
 
         if (casoCalleCheck && !yaTieneMontoCalle && casoCalleCheck.tipo_inspeccion && casoCalleCheck.tipo_inspeccion !== 'sin_honorarios') {
             const { data: precioCalle } = await supabase.from('precios')
@@ -283,20 +283,28 @@ export async function cambiarEstadoCaso(casoId: string, nuevoEstado: string, mot
 
             if (precio) {
                 // Estudio: solo si no fue asignado antes
-                if (!casoReal.monto_facturado_estudio || Number(casoReal.monto_facturado_estudio) === 0) {
+                if (casoReal.monto_facturado_estudio == null) {
                     updateData.monto_facturado_estudio = precio.valor_estudio;
                 }
                 // P.Calle: solo si no fue asignado antes (debió asignarse al completar IP)
-                if (!casoReal.monto_pagado_perito_calle || Number(casoReal.monto_pagado_perito_calle) === 0) {
+                if (casoReal.monto_pagado_perito_calle == null) {
                     updateData.monto_pagado_perito_calle = precio.valor_perito_calle;
                 }
                 // P.Carga: solo si no fue asignado antes
-                if (!casoReal.monto_pagado_perito_carga || Number(casoReal.monto_pagado_perito_carga) === 0) {
+                if (casoReal.monto_pagado_perito_carga == null) {
                     updateData.monto_pagado_perito_carga = precio.valor_perito_carga;
                 }
             }
         }
     }
+
+    // ═══ ANULADA: nadie cobra ═══
+    if (nuevoEstado === "inspeccion_anulada") {
+        updateData.monto_pagado_perito_calle = 0;
+        updateData.monto_pagado_perito_carga = 0;
+        updateData.monto_facturado_estudio = 0;
+    }
+
     if (nuevoEstado === "facturada") updateData.facturado = true;
 
     const { error: updateError } = await supabase.from("casos").update(updateData).eq("id", casoId);

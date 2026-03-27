@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         const { data: caso } = await withRetry(() =>
             supabase
                 .from("casos")
-                .select("estado, fecha_inspeccion_real, fecha_carga_sistema, perito_calle_id, perito_carga_id")
+                .select("estado, fecha_inspeccion_real, fecha_carga_sistema, perito_calle_id, perito_carga_id, compania_id, tipo_inspeccion, monto_pagado_perito_calle")
                 .eq("id", link.caso_id)
                 .single()
         );
@@ -88,6 +88,27 @@ export async function POST(req: NextRequest) {
                 .update(updateData)
                 .eq("id", link.caso_id)
         );
+
+        // ═══ HONORARIO P.CALLE: se asigna al COMPLETAR la inspección remota ═══
+        if (caso && caso.monto_pagado_perito_calle == null
+            && caso.tipo_inspeccion && caso.tipo_inspeccion !== 'sin_honorarios') {
+            const { data: precio } = await withRetry(() =>
+                supabase.from("precios")
+                    .select("valor_perito_calle")
+                    .eq("compania_id", caso.compania_id)
+                    .eq("concepto", caso.tipo_inspeccion)
+                    .eq("tipo", "honorario")
+                    .maybeSingle()
+            );
+
+            if (precio) {
+                await withRetry(() =>
+                    supabase.from("casos")
+                        .update({ monto_pagado_perito_calle: precio.valor_perito_calle })
+                        .eq("id", link.caso_id)
+                );
+            }
+        }
 
         // Create historial entry (with retry)
         await withRetry(() =>

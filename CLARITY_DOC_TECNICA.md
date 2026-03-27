@@ -1359,3 +1359,41 @@ COMO: (1) Se separaron los contadores: `uploadingCount` (cargando activamente) y
 ARCHIVOS AFECTADOS: InspeccionCampoWizard.tsx (upload blocker split + retry/remove), CasoForm.tsx (auto-fill ampliación), check-siniestro/route.ts (expanded query)
 EFECTOS COLATERALES: Ninguno. Los campos auto-llenados son editables. El retry usa el preview URL (blob:) todavía en memoria.
 TESTEADO: TypeScript --noEmit OK.
+
+FECHA: 27/03/2026
+QUE SE CAMBIO: Fix Completo de Honorarios — Corrección de lógica de facturación + backfill retroactivo.
+POR QUE: (1) El anti-duplication guard trataba $0 (intencional, ej: ausente perito_carga) igual que NULL (nunca asignado), permitiendo re-asignación incorrecta. (2) Las migraciones retroactivas 029/031 asignaron montos usando precios que luego cambiaron. (3) guardarInspeccionCampo y complete/route.ts (inspección remota) no asignaban honorario de perito de calle al completar la inspección, dependiendo del safety net de ip_cerrada. (4) Cambiar a inspeccion_anulada no zeroeaba los montos ya asignados.
+COMO: (A) Migración SQL 034_fix_honorarios_completo.sql: actualiza tabla precios con valores definitivos proporcionados por usuario, luego hace backfill completo de TODOS los casos — perito_calle basado en fecha_inspeccion_real, perito_carga+estudio basado en estado cerrado, anuladas en $0 y no-cerrados en NULL. (B) Guard anti-duplicación cambiado de `!monto || Number(monto) === 0` a `monto == null` en TODOS los puntos de asignación (marcarInspeccionRealizada, cambiarEstadoCaso, updateCasoRapido). Esto distingue $0 intencional de NULL nunca-asignado. (C) Agregada asignación de honorario perito calle en guardarInspeccionCampo (inspección presencial) y complete/route.ts (inspección remota) para que el billing se asigne en el MOMENTO correcto. (D) Agregado zeroing de los 3 montos al transicionar a inspeccion_anulada.
+ARCHIVOS AFECTADOS: src/app/(dashboard)/casos/[id]/actions.ts (guards + anulada), src/app/(dashboard)/casos/actions.ts (updateCasoRapido guards + anulada), src/app/(dashboard)/inspeccion-campo/[casoId]/actions.ts (billing perito calle), src/app/api/inspeccion-remota/complete/route.ts (billing perito calle), supabase/migrations/034_fix_honorarios_completo.sql (nueva migración)
+EFECTOS COLATERALES: (1) La migración RESETEA todos los montos de billing retroactivamente basándose en los valores actuales de precios. Casos no-cerrados tendrán perito_carga y estudio en NULL hasta que se cierren. (2) El guard null-only significa que si un monto fue asignado como $0 (ej: ausente perito_carga), ya NO se re-asignará automáticamente. Si se necesita cambiar, debe editarse manualmente. (3) IMPORTANTE: La migración 034 debe ejecutarse en Supabase SQL Editor ANTES del deploy.
+TESTEADO: TypeScript --noEmit OK.
+
+--- REGLAS DE NEGOCIO DEFINITIVAS DE HONORARIOS ---
+
+PERITO DE CALLE — Se paga cuando la IP sale de ip_coordinada (inspección completada):
+- AMPLIACION: $4.250
+- AUSENTE: $2.550
+- IP CAMIONES: $9.562
+- IP CON ORDEN: $9.562
+- IP FINAL INTERMEDIA: $4.250
+- IP REMOTA: $8.000
+- IP SIN ORDEN: $9.562
+- POSIBLE DT: $9.562
+- TERCEROS: $9.562
+
+PERITO DE CARGA — Se paga cuando la IP llega a ip_cerrada:
+- AMPLIACION: $2.000
+- AUSENTE: $0
+- IP CAMIONES: $8.925
+- IP CON ORDEN: $8.925
+- IP FINAL INTERMEDIA: $2.000
+- IP REMOTA: $8.000
+- IP SIN ORDEN: $8.925
+- POSIBLE DT: $8.925
+- TERCEROS: $8.925
+
+EXCEPCION: inspeccion_anulada = nadie cobra ($0 para todos).
+REGLA WRITE-ONCE: El monto se asigna UNA sola vez por siniestro (guard: monto == null).
+AMPLIACIONES: Son casos independientes. Se pagan según su tipo_inspeccion (ampliacion).
+DUAL ROLE: Un perito puede ser calle Y carga. Cada rol cobra por separado según la fecha de acción correspondiente.
+TIMING: P.Calle se reconoce por fecha_inspeccion_real. P.Carga se reconoce por fecha_cierre.

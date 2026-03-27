@@ -2,18 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 import {
     ShieldCheck, Hammer, Paintbrush, Wrench,
     MapPin, Clock, Mic, BadgeDollarSign,
-    ShoppingCart, AlertCircle, ChevronDown
+    ShoppingCart, AlertCircle, ChevronDown, PenLine
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/formatters";
 
 interface Props {
     casoId: string;
+    userId?: string;
+    peritoCalleId?: string;
+    isAdmin?: boolean;
 }
 
-export function VistaInformeCampo({ casoId }: Props) {
+export function VistaInformeCampo({ casoId, userId, peritoCalleId, isAdmin }: Props) {
     const supabase = createClient();
     const [informe, setInforme] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -75,6 +79,26 @@ export function VistaInformeCampo({ casoId }: Props) {
                     Inspección Presencial
                 </span>
             </div>
+
+            {/* Edit button — only for perito owner or admin */}
+            {(isAdmin || (userId && peritoCalleId && userId === peritoCalleId)) && (
+                <div className="flex justify-end -mt-2">
+                    <Link
+                        href={`/inspeccion-campo/${casoId}?editar=1`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-primary bg-brand-primary/5 border border-brand-primary/20 rounded-lg hover:bg-brand-primary/10 transition-colors"
+                    >
+                        <PenLine className="w-3.5 h-3.5" />
+                        ✏️ Editar Informe Técnico
+                    </Link>
+                </div>
+            )}
+
+            {/* Editado el audit trail */}
+            {informe.editado_el && (
+                <p className="text-xs text-text-muted italic bg-bg-tertiary/50 px-3 py-1.5 rounded-md border border-border/50 -mt-2">
+                    ✏️ Editado el {new Date(informe.editado_el).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })} a las {new Date(informe.editado_el).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Left column: Pieces + Observations */}

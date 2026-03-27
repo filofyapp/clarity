@@ -539,7 +539,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                         caso.estado === "facturada" ||
                         caso.estado === "contactado") && (
                             <div className="pt-2 animate-in fade-in duration-500">
-                                <VistaInformeCampo casoId={caso.id} />
+                                <VistaInformeCampo casoId={caso.id} userId={currentUserId} peritoCalleId={caso.perito_calle_id} isAdmin={rol === "admin"} />
                             </div>
                         )}
 

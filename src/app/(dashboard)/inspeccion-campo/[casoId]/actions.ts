@@ -81,3 +81,92 @@ export async function guardarInspeccionCampo(data: InspeccionCampoData) {
         return { error: "Error interno: " + err.message };
     }
 }
+
+/**
+ * PASO 4: Edición post-envío del informe presencial.
+ * STRICT PATCH — Solo actualiza campos de texto/MO.
+ * NUNCA toca firma, GPS, resumen_firmado, fotos, ni cambia el estado del caso.
+ * Guardrail 3: Prevención de Data Wiping.
+ * Guardrail 4: Validación server-side de permisos.
+ * Guardrail 5: Purga de caché obligatoria.
+ */
+interface ActualizarInspeccionCampoData {
+    casoId: string;
+    manoDeObra: { concepto: string; valor: number; cantidad: number; unidad: string }[];
+    totalManoDeObra: number;
+    piezasCambiar: string;
+    piezasReparar: string;
+    piezasPintar: string;
+    observaciones: string;
+    audioUrl: string | null;
+}
+
+export async function actualizarInspeccionCampo(data: ActualizarInspeccionCampoData) {
+    const supabase = await createClient();
+
+    try {
+        // ═══ GUARDRAIL 4: Server-side auth validation ═══
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { error: "No autorizado." };
+
+        const { data: usuario } = await supabase.from("usuarios").select("rol, roles").eq("id", user.id).single();
+        if (!usuario) return { error: "Usuario no encontrado." };
+
+        const { data: caso } = await supabase
+            .from("casos")
+            .select("perito_calle_id")
+            .eq("id", data.casoId)
+            .single();
+
+        if (!caso) return { error: "Caso no encontrado." };
+
+        const roles = usuario.roles || [usuario.rol];
+        const esAdmin = roles.includes("admin");
+        const esPeritoAsignado = caso.perito_calle_id === user.id;
+
+        if (!esAdmin && !esPeritoAsignado) {
+            return { error: "Solo el perito de calle asignado o un admin puede editar el informe." };
+        }
+
+        // ═══ GUARDRAIL 3: STRICT PATCH — only text/MO fields, NEVER firma/GPS/photos ═══
+        const { error: updateError } = await supabase
+            .from("informe_inspeccion_campo")
+            .update({
+                mano_de_obra: data.manoDeObra,
+                total_mano_de_obra: data.totalManoDeObra,
+                piezas_cambiar: data.piezasCambiar || null,
+                piezas_reparar: data.piezasReparar || null,
+                piezas_pintar: data.piezasPintar || null,
+                observaciones: data.observaciones || null,
+                audio_url: data.audioUrl,
+                editado_el: new Date().toISOString(),
+            })
+            .eq("caso_id", data.casoId);
+
+        if (updateError) {
+            console.error("[InspeccionCampo] Update informe error:", updateError);
+            return { error: "Error al actualizar el informe: " + updateError.message };
+        }
+
+        // Historial — traceability
+        await supabase.from("historial_estados").insert({
+            caso_id: data.casoId,
+            usuario_id: user.id,
+            estado_anterior: "Mismo Estado",
+            estado_nuevo: "Mismo Estado",
+            motivo: "✏️ Informe de inspección presencial editado post-envío",
+        });
+
+        // ═══ GUARDRAIL 5: Cache purge ═══
+        revalidatePath(`/casos/${data.casoId}`);
+        revalidatePath("/mi-agenda");
+        revalidatePath("/casos");
+        revalidatePath("/dashboard");
+        revalidatePath("/carga");
+
+        return { success: true };
+    } catch (err: any) {
+        console.error("[InspeccionCampo] ActualizarInforme error:", err);
+        return { error: "Error interno: " + err.message };
+    }
+}

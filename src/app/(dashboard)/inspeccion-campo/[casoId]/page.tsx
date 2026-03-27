@@ -6,10 +6,14 @@ import { InspeccionCampoWizard } from "@/components/inspeccion-campo/InspeccionC
 
 interface PageProps {
     params: Promise<{ casoId: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function InspeccionCampoPage({ params }: PageProps) {
+export default async function InspeccionCampoPage({ params, searchParams }: PageProps) {
     const { casoId } = await params;
+    const sp = await searchParams;
+    const isEditMode = sp.editar === "1";
+
     const supabase = await createClient();
     const { getUsuarioActual } = await import("@/lib/auth");
     const usuario = await getUsuarioActual();
@@ -30,14 +34,23 @@ export default async function InspeccionCampoPage({ params }: PageProps) {
         redirect("/mi-agenda");
     }
 
-    // Only perito de calle assigned or admin
+    // ═══ GUARDRAIL 4: Server-side auth ═══
+    // Only perito de calle assigned or admin can access
     if (caso.perito_calle_id !== usuario.id && usuario.rol !== "admin") {
         redirect("/mi-agenda");
     }
 
-    // Only ip_coordinada
-    if (caso.estado !== "ip_coordinada") {
-        redirect(`/casos/${casoId}`);
+    // State guard: normal mode requires ip_coordinada; edit mode allows post-inspection states
+    if (isEditMode) {
+        // Edit mode — caso must have a completed inspection (NOT ip_coordinada)
+        if (caso.estado === "ip_coordinada") {
+            redirect(`/inspeccion-campo/${casoId}`); // redirect to normal wizard
+        }
+    } else {
+        // Normal mode — only ip_coordinada
+        if (caso.estado !== "ip_coordinada") {
+            redirect(`/casos/${casoId}`);
+        }
     }
 
     // Fetch existing photos count
@@ -59,6 +72,40 @@ export default async function InspeccionCampoPage({ params }: PageProps) {
         valoresRef[p.concepto] = p.valor_estudio;
     });
 
+    // ═══ EDIT MODE: Fetch existing informe data from DB ═══
+    let editData = undefined;
+    if (isEditMode) {
+        const { data: informe } = await supabase
+            .from("informe_inspeccion_campo")
+            .select("mano_de_obra, piezas_cambiar, piezas_reparar, piezas_pintar, observaciones, audio_url")
+            .eq("caso_id", casoId)
+            .single();
+
+        if (informe) {
+            // Map DB mano_de_obra JSONB to ManoObraRow format
+            const moFromDB = (informe.mano_de_obra as any[] || []).map((r: any, i: number) => ({
+                id: r.concepto?.toLowerCase().replace(/\s/g, "_") || `mo_${i}`,
+                concepto: r.concepto || "",
+                valor: r.valor || 0,
+                cantidad: r.cantidad || 0,
+                unidad: r.unidad || "unidades",
+                custom: !["Chapa", "Pintura", "Mecánica"].includes(r.concepto),
+            }));
+
+            editData = {
+                manoDeObra: moFromDB,
+                piezasCambiar: informe.piezas_cambiar || "",
+                piezasReparar: informe.piezas_reparar || "",
+                piezasPintar: informe.piezas_pintar || "",
+                observaciones: informe.observaciones || "",
+                audioUrl: informe.audio_url || null,
+            };
+        } else {
+            // No informe found — can't edit, redirect to case
+            redirect(`/casos/${casoId}`);
+        }
+    }
+
     return (
         <InspeccionCampoWizard
             casoId={caso.id}
@@ -72,6 +119,8 @@ export default async function InspeccionCampoPage({ params }: PageProps) {
             fotosYaSubidas={fotosCount || 0}
             valoresRef={valoresRef}
             peritoId={usuario.id}
+            isEditMode={isEditMode}
+            editData={editData}
         />
     );
 }

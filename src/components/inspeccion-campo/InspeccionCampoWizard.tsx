@@ -6,13 +6,13 @@ import { SelectorZonaDanio, ZONAS_MAP } from "@/components/inspeccion-remota/Sel
 import { CameraCapture } from "@/components/inspeccion-remota/CameraCapture";
 import {
     Camera, CheckCircle2, ChevronRight, ChevronLeft,
-    Car, Loader2, Image as ImageIcon,
+    Car, Loader2, Image as ImageIcon, ImagePlus,
     Mic, Square, Play, Pause, Trash2, ChevronDown, ChevronUp,
     Plus, X, PenTool, PartyPopper, MapPin, Maximize2
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { guardarInspeccionCampo } from "@/app/(dashboard)/inspeccion-campo/[casoId]/actions";
+import { guardarInspeccionCampo, actualizarInspeccionCampo } from "@/app/(dashboard)/inspeccion-campo/[casoId]/actions";
 import { formatCurrency } from "@/lib/utils/formatters";
 
 // ═══ REUSE: Photo processing pipeline from WizardCaptura ═══
@@ -90,6 +90,15 @@ const PASOS_REGLAMENTARIOS = [
 ];
 
 // ═══ Main Component ═══
+interface EditData {
+    manoDeObra: ManoObraRow[];
+    piezasCambiar: string;
+    piezasReparar: string;
+    piezasPintar: string;
+    observaciones: string;
+    audioUrl: string | null;
+}
+
 interface Props {
     casoId: string;
     siniestro: string;
@@ -102,37 +111,43 @@ interface Props {
     fotosYaSubidas: number;
     valoresRef: Record<string, number>;
     peritoId: string;
+    isEditMode?: boolean;
+    editData?: EditData;
 }
 
 export function InspeccionCampoWizard({
     casoId, siniestro, vehiculo, dominio, tipoInspeccion,
-    asegurado, direccion, localidad, fotosYaSubidas, valoresRef, peritoId
+    asegurado, direccion, localidad, fotosYaSubidas, valoresRef, peritoId,
+    isEditMode = false, editData
 }: Props) {
     const router = useRouter();
     const supabase = createClient();
-    const [step, setStep] = useState<WizardStep>("fotos_reg");
+    // Edit mode → skip photos, start at informe
+    const [step, setStep] = useState<WizardStep>(isEditMode ? "informe" : "fotos_reg");
 
     // ═══ Photos state ═══
     const [pasoReg, setPasoReg] = useState(0);
     const [fotosReg, setFotosReg] = useState<FotoCapturada[]>([]);
     const [fotosDanios, setFotosDanios] = useState<FotoCapturada[]>([]);
     const [zonasDanio, setZonasDanio] = useState<string[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const fileInputCameraRef = useRef<HTMLInputElement>(null);
+    const fileInputGalleryRef = useRef<HTMLInputElement>(null);
     const [capturingDamage, setCapturingDamage] = useState(false);
 
-    // ═══ Informe state ═══
-    const [manoObra, setManoObra] = useState<ManoObraRow[]>([
+    // ═══ Informe state — pre-populated from editData in edit mode ═══
+    const defaultMO: ManoObraRow[] = editData?.manoDeObra || [
         { id: "chapa", concepto: "Chapa", valor: valoresRef.dia_chapa || 0, cantidad: 0, unidad: "días", custom: false },
         { id: "pintura", concepto: "Pintura", valor: valoresRef.pano_pintura || 0, cantidad: 0, unidad: "paños", custom: false },
         { id: "mecanica", concepto: "Mecánica", valor: valoresRef.hora_mecanica || 0, cantidad: 0, unidad: "horas", custom: false },
-    ]);
-    const [piezasCambiar, setPiezasCambiar] = useState("");
-    const [piezasReparar, setPiezasReparar] = useState("");
-    const [piezasPintar, setPiezasPintar] = useState("");
-    const [observaciones, setObservaciones] = useState("");
+    ];
+    const [manoObra, setManoObra] = useState<ManoObraRow[]>(defaultMO);
+    const [piezasCambiar, setPiezasCambiar] = useState(editData?.piezasCambiar || "");
+    const [piezasReparar, setPiezasReparar] = useState(editData?.piezasReparar || "");
+    const [piezasPintar, setPiezasPintar] = useState(editData?.piezasPintar || "");
+    const [observaciones, setObservaciones] = useState(editData?.observaciones || "");
 
     // ═══ Audio state ═══
-    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const [audioUrl, setAudioUrl] = useState<string | null>(editData?.audioUrl || null);
     const [audioLocalUrl, setAudioLocalUrl] = useState<string | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
@@ -160,6 +175,42 @@ export function InspeccionCampoWizard({
     // ═══ Computed ═══
     const totalMO = manoObra.reduce((s, r) => s + r.valor * r.cantidad, 0);
     const hayDatos = totalMO > 0 || piezasCambiar.trim() || piezasReparar.trim() || piezasPintar.trim() || observaciones.trim();
+
+    // ═══ UPLOAD BLOCKER: STRICT — any photo NOT fully uploaded blocks the button ═══
+    // This includes photos with errors — user MUST retry or delete them.
+    const pendingUploads = [...fotosReg, ...fotosDanios].filter(f => !f.uploaded).length;
+
+    // ═══ DRAFT AUTO-SAVE (disabled in edit mode to prevent cache collision) ═══
+    const DRAFT_KEY = `draft_inspeccion_${casoId}`;
+
+    // Restore draft on mount (only in non-edit mode)
+    useEffect(() => {
+        if (isEditMode) return;
+        try {
+            const raw = localStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            const draft = JSON.parse(raw);
+            if (draft.piezasCambiar) setPiezasCambiar(draft.piezasCambiar);
+            if (draft.piezasReparar) setPiezasReparar(draft.piezasReparar);
+            if (draft.piezasPintar) setPiezasPintar(draft.piezasPintar);
+            if (draft.observaciones) setObservaciones(draft.observaciones);
+            if (draft.manoObra && Array.isArray(draft.manoObra)) setManoObra(draft.manoObra);
+            toast.info('📝 Borrador recuperado automáticamente');
+        } catch { /* corrupt draft, ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Save draft on text changes (debounced, only in non-edit mode)
+    useEffect(() => {
+        if (isEditMode) return;
+        const timer = setTimeout(() => {
+            try {
+                const draft = { piezasCambiar, piezasReparar, piezasPintar, observaciones, manoObra };
+                localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+            } catch { /* storage full, ignore */ }
+        }, 2000);
+        return () => clearTimeout(timer);
+    }, [piezasCambiar, piezasReparar, piezasPintar, observaciones, manoObra, isEditMode, DRAFT_KEY]);
 
     // ═══ Photo upload ═══
     const uploadPhoto = useCallback(async (file: Blob, tipo: string, setter: React.Dispatch<React.SetStateAction<FotoCapturada[]>>) => {
@@ -193,14 +244,16 @@ export function InspeccionCampoWizard({
 
     const handleReglamentariaCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
-            const file = e.target.files[0];
-            const tipo = PASOS_REGLAMENTARIOS[pasoReg].id;
-            uploadPhoto(file, tipo, setFotosReg);
-            if (pasoReg < PASOS_REGLAMENTARIOS.length - 1) {
-                setPasoReg(prev => prev + 1);
-            } else {
-                // Fix 1: Auto-transition to zona_danio after last photo
+            Array.from(e.target.files).forEach((file, idx) => {
+                const targetPaso = Math.min(pasoReg + idx, PASOS_REGLAMENTARIOS.length - 1);
+                const tipo = PASOS_REGLAMENTARIOS[targetPaso].id;
+                uploadPhoto(file, tipo, setFotosReg);
+            });
+            const newPaso = Math.min(pasoReg + e.target.files.length, PASOS_REGLAMENTARIOS.length);
+            if (newPaso >= PASOS_REGLAMENTARIOS.length) {
                 setStep("zona_danio");
+            } else {
+                setPasoReg(newPaso);
             }
         }
         e.target.value = "";
@@ -384,8 +437,40 @@ export function InspeccionCampoWizard({
 
     // ═══ Final submit ═══
     const handleConfirm = async () => {
+        // UPLOAD BLOCKER: double-check at submit time
+        if (pendingUploads > 0) {
+            toast.error(`Todavía hay ${pendingUploads} foto(s) sin subir. Esperá o reintentalas.`);
+            return;
+        }
         setSaving(true);
         try {
+            // ═══ EDIT MODE: simplified PATCH — no firma, no GPS, no photos ═══
+            if (isEditMode) {
+                const result = await actualizarInspeccionCampo({
+                    casoId,
+                    manoDeObra: manoObra.filter(r => r.cantidad > 0 || r.custom).map(r => ({
+                        concepto: r.concepto, valor: r.valor, cantidad: r.cantidad, unidad: r.unidad,
+                    })),
+                    totalManoDeObra: totalMO,
+                    piezasCambiar,
+                    piezasReparar,
+                    piezasPintar,
+                    observaciones,
+                    audioUrl,
+                });
+
+                if (result.error) {
+                    toast.error(result.error);
+                    setSaving(false);
+                    return;
+                }
+
+                toast.success('Informe actualizado correctamente');
+                router.push(`/casos/${casoId}`);
+                return;
+            }
+
+            // ═══ NORMAL MODE: full submit with GPS, firma, html2canvas ═══
             // 1. GPS
             let lat: number | null = null;
             let lng: number | null = null;
@@ -470,6 +555,9 @@ export function InspeccionCampoWizard({
                 setSaving(false);
                 return;
             }
+
+            // ═══ Clear draft after successful submit ═══
+            try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
 
             setStep("completado");
         } catch (err: any) {
@@ -658,11 +746,13 @@ export function InspeccionCampoWizard({
                 <div className="max-w-lg mx-auto px-6 pb-8">
                     <button
                         onClick={handleConfirm}
-                        disabled={!firmaDibujada || saving}
+                        disabled={!firmaDibujada || saving || pendingUploads > 0}
                         className="w-full py-4 bg-brand-primary text-white rounded-xl font-bold text-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2"
                     >
                         {saving ? (
                             <><Loader2 className="w-5 h-5 animate-spin" /> Guardando...</>
+                        ) : pendingUploads > 0 ? (
+                            <><Loader2 className="w-5 h-5 animate-spin" /> ⏳ Esperando red... Subiendo {pendingUploads} foto{pendingUploads > 1 ? 's' : ''}</>
                         ) : (
                             <><CheckCircle2 className="w-5 h-5" /> Confirmar y Enviar</>
                         )}
@@ -777,9 +867,23 @@ export function InspeccionCampoWizard({
                     <button onClick={() => setStep("informe")} className="flex-1 py-3 border border-border rounded-xl text-text-muted font-medium hover:bg-bg-tertiary transition-colors">
                         Volver a editar
                     </button>
-                    <button onClick={() => setStep("firma")} className="flex-1 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-primary-hover transition-colors">
-                        Pasar al taller para firma
-                    </button>
+                    {isEditMode ? (
+                        <button
+                            onClick={handleConfirm}
+                            disabled={saving}
+                            className="flex-1 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2"
+                        >
+                            {saving ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                            ) : (
+                                <><CheckCircle2 className="w-4 h-4" /> Guardar Cambios</>
+                            )}
+                        </button>
+                    ) : (
+                        <button onClick={() => setStep("firma")} className="flex-1 py-3 bg-brand-primary text-white rounded-xl font-bold hover:bg-brand-primary-hover transition-colors">
+                            Pasar al taller para firma
+                        </button>
+                    )}
                 </div>
             </div>
         );
@@ -1121,7 +1225,7 @@ export function InspeccionCampoWizard({
         );
     }
 
-    // ─── FOTOS REGLAMENTARIAS ───
+    // ─── FOTOS REGLAMENTARIAS (DUAL INPUT: Cámara + Galería) ───
     return (
         <div className="max-w-lg mx-auto p-4 pb-[120px] space-y-6">
             <div className="text-center">
@@ -1142,14 +1246,24 @@ export function InspeccionCampoWizard({
                 <h2 className="text-lg font-bold text-text-primary">{PASOS_REGLAMENTARIOS[pasoReg].label}</h2>
                 <p className="text-sm text-text-muted">Foto {pasoReg + 1} de {PASOS_REGLAMENTARIOS.length}</p>
 
-                <input ref={fileInputRef} type="file" accept="image/*,.heic,.heif" capture="environment" className="hidden" onChange={handleReglamentariaCapture} />
+                {/* Hidden inputs — STRICTLY SEPARATED (BUG-014 pattern) */}
+                <input ref={fileInputCameraRef} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden" onChange={handleReglamentariaCapture} />
+                <input ref={fileInputGalleryRef} type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleReglamentariaCapture} />
 
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-4 bg-brand-primary text-white rounded-xl font-bold text-lg hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2"
-                >
-                    <Camera className="w-6 h-6" /> Tomar Foto
-                </button>
+                <div className="space-y-2.5">
+                    <button
+                        onClick={() => fileInputCameraRef.current?.click()}
+                        className="w-full py-4 bg-brand-primary text-white rounded-xl font-bold text-lg hover:bg-brand-primary-hover transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Camera className="w-6 h-6" /> 📸 Abrir Cámara
+                    </button>
+                    <button
+                        onClick={() => fileInputGalleryRef.current?.click()}
+                        className="w-full py-3 bg-bg-tertiary border border-border text-text-secondary rounded-xl font-medium text-sm hover:bg-bg-tertiary/80 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <ImagePlus className="w-5 h-5" /> 🖼️ Subir de Galería
+                    </button>
+                </div>
             </div>
 
             {/* Thumbnails */}
@@ -1165,6 +1279,11 @@ export function InspeccionCampoWizard({
                             )}
                             {f.uploaded && (
                                 <div className="absolute top-0.5 right-0.5"><CheckCircle2 className="w-3 h-3 text-color-success" /></div>
+                            )}
+                            {f.error && (
+                                <div className="absolute inset-0 bg-red-900/60 flex items-center justify-center">
+                                    <span className="text-[9px] text-white font-bold">ERROR</span>
+                                </div>
                             )}
                         </div>
                     ))}

@@ -155,16 +155,19 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
     );
 
     // Pagado a Peritos de Carga: se reconoce al CIERRE (ip_cerrada/facturada)
-    const totalPagadoPeritoCarga = cerradosConBilling.reduce(
-        (s: number, c: any) => s + (Number(c.monto_pagado_perito_carga) || 0), 0
-    );
+    // Solo casos con perito_carga_id asignado (consistencia con tabla per-perito)
+    const totalPagadoPeritoCarga = cerradosConBilling
+        .filter(c => c.perito_carga_id)
+        .reduce((s: number, c: any) => s + (Number(c.monto_pagado_perito_carga) || 0), 0);
 
     // Pagado a Peritos de Calle: se reconoce cuando IP se completó
     // Fecha: fecha_inspeccion_real (trabajo del perito de calle completado)
     // EXCLUYE anuladas
+    // Solo casos con perito_calle_id asignado (consistencia con tabla per-perito)
     const totalPagadoPeritoCalle = casosFiltroPrincipal
         .filter(c => {
             if (c.estado === "inspeccion_anulada") return false;
+            if (!c.perito_calle_id) return false;
             const fechaCalle = c.fecha_inspeccion_real;
             return fechaCalle && isDateInRange(fechaCalle) && Number(c.monto_pagado_perito_calle) > 0;
         })
@@ -673,6 +676,34 @@ export function ReportesFiltros({ casos, peritos, historial, gastoFijo }: Report
                                     </tr>
                                 );
                             })}
+                            {/* ═══ Fila "Sin asignar" para casos sin perito ═══ */}
+                            {(() => {
+                                const sinCargaId = cerradosConBilling.filter(c => !c.perito_carga_id);
+                                const sinCalleId = casosIPRealizadaRango.filter(c => !c.perito_calle_id);
+                                const honCargaSinAsignar = sinCargaId.reduce((s: number, c: any) => s + (Number(c.monto_pagado_perito_carga) || 0), 0);
+                                const honCalleSinAsignar = sinCalleId.filter(c => Number(c.monto_pagado_perito_calle) > 0)
+                                    .reduce((s: number, c: any) => s + (Number(c.monto_pagado_perito_calle) || 0), 0);
+                                if (sinCargaId.length === 0 && sinCalleId.length === 0) return null;
+                                return (
+                                    <tr className="hover:bg-bg-tertiary/50 align-top border-t border-border/50">
+                                        <td className="px-2 py-3">
+                                            <p className="text-text-muted font-medium italic">Sin asignar</p>
+                                            <p className="text-[10px] text-text-muted">Casos sin perito</p>
+                                        </td>
+                                        <td className="px-2 py-3 text-right font-mono text-text-muted">{sinCalleId.length}</td>
+                                        <td className="px-2 py-3 text-right font-mono text-text-muted">{sinCargaId.length}</td>
+                                        <td className="px-2 py-3 text-right">
+                                            <span className="font-mono text-orange-400/50">{formatCurrency(honCalleSinAsignar)}</span>
+                                        </td>
+                                        <td className="px-2 py-3 text-right">
+                                            <span className="font-mono text-sky-400/50">{formatCurrency(honCargaSinAsignar)}</span>
+                                        </td>
+                                        <td className="px-2 py-3 text-right">
+                                            <span className="font-mono text-text-muted font-bold text-sm">{formatCurrency(honCalleSinAsignar + honCargaSinAsignar)}</span>
+                                        </td>
+                                    </tr>
+                                );
+                            })()}
                         </tbody>
                     </table>
                 </div>

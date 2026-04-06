@@ -137,6 +137,7 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
 
     const esPeritoCalleDueno = currentUserId === caso.perito_calle_id;
     const esAdminOCarga = rol === "admin" || rol === "carga";
+    const puedeEditarNotasAdmin = esAdminOCarga || esPeritoCalleDueno;
 
     return (
         <div className="space-y-6 overflow-x-hidden">
@@ -333,7 +334,11 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                         {/* Observaciones Internas */}
                                         <div className="pt-3 border-t border-border/50">
                                             <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Observaciones Internas</p>
-                                            <EditableField casoId={caso.id} campo="notas_admin" valorActual={caso.notas_admin} tipo="textarea" placeholder="Agregar nota interna..." textClassName="text-sm" className="w-full" />
+                                            {puedeEditarNotasAdmin ? (
+                                                <EditableField casoId={caso.id} campo="notas_admin" valorActual={caso.notas_admin} tipo="textarea" placeholder="Agregar nota interna..." textClassName="text-sm text-text-primary" className="w-full" />
+                                            ) : (
+                                                <p className="text-sm text-text-primary whitespace-pre-wrap">{caso.notas_admin || <span className="text-text-muted italic text-sm">Sin observaciones</span>}</p>
+                                            )}
                                         </div>
                                     </div>
                                 </AccordionContent>
@@ -487,11 +492,17 @@ export async function CasoDetail({ id, esNuevo = false }: { id: string; esNuevo?
                                     <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
                                         <FileText className="w-3.5 h-3.5" /> Observaciones Internas
                                     </p>
-                                    <EditableField
-                                        casoId={caso.id} campo="notas_admin" valorActual={caso.notas_admin}
-                                        tipo="textarea" placeholder="Clic para agregar una nota interna (solo personal del estudio)..."
-                                        textClassName="text-sm" className="w-full"
-                                    />
+                                    {puedeEditarNotasAdmin ? (
+                                        <EditableField
+                                            casoId={caso.id} campo="notas_admin" valorActual={caso.notas_admin}
+                                            tipo="textarea" placeholder="Clic para agregar una nota interna (solo personal del estudio)..."
+                                            textClassName="text-sm text-text-primary" className="w-full"
+                                        />
+                                    ) : (
+                                        <p className="text-sm text-text-primary whitespace-pre-wrap mt-1">
+                                            {caso.notas_admin || <span className="text-text-muted italic text-sm">Sin observaciones</span>}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>

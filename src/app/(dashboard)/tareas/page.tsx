@@ -60,6 +60,7 @@ export default async function TareasDashboard() {
                     usuarios={usuariosAll || []}
                     currentUserId={usuarioData.id}
                     currentUserRol={usuarioData.rol}
+                    currentUserRoles={usuarioData.roles}
                     currentUserNombre={`${usuarioData.nombre} ${usuarioData.apellido}`}
                 />
             </Suspense>

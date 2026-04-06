@@ -12,6 +12,7 @@ interface KanbanBoardProps {
     usuarios: { id: string; nombre: string; apellido: string; rol: string }[];
     currentUserId: string;
     currentUserRol: string;
+    currentUserRoles: string[];
     currentUserNombre: string;
 }
 
@@ -21,7 +22,8 @@ const COLUMNS: { id: EstadoTarea; label: string; icon: any; dotColor: string }[]
     { id: "resuelta", label: "Resuelta", icon: CheckCircle2, dotColor: "bg-emerald-500" },
 ];
 
-export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, currentUserNombre }: KanbanBoardProps) {
+export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, currentUserRoles, currentUserNombre }: KanbanBoardProps) {
+    const isAdmin = currentUserRoles.includes("admin");
     const [activeId, setActiveId] = useState<string | null>(null);
     const [filtro, setFiltro] = useState<"todas" | "mias" | "creadas" | "urgentes">("todas");
     const [showAllResueltas, setShowAllResueltas] = useState(false);
@@ -71,8 +73,9 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
         if (nuevoEstado === tarea.estado) return;
 
         const isParticipant = tarea.tarea_participantes?.some((p: any) => p.usuario_id === currentUserId);
-        if (tarea.asignado_id !== currentUserId && !isParticipant && currentUserRol !== "admin") {
-            toast.error("Solo un participante o un admin puede mover tareas.");
+        const isCreator = tarea.creador_id === currentUserId;
+        if (tarea.asignado_id !== currentUserId && !isParticipant && !isCreator && !isAdmin) {
+            toast.error("Solo un participante, creador o admin puede mover tareas.");
             return;
         }
 
@@ -153,10 +156,11 @@ export function KanbanBoard({ tareas, usuarios, currentUserId, currentUserRol, c
                                                 <TareaCard
                                                     tarea={t}
                                                     usuarios={usuarios}
-                                                    isAsignee={t.asignado_id === currentUserId || t.tarea_participantes?.some((p: any) => p.usuario_id === currentUserId) || currentUserRol === "admin"}
+                                                    isAsignee={t.asignado_id === currentUserId || t.creador_id === currentUserId || t.tarea_participantes?.some((p: any) => p.usuario_id === currentUserId) || isAdmin}
                                                     currentUserId={currentUserId}
                                                     currentUserNombre={currentUserNombre}
                                                     currentUserRol={currentUserRol}
+                                                    currentUserRoles={currentUserRoles}
                                                 />
                                             </div>
                                         </DraggableCard>

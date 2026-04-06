@@ -67,6 +67,7 @@ interface TareaCardProps {
     currentUserId?: string;
     currentUserNombre?: string;
     currentUserRol?: string;
+    currentUserRoles?: string[];
 }
 
 // Priority border color for left stripe
@@ -120,7 +121,7 @@ const isOverdue = (tarea: TareaData) => {
     return false;
 };
 
-export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUserNombre, currentUserRol }: TareaCardProps) {
+export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUserNombre, currentUserRol, currentUserRoles }: TareaCardProps) {
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -233,8 +234,11 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
     };
     const totalComments = tarea.comentarios_tarea?.length || 0;
 
-    // Permission: admin/carga can edit participants, calle is read-only
-    const canEditParticipants = currentUserRol === "admin" || currentUserRol === "carga";
+    // Permission: any authenticated user can edit participants (admin/carga/calle)
+    // This was previously restricted to admin/carga only, but peritos de calle also need
+    // to manage participants on tasks they create or participate in.
+    const roles = currentUserRoles || (currentUserRol ? [currentUserRol] : []);
+    const canEditParticipants = roles.includes("admin") || roles.includes("carga") || roles.includes("calle");
 
     useEffect(() => {
         const saved = localStorage.getItem("clarity_task_panel_width");
@@ -454,7 +458,7 @@ export function TareaCard({ tarea, usuarios, isAsignee, currentUserId, currentUs
 
             {/* ═══════ SHEET (Detail Panel — unchanged) ═══════ */}
             <SheetContent
-                className="w-full sm:max-w-none p-0 flex flex-col bg-bg-primary border-l border-border h-[100dvh] overflow-hidden"
+                className="w-full sm:max-w-none p-0 flex flex-col bg-bg-primary border-l border-border h-[100dvh]"
                 side="right"
                 onClick={e => e.stopPropagation()}
                 onPointerDown={e => e.stopPropagation()}

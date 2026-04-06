@@ -334,7 +334,22 @@ export async function updateCasoRapido(id: string, campo: string, valor: string 
         .single();
 
     const roles = usuario?.roles || [usuario?.rol];
-    if (!usuario || (!roles.includes("admin") && !roles.includes("carga"))) {
+    let isAuthorized = false;
+
+    if (usuario && (roles.includes("admin") || roles.includes("carga"))) {
+        isAuthorized = true;
+    } else if (usuario && roles.includes("calle")) {
+        if (campo === "notas_admin" || campo === "datos_crudos_sancor") {
+            // Verificar que sea el perito asignado
+            const { data: caso } = await supabase.from("casos").select("perito_calle_id").eq("id", id).single();
+            if (caso && caso.perito_calle_id === user.id) {
+                // El perito asignado puede editar notas internas y crudas en cualquier tipo de caso
+                isAuthorized = true;
+            }
+        }
+    }
+
+    if (!isAuthorized) {
         return { error: "No tiene permisos para editar." };
     }
 

@@ -238,7 +238,8 @@ Tabla comentario_lectura. Badge numerico en tarjetas kanban. Filtro Con respuest
 | Inspeccion realizada | Vista caso (perito calle) | Estado a pendiente_carga + timestamp + notif | Perito Calle |
 | Selector de estado | Vista caso | Cambia estado manual | Segun permisos |
 | Nueva tarea | Vista caso / tablero | Crea tarea vinculada | Admin, Perito Carga, Perito Calle |
-| Drag and drop tarjetas | Kanban (@dnd-kit) | Cambia estado tarea al soltar | Participantes + Admin |
+| Drag and drop tarjetas | Kanban (@dnd-kit) | Cambia estado tarea al soltar | Participantes + Creadores + Admin |
+| Cambiar participantes | Tarjeta tarea (card footer + sheet header) | Popover multi-select con checkboxes | Todos (admin/carga/calle) |
 | Filtro tareas | Tablero tareas | Todas / Asignadas a mí (multi-participante) / Creadas por mí | Todos |
 | Badge sin leer | Tarjeta tarea | Comentarios no leidos | Automatico |
 | Chat con @menciones | Tarjeta tarea expandible | Autocomplete @nombre, notifica al mencionado | Todos |
@@ -275,6 +276,14 @@ Tabla comentario_lectura. Badge numerico en tarjetas kanban. Filtro Con respuest
 Formato: FECHA / QUE SE CAMBIO / POR QUE / COMO / ARCHIVOS AFECTADOS / EFECTOS COLATERALES / TESTEADO
 
 ### Historial:
+
+FECHA: 05/04/2026
+QUE SE CAMBIO: BUG-027 — Fix permisos de drag-and-drop y cambio de participantes en Tareas para peritos calle/carga.
+POR QUE: (A) Los peritos de calle y carga no podían mover tarjetas entre columnas del Kanban. (B) No podían cambiar los responsables de una tarea desde la barra lateral (sheet). (C) En usuarios con roles duales (calle+carga), el campo legacy `rol` no coincidía con el chequeo de permisos que usaba `=== "admin"` o `=== "carga"`. Este es un bug recurrente (tercera vez).
+COMO: (1) `tareas/page.tsx`: se pasa `currentUserRoles` (array) además de `currentUserRol` (string legacy) al KanbanBoard. (2) `KanbanBoard.tsx`: se usa `currentUserRoles.includes("admin")` en vez de `currentUserRol === "admin"`. Se agrega chequeo de `isCreator` para permitir al creador de la tarea moverla. El prop `isAsignee` ahora incluye creadores. (3) `TareaCard.tsx`: `canEditParticipants` ahora usa el array `roles` con `includes()` para admin/carga/calle (antes era solo admin/carga con check de string legacy). Se remueve `overflow-hidden` del SheetContent para que el dropdown del ParticipantesPopover no quede recortado por CSS clipping dentro de la barra lateral.
+ARCHIVOS AFECTADOS: tareas/page.tsx, KanbanBoard.tsx, TareaCard.tsx
+EFECTOS COLATERALES: (1) Los peritos de calle ahora pueden editar participantes (antes eran read-only). (2) Los creadores de tareas pueden moverlas sin ser participantes. (3) El SheetContent sin `overflow-hidden` depende del div interno `overflow-y-auto` para el scroll.
+TESTEADO: TypeScript tsc --noEmit pasa con 0 errores.
 
 FECHA: 25/03/2026 (3)
 QUE SE CAMBIO: Refactor profundo del módulo de Tareas (Kanban). (A) Saneamiento RLS, (B) Fix comentarios fantasma, (C) Multi-asignado Notion-style con popover multi-select.
@@ -816,6 +825,14 @@ TESTEADO: TypeScript `npx tsc --noEmit` 0 errores.
 ---
 
 ## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES APLICADAS
+
+### BUG-027: Peritos calle/carga no pueden mover tarjetas ni cambiar participantes en Tareas (RESUELTO — RECURRENTE x3)
+- PROBLEMA: (A) Los peritos de calle y carga no podían arrastrar tarjetas entre columnas del Kanban. (B) En la barra lateral (Sheet) del detalle de tarea, el popover de participantes no se desplegaba — no aparecía la lista de usuarios para cambiar responsables. El botón de editar en la card SÍ funcionaba.
+- CAUSA: (A) La validación de drag-and-drop en `KanbanBoard.tsx` usaba `currentUserRol !== "admin"` (string legacy) para el bypass. Para usuarios con `roles: ["calle", "carga"]`, el campo legacy `rol` podía ser `"calle"`, y el check `=== "admin"` siempre fallaba. Además, faltaba permitir al CREADOR de la tarea moverla (solo se chequeaba participante y asignado). (B) El `canEditParticipants` en `TareaCard.tsx` usaba `currentUserRol === "admin" || currentUserRol === "carga"`, ignorando el array `roles[]` — para usuarios duales con `rol: "calle"`, ambos checks fallaban y `canEdit=false` impedía abrir el popover. Además, el SheetContent tenía `overflow-hidden` que recortaba el dropdown absoluto del ParticipantesPopover cuando se abría con `openDirection="down"` desde el header del sheet.
+- SOLUCION: (1) Se pasa `currentUserRoles` (array) desde `page.tsx` → `KanbanBoard` → `TareaCard`. (2) Drag-and-drop ahora usa `currentUserRoles.includes("admin")` y agrega check de `isCreator`. (3) `canEditParticipants` usa `roles.includes()` con fallback al string legacy. Se habilitó para los 3 roles (admin/carga/calle). (4) Removido `overflow-hidden` del SheetContent para que el dropdown no sea clipeado por CSS.
+- FECHA: 05/04/2026
+- NO REPETIR: (A) NUNCA usar el campo legacy `rol` (string) para checks de permisos. SIEMPRE usar `roles` (array) con `.includes()`. El campo `rol` puede no reflejar todos los roles del usuario. (B) NUNCA poner `overflow-hidden` en un contenedor que tiene descendientes con posicionamiento absoluto que necesitan sobresalir (como popovers/dropdowns). Usar `overflow-y-auto` solo en el div scrollable interno. (C) Para la edición de participantes, la regla definitiva es: TODOS los roles autenticados pueden editar participantes en tareas donde participan o crean.
+
 
 ### BUG-026: Comentarios fantasma + asignaciones single-select rotas (RESUELTO)
 - PROBLEMA: (A) Los comentarios en el chat de tareas desaparecían silenciosamente al dar Enter — el usuario perdía lo que escribió sin recibir ningún error visible. (B) La UI de asignación de tareas usaba un dropdown single-select legacy que solo cambiaba `asignado_id`, ignorando la tabla relacional `tarea_participantes`.

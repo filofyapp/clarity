@@ -23,7 +23,7 @@ export function CasoForm({ gestores = [], talleres = [], peritos = [] }: CasoFor
 
     // Modo secuencial
     const [casosCreados, setCasosCreados] = useState(0);
-    const [modoSecuencial, setModoSecuencial] = useState(true);
+    const [modoSecuencial, setModoSecuencial] = useState(false);
 
     // AI Parser state
     const [textoParser, setTextoParser] = useState("");

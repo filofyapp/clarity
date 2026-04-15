@@ -10,11 +10,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No autorizado" }, { status: 401 });
         }
 
-        // Verificar rol: solo admin y carga pueden crear tareas (DOC_TECNICA §2.2)
+        // Verificar rol: admin, carga y calle pueden crear tareas (DOC_TECNICA §5, §8)
         const { data: usuario } = await supabase.from("usuarios").select("rol, roles").eq("id", user.id).single();
-        const tienePermiso = usuario?.rol === "admin" || usuario?.rol === "carga" || (usuario?.roles || []).includes("admin") || (usuario?.roles || []).includes("carga");
+        const userRoles = usuario?.roles || [usuario?.rol].filter(Boolean);
+        const tienePermiso = userRoles.includes("admin") || userRoles.includes("carga") || userRoles.includes("calle");
         if (!tienePermiso) {
-            return NextResponse.json({ error: "Solo admin o perito de carga pueden crear tareas" }, { status: 403 });
+            return NextResponse.json({ error: "No tienes permisos para crear tareas" }, { status: 403 });
         }
 
         const body = await request.json();

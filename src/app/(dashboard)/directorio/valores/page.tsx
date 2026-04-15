@@ -17,11 +17,12 @@ export default async function ValoresPage() {
 
     const { data: userData } = await supabase
         .from("usuarios")
-        .select("rol")
+        .select("rol, roles")
         .eq("id", user.id)
         .single();
 
-    const rol = userData?.rol || "calle";
+    const userRoles: string[] = userData?.roles || [userData?.rol].filter(Boolean);
+    const canEdit = userRoles.includes("admin") || userRoles.includes("carga");
 
     const { data: valores, error } = await supabase
         .from("valores_chapa_pintura")
@@ -38,7 +39,7 @@ export default async function ValoresPage() {
                         Convenios y precios de mano de obra (Chapa y Pintura) por concesionaria/marca.
                     </p>
                 </div>
-                <ValorFormDialog userRole={rol} />
+                <ValorFormDialog canEdit={canEdit} />
             </div>
 
             <ValoresTable valores={valores || []} />

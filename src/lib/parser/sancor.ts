@@ -56,8 +56,11 @@ export function parsearSancorTexto(texto: string): ParsedCasoResult {
         result.campos_no_encontrados.push("Servicio (OS)");
     }
 
-    // 3. Patente — "Patente" followed by formato viejo (AAA111) or nuevo (AA111AA)
-    const matchPatente = t.match(/Patente\s+([A-Z]{2,3}\s?[0-9]{3}\s?[A-Z]{0,3})/i);
+    // 3. Patente — "Patente" followed by formato nuevo (AA000BB) or viejo (AAA000)
+    // IMPORTANTE: usar alternativas explícitas con \b para no capturar letras de la línea siguiente
+    // BUG-FIX: el regex anterior [A-Z]{0,3} capturaba letras sueltas post-patente (ej: "FIA" de "FIAT")
+    const matchPatente = t.match(/Patente\s+([A-Z]{2}\s?[0-9]{3}\s?[A-Z]{2})\b/i)
+        || t.match(/Patente\s+([A-Z]{3}\s?[0-9]{3})\b/i);
     if (matchPatente?.[1]) {
         result.dominio = matchPatente[1].replace(/\s/g, '').toUpperCase();
         result.campos_encontrados.push("Patente");

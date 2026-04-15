@@ -8,13 +8,13 @@ import { crearValor } from "@/app/(dashboard)/directorio/crud-actions";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 
-export function ValorFormDialog({ userRole }: { userRole: string }) {
+export function ValorFormDialog({ canEdit }: { canEdit: boolean }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [customFields, setCustomFields] = useState<{ concepto: string; valor: string }[]>([]);
 
-    // Solo Admin puede crear
-    if (userRole !== "admin") return null;
+    // Solo Admin y Carga pueden crear
+    if (!canEdit) return null;
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();

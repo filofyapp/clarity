@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { KanbanSquare } from "lucide-react";
 import { Suspense } from "react";
-import { KanbanBoard } from "@/components/tareas/KanbanBoard";
+import { TareasRealtimeWrapper } from "@/components/tareas/TareasRealtimeWrapper";
 import { TareaForm } from "@/components/tareas/TareaForm";
 
 export default async function TareasDashboard() {
@@ -55,7 +55,7 @@ export default async function TareasDashboard() {
 
             {/* Kanban Grid Injection */}
             <Suspense fallback={<div className="text-text-muted">Cargando tablero...</div>}>
-                <KanbanBoard
+                <TareasRealtimeWrapper
                     tareas={tareas || []}
                     usuarios={usuariosAll || []}
                     currentUserId={usuarioData.id}

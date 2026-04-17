@@ -6,6 +6,8 @@ import {
   HistorialEstadoEntry,
   InformeAuditoriaDatos,
   PeritoResumen,
+  UmbralesScore,
+  UMBRALES_SCORE_DEFAULT,
   calcularDatosAuditoriaPeriodo,
   calcularScore,
   detectarDesvios,
@@ -437,4 +439,52 @@ export async function getScoresHistoricosPerito(peritoId: string) {
     .limit(12);
 
   return data || [];
+}
+
+// ═══════════════════════════════════════════
+// UMBRALES DE SCORE (CONFIGURABLES)
+// ═══════════════════════════════════════════
+
+export async function getUmbralesScore(): Promise<UmbralesScore> {
+  const { supabase } = await verificarAdmin();
+
+  const { data } = await supabase
+    .from("configuracion")
+    .select("valor")
+    .eq("clave", "umbrales_score_auditoria")
+    .maybeSingle();
+
+  if (data?.valor) {
+    const val = data.valor as any;
+    return {
+      excelente: val.excelente ?? UMBRALES_SCORE_DEFAULT.excelente,
+      bueno: val.bueno ?? UMBRALES_SCORE_DEFAULT.bueno,
+      regular: val.regular ?? UMBRALES_SCORE_DEFAULT.regular,
+    };
+  }
+
+  return UMBRALES_SCORE_DEFAULT;
+}
+
+export async function setUmbralesScore(umbrales: UmbralesScore) {
+  const { supabase } = await verificarAdmin();
+
+  // Validar orden: excelente > bueno > regular > 0
+  if (umbrales.excelente <= umbrales.bueno || umbrales.bueno <= umbrales.regular || umbrales.regular <= 0) {
+    return { error: "Los umbrales deben ser: Excelente > Bueno > Regular > 0" };
+  }
+
+  const { error } = await supabase
+    .from("configuracion")
+    .upsert({
+      clave: "umbrales_score_auditoria",
+      valor: umbrales as any,
+      descripcion: "Umbrales de score para el m\u00f3dulo de auditor\u00eda (Excelente/Bueno/Regular/Cr\u00edtico)",
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "clave" });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/auditoria");
+  return { success: true };
 }

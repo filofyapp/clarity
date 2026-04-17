@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { getDatosAuditoria, generarInformeDelDia, getScoresHistoricosPerito } from "@/app/(dashboard)/auditoria/actions";
-import { getScoreColor, getScoreLabel, nombreMes, PeritoResumen } from "@/lib/auditoria-engine";
+import { getDatosAuditoria, generarInformeDelDia, getScoresHistoricosPerito, getUmbralesScore, setUmbralesScore } from "@/app/(dashboard)/auditoria/actions";
+import { getScoreColor, getScoreLabel, nombreMes, PeritoResumen, UmbralesScore, UMBRALES_SCORE_DEFAULT } from "@/lib/auditoria-engine";
 import { InformeWhatsAppModal } from "./InformeWhatsAppModal";
 import { HistorialInformes } from "./HistorialInformes";
 import { generarPDFAuditoria } from "@/lib/auditoria-pdf";
 import { toast } from "sonner";
 import {
   ShieldCheck, Download, ClipboardCopy, ChevronDown, ArrowLeft,
-  TrendingUp, AlertTriangle, Clock, Users, BarChart3, Filter
+  TrendingUp, AlertTriangle, Clock, Users, BarChart3, Filter, Settings
 } from "lucide-react";
 
 // ═══════════════════════════════════════════
@@ -77,6 +77,13 @@ export default function AuditoriaPanel() {
   const [sortAsc, setSortAsc] = useState(true);
   const [filtroPerito, setFiltroPerito] = useState<string>("todos");
   const [filtroDesvio, setFiltroDesvio] = useState<string>("todos");
+  const [umbrales, setUmbrales] = useState<UmbralesScore>(UMBRALES_SCORE_DEFAULT);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Fetch umbrales al montar
+  useEffect(() => {
+    getUmbralesScore().then(setUmbrales).catch(() => {});
+  }, []);
 
   // Fetch datos al cambiar período
   useEffect(() => {
@@ -254,8 +261,34 @@ export default function AuditoriaPanel() {
             <Clock className="h-4 w-4" />
             Historial
           </button>
+
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="flex items-center gap-2 bg-bg-secondary border border-border-subtle text-text-primary px-3 py-2 rounded-lg font-medium text-sm hover:bg-bg-tertiary transition-colors"
+            title="Configurar umbrales de score"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
         </div>
       </div>
+
+      {/* ═══ SETTINGS UMBRALES ═══ */}
+      {showSettings && (
+        <UmbralesSettings
+          umbrales={umbrales}
+          onSave={async (u) => {
+            const result = await setUmbralesScore(u);
+            if ('error' in result && result.error) {
+              toast.error(result.error);
+            } else {
+              setUmbrales(u);
+              setShowSettings(false);
+              toast.success("Umbrales actualizados");
+            }
+          }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       {/* ═══ HISTORIAL INFORMES ═══ */}
       {showHistorial && (
@@ -273,6 +306,7 @@ export default function AuditoriaPanel() {
           perito={peritoActual}
           scoresHistoricos={scoresHistoricos}
           scoreHistorico={scoreHistorico}
+          umbrales={umbrales}
           onVolver={() => setPeritoSeleccionado(null)}
         />
       ) : (
@@ -291,6 +325,7 @@ export default function AuditoriaPanel() {
                 <PeritoCard
                   key={p.perito_id}
                   perito={p}
+                  umbrales={umbrales}
                   onClick={() => setPeritoSeleccionado(p.perito_id)}
                 />
               ))}
@@ -409,8 +444,8 @@ export default function AuditoriaPanel() {
 // CARD DE PERITO
 // ═══════════════════════════════════════════
 
-function PeritoCard({ perito, onClick }: { perito: PeritoResumen; onClick: () => void }) {
-  const scoreColor = getScoreColor(perito.score);
+function PeritoCard({ perito, umbrales, onClick }: { perito: PeritoResumen; umbrales: UmbralesScore; onClick: () => void }) {
+  const scoreColor = getScoreColor(perito.score, umbrales);
   const totalCompletados = perito.presenciales + perito.remotas;
   const pctPres = totalCompletados > 0 ? Math.round((perito.presenciales / totalCompletados) * 100) : 0;
   const pctRem = totalCompletados > 0 ? Math.round((perito.remotas / totalCompletados) * 100) : 0;
@@ -425,7 +460,7 @@ function PeritoCard({ perito, onClick }: { perito: PeritoResumen; onClick: () =>
           <h3 className="text-base font-bold text-text-primary font-outfit group-hover:text-brand-primary transition-colors">
             {perito.perito_nombre.toUpperCase()}
           </h3>
-          <p className="text-xs text-text-muted mt-0.5">{getScoreLabel(perito.score)}</p>
+          <p className="text-xs text-text-muted mt-0.5">{getScoreLabel(perito.score, umbrales)}</p>
         </div>
         <div
           className="text-3xl font-black font-outfit leading-none"
@@ -483,14 +518,16 @@ function VistaIndividual({
   perito,
   scoresHistoricos,
   scoreHistorico,
+  umbrales,
   onVolver,
 }: {
   perito: PeritoResumen;
   scoresHistoricos: ScoreHistorico[];
   scoreHistorico: number | null;
+  umbrales: UmbralesScore;
   onVolver: () => void;
 }) {
-  const scoreColor = getScoreColor(perito.score);
+  const scoreColor = getScoreColor(perito.score, umbrales);
   const totalCompletados = perito.presenciales + perito.remotas;
   const pctPres = totalCompletados > 0 ? Math.round((perito.presenciales / totalCompletados) * 100) : 0;
   const pctRem = totalCompletados > 0 ? Math.round((perito.remotas / totalCompletados) * 100) : 0;
@@ -519,7 +556,7 @@ function VistaIndividual({
         <div className="text-7xl font-black font-outfit my-4" style={{ color: scoreColor }}>
           {perito.score}
         </div>
-        <p className="text-lg text-text-muted">{getScoreLabel(perito.score)}</p>
+        <p className="text-lg text-text-muted">{getScoreLabel(perito.score, umbrales)}</p>
         <div className="flex items-center justify-center gap-6 mt-4 text-sm text-text-secondary">
           <span>Score mensual: <strong style={{ color: scoreColor }}>{perito.score}</strong></span>
           <span className="text-border-subtle">|</span>
@@ -543,7 +580,7 @@ function VistaIndividual({
               {/* Line */}
               <polyline
                 fill="none"
-                stroke={getScoreColor(perito.score)}
+                stroke={getScoreColor(perito.score, umbrales)}
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -559,7 +596,7 @@ function VistaIndividual({
                 const y = chartHeight - (Number(d.score) / 100) * chartHeight;
                 return (
                   <g key={i}>
-                    <circle cx={x} cy={y} r="4" fill={getScoreColor(Number(d.score))} />
+                    <circle cx={x} cy={y} r="4" fill={getScoreColor(Number(d.score), umbrales)} />
                     <text x={x} y={chartHeight + 14} fontSize="9" fill="currentColor" opacity="0.5" textAnchor="middle">
                       {nombreMes(d.mes).substring(0, 3)}
                     </text>
@@ -672,7 +709,7 @@ function VistaIndividual({
                 <tr key={`${s.anio}-${s.mes}`} className={Number(s.score) < 70 ? 'bg-red-500/5' : ''}>
                   <td className="px-4 py-3 text-text-primary font-medium">{nombreMes(s.mes)} {s.anio}</td>
                   <td className="px-4 py-3 text-text-secondary">{s.casos_totales}</td>
-                  <td className="px-4 py-3 font-bold" style={{ color: getScoreColor(Number(s.score)) }}>{s.score}</td>
+                  <td className="px-4 py-3 font-bold" style={{ color: getScoreColor(Number(s.score), umbrales) }}>{s.score}</td>
                   <td className="px-4 py-3 text-text-secondary">{s.desvios}</td>
                 </tr>
               ))}
@@ -704,4 +741,97 @@ function formatDate(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+// ═══════════════════════════════════════════
+// SETTINGS UMBRALES
+// ═══════════════════════════════════════════
+
+function UmbralesSettings({
+  umbrales,
+  onSave,
+  onClose,
+}: {
+  umbrales: UmbralesScore;
+  onSave: (u: UmbralesScore) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [excelente, setExcelente] = useState(umbrales.excelente);
+  const [bueno, setBueno] = useState(umbrales.bueno);
+  const [regular, setRegular] = useState(umbrales.regular);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave({ excelente, bueno, regular });
+    setSaving(false);
+  };
+
+  return (
+    <div className="bg-bg-secondary rounded-xl border border-border-subtle p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-text-primary font-outfit flex items-center gap-2">
+          <Settings className="h-4 w-4 text-brand-primary" />
+          Umbrales de Score
+        </h3>
+        <button onClick={onClose} className="text-text-muted hover:text-text-primary text-xs">
+          Cerrar
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="text-xs text-text-muted block mb-1">Excelente (≥)</label>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-emerald-500" />
+            <input
+              type="number"
+              value={excelente}
+              onChange={e => setExcelente(Number(e.target.value))}
+              className="w-full bg-bg-tertiary border border-border-subtle rounded-md px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-brand-primary"
+              min={1}
+              max={100}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-text-muted block mb-1">Bueno (≥)</label>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-amber-500" />
+            <input
+              type="number"
+              value={bueno}
+              onChange={e => setBueno(Number(e.target.value))}
+              className="w-full bg-bg-tertiary border border-border-subtle rounded-md px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-brand-primary"
+              min={1}
+              max={100}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs text-text-muted block mb-1">Regular (≥)</label>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-orange-500" />
+            <input
+              type="number"
+              value={regular}
+              onChange={e => setRegular(Number(e.target.value))}
+              className="w-full bg-bg-tertiary border border-border-subtle rounded-md px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-brand-primary"
+              min={1}
+              max={100}
+            />
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] text-text-muted mt-2">Valores menores a Regular = Crítico 🔴</p>
+      <div className="flex justify-end mt-4">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-brand-primary text-text-on-brand px-4 py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {saving ? "Guardando..." : "Guardar umbrales"}
+        </button>
+      </div>
+    </div>
+  );
 }

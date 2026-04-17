@@ -87,18 +87,32 @@ const ESTADOS_POST_INSPECCION = [
   'esperando_respuesta_tercero', // Esperando tercero, no es desvío
 ];
 
+/** Umbrales de score configurables desde /configuracion */
+export interface UmbralesScore {
+  excelente: number; // >= este valor
+  bueno: number;
+  regular: number;
+  // < regular = Crítico
+}
+
+export const UMBRALES_SCORE_DEFAULT: UmbralesScore = {
+  excelente: 90,
+  bueno: 70,
+  regular: 50,
+};
+
 /** Colores de score para el frontend */
-export function getScoreColor(score: number): string {
-  if (score >= 90) return '#10B981'; // verde
-  if (score >= 70) return '#F59E0B'; // ámbar
-  if (score >= 50) return '#F97316'; // naranja
+export function getScoreColor(score: number, u: UmbralesScore = UMBRALES_SCORE_DEFAULT): string {
+  if (score >= u.excelente) return '#10B981'; // verde
+  if (score >= u.bueno) return '#F59E0B'; // ámbar
+  if (score >= u.regular) return '#F97316'; // naranja
   return '#EF4444'; // rojo
 }
 
-export function getScoreLabel(score: number): string {
-  if (score >= 90) return 'Excelente';
-  if (score >= 70) return 'Bueno';
-  if (score >= 50) return 'Regular';
+export function getScoreLabel(score: number, u: UmbralesScore = UMBRALES_SCORE_DEFAULT): string {
+  if (score >= u.excelente) return 'Excelente';
+  if (score >= u.bueno) return 'Bueno';
+  if (score >= u.regular) return 'Regular';
   return 'Crítico';
 }
 

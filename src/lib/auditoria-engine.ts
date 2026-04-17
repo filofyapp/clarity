@@ -17,6 +17,7 @@ export interface CasoAuditoria {
   perito_calle_id: string | null;
   perito_nombre?: string;
   perito_apellido?: string;
+  tipo_inspeccion?: string | null; // tipo de IP original (ausente, remota, etc.)
   tiene_informe_campo: boolean; // true = presencial
   tiene_fotos: boolean;         // true si tiene fotos de inspeccion
 }
@@ -62,6 +63,7 @@ export interface InformeAuditoriaDatos {
   fecha: string;
   peritos: PeritoResumen[];
   total_inspecciones_dia: number;
+  total_inspecciones_mes: number;
   total_presenciales: number;
   total_remotas: number;
   total_desvios: number;
@@ -72,7 +74,7 @@ export interface InformeAuditoriaDatos {
 // CONSTANTES
 // ═══════════════════════════════════════════
 
-/** Estados que indican que el perito completó la inspección */
+/** Estados que indican que el perito completó la inspección (o el caso avanzó por otro motivo) */
 const ESTADOS_POST_INSPECCION = [
   'pendiente_carga',
   'pendiente_presupuesto',
@@ -80,6 +82,9 @@ const ESTADOS_POST_INSPECCION = [
   'ip_cerrada',
   'facturada',
   'inspeccion_anulada',
+  'en_consulta_cia',           // Problema con la compañía, no es culpa del perito
+  'ip_reclamada_perito',       // La IP fue reclamada, no es desvío
+  'esperando_respuesta_tercero', // Esperando tercero, no es desvío
 ];
 
 /** Colores de score para el frontend */
@@ -180,8 +185,11 @@ export function detectarPendientesPresupuesto(
 
 /**
  * Determina el tipo de inspección real de un caso.
+ * Ausentes = presencial (el perito fue físicamente pero el asegurado no se presentó).
  */
 export function determinarTipoInspeccion(caso: CasoAuditoria): 'presencial' | 'remota' | 'sin_inspeccion' {
+  // Ausente siempre cuenta como presencial (el perito fue al lugar)
+  if (caso.tipo_inspeccion === 'ausente') return 'presencial';
   if (caso.tiene_informe_campo) return 'presencial';
   if (caso.tiene_fotos) return 'remota';
   return 'sin_inspeccion';
@@ -335,10 +343,11 @@ export function generarTextoWhatsApp(datos: InformeAuditoriaDatos): string {
   }
 
   // Resumen del estudio
+  const totalCompMes = datos.total_presenciales + datos.total_remotas;
   texto += `\n──────────────\n`;
   texto += `📈 *RESUMEN DEL ESTUDIO*\n`;
-  texto += `Total inspecciones del día: ${datos.total_inspecciones_dia}\n`;
-  texto += `Presenciales: ${datos.total_presenciales} (${datos.total_inspecciones_dia > 0 ? Math.round((datos.total_presenciales / datos.total_inspecciones_dia) * 100) : 0}%) | Remotas: ${datos.total_remotas} (${datos.total_inspecciones_dia > 0 ? Math.round((datos.total_remotas / datos.total_inspecciones_dia) * 100) : 0}%)\n`;
+  texto += `Inspecciones programadas hoy: ${datos.total_inspecciones_dia}\n`;
+  texto += `Total del mes: ${datos.total_inspecciones_mes} (Presenciales: ${datos.total_presenciales} ${totalCompMes > 0 ? `(${Math.round((datos.total_presenciales / totalCompMes) * 100)}%)` : ''} | Remotas: ${datos.total_remotas} ${totalCompMes > 0 ? `(${Math.round((datos.total_remotas / totalCompMes) * 100)}%)` : ''})\n`;
   texto += `Desvíos del día: ${datos.total_desvios}\n`;
   texto += `Pdte. presupuesto activos: ${datos.total_pendientes_presupuesto}`;
 

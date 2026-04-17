@@ -68,7 +68,8 @@ export async function getDatosAuditoria(mes: number, anio: number) {
       numero_siniestro,
       estado,
       fecha_inspeccion_programada,
-      perito_calle_id
+      perito_calle_id,
+      tipo_inspeccion
     `)
     .gte("fecha_inspeccion_programada", primerDia)
     .lte("fecha_inspeccion_programada", ultimoDia + "T23:59:59")
@@ -134,6 +135,7 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     perito_calle_id: c.perito_calle_id,
     perito_nombre: peritoMap.get(c.perito_calle_id!)?.nombre,
     perito_apellido: peritoMap.get(c.perito_calle_id!)?.apellido,
+    tipo_inspeccion: c.tipo_inspeccion,
     tiene_informe_campo: informesCampoSet.has(c.id),
     tiene_fotos: fotosSet.has(c.id),
   }));
@@ -185,7 +187,7 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     return {
       ...c,
       perito_nombre_completo: perito ? `${perito.nombre} ${perito.apellido || ''}`.trim() : 'Sin asignar',
-      tipo_inspeccion_real: c.tiene_informe_campo ? 'Presencial' : (c.tiene_fotos ? 'Remota' : '—'),
+      tipo_inspeccion_real: c.tipo_inspeccion === 'ausente' ? 'Presencial' : (c.tiene_informe_campo ? 'Presencial' : (c.tiene_fotos ? 'Remota' : '—')),
       desvio_info: desvio ? `⚠️ ${desvio.dias_demora} días sin inspeccionar` : null,
       pp_info: pp ? `⏱ ${pp.dias_en_estado} días en pdte. presup.` : null,
       dias_en_estado: desvio?.dias_demora || pp?.dias_en_estado || 0,
@@ -224,7 +226,7 @@ export async function generarInformeDelDia() {
   // Casos con fecha_inspeccion_programada = hoy
   const { data: casosHoy } = await supabase
     .from("casos")
-    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id")
+    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id, tipo_inspeccion")
     .eq("fecha_inspeccion_programada", hoyStr)
     .not("perito_calle_id", "is", null);
 
@@ -271,6 +273,7 @@ export async function generarInformeDelDia() {
     estado: c.estado,
     fecha_inspeccion_programada: c.fecha_inspeccion_programada,
     perito_calle_id: c.perito_calle_id,
+    tipo_inspeccion: c.tipo_inspeccion,
     tiene_informe_campo: informesCampoSet.has(c.id),
     tiene_fotos: fotosSet.has(c.id),
   }));
@@ -306,7 +309,7 @@ export async function generarInformeDelDia() {
 
   const { data: casosMes } = await supabase
     .from("casos")
-    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id")
+    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id, tipo_inspeccion")
     .gte("fecha_inspeccion_programada", primerDiaMes)
     .lte("fecha_inspeccion_programada", ultimoDiaMes + "T23:59:59")
     .not("perito_calle_id", "is", null);
@@ -327,6 +330,7 @@ export async function generarInformeDelDia() {
     estado: c.estado,
     fecha_inspeccion_programada: c.fecha_inspeccion_programada,
     perito_calle_id: c.perito_calle_id,
+    tipo_inspeccion: c.tipo_inspeccion,
     tiene_informe_campo: informesCampoMesSet.has(c.id),
     tiene_fotos: fotosMesSet.has(c.id),
   }));
@@ -357,6 +361,7 @@ export async function generarInformeDelDia() {
     fecha: hoyStr,
     peritos: peritosResumenMes,
     total_inspecciones_dia: (casosHoy || []).length,
+    total_inspecciones_mes: (casosMes || []).length,
     total_presenciales: totalPres,
     total_remotas: totalRem,
     total_desvios: totalDesvios,

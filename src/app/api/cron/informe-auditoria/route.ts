@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     // 2. Casos con fecha_inspeccion_programada = hoy
     const { data: casosHoy } = await supabase
       .from("casos")
-      .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id")
+      .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id, tipo_inspeccion")
       .eq("fecha_inspeccion_programada", hoyStr)
       .not("perito_calle_id", "is", null);
 
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
 
     const { data: casosMes } = await supabase
       .from("casos")
-      .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id")
+      .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id, tipo_inspeccion")
       .gte("fecha_inspeccion_programada", primerDiaMes)
       .lte("fecha_inspeccion_programada", ultimoDiaMes + "T23:59:59")
       .not("perito_calle_id", "is", null);
@@ -115,6 +115,7 @@ export async function GET(req: NextRequest) {
       estado: c.estado,
       fecha_inspeccion_programada: c.fecha_inspeccion_programada,
       perito_calle_id: c.perito_calle_id,
+      tipo_inspeccion: c.tipo_inspeccion,
       tiene_informe_campo: informesCampoMesSet.has(c.id),
       tiene_fotos: fotosMesSet.has(c.id),
     }));
@@ -161,6 +162,7 @@ export async function GET(req: NextRequest) {
       fecha: hoyStr,
       peritos: peritosResumenMes,
       total_inspecciones_dia: casosHoy.length,
+      total_inspecciones_mes: (casosMes || []).length,
       total_presenciales: totalPres,
       total_remotas: totalRem,
       total_desvios: totalDesvios,

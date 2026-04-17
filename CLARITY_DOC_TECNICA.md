@@ -158,6 +158,28 @@ Estas tablas YA EXISTEN. No recrearlas. Modificar solo lo necesario.
 - modificado_por (UUID FK usuarios)
 - created_at (TIMESTAMPTZ)
 
+**informes_auditoria:**
+- id (UUID PK)
+- fecha (DATE NOT NULL)
+- contenido_whatsapp (TEXT NOT NULL)
+- datos_json (JSONB NOT NULL DEFAULT '{}')
+- created_at (TIMESTAMPTZ)
+- NOTAS: Almacena informes diarios de auditoría generados manual o automáticamente (cron 18hs). El campo datos_json contiene el desglose completo por perito. RLS: solo admin.
+
+**scores_perito:**
+- id (UUID PK)
+- perito_id (UUID FK usuarios ON DELETE CASCADE)
+- mes (INTEGER CHECK 1-12)
+- anio (INTEGER CHECK 2020-2099)
+- score (NUMERIC(5,2) DEFAULT 0)
+- casos_totales (INTEGER DEFAULT 0)
+- casos_cumplidos (INTEGER DEFAULT 0)
+- desvios (INTEGER)
+- datos_detalle (JSONB)
+- updated_at (TIMESTAMPTZ)
+- UNIQUE(perito_id, mes, anio)
+- NOTAS: Score mensual por perito de calle. Se actualiza con UPSERT cada vez que se genera un informe. Fórmula: TASA_CUMPLIMIENTO - PENALIDAD_SEVERIDAD - PENALIDAD_PRESUPUESTO (piso 0, techo 100). RLS: solo admin.
+
 ### 3.4 Modificaciones a tablas existentes
 
 **talleres:** Agregar columna
@@ -1421,4 +1443,12 @@ POR QUE: (1) Peritos de calle no podían crear tareas — el endpoint POST /api/
 COMO: (1) api/tareas/route.ts: Agregado rol "calle" al check de permisos de creación de tareas. Se normalizó la lógica para usar roles[] array en vez de comparaciones individuales. (2) Creado TareasRealtimeWrapper.tsx: componente client que envuelve KanbanBoard y se suscribe a postgres_changes en tabla tareas. Al recibir un evento (INSERT/UPDATE/DELETE), llama router.refresh() para re-fetch server-side con los JOINs complejos intactos. tareas/page.tsx actualizado para usar el wrapper. Migración SQL 035: ALTER PUBLICATION supabase_realtime ADD TABLE tareas. (3) Migración SQL 035: DROP de políticas RLS existentes en herramientas_usuarios + creación de 4 políticas granulares (SELECT/INSERT/UPDATE/DELETE) que permiten admin Y carga, usando tanto rol (string legacy) como roles (array). (4) valores/page.tsx: Cambiado query de .select("rol") a .select("rol, roles"), canEdit = admin || carga. ValorFormDialog.tsx: Cambiado prop de userRole:string a canEdit:boolean, guard de userRole!=="admin" a !canEdit. (5) sancor.ts: Regex de patente cambiada de /[A-Z]{2,3}\s?[0-9]{3}\s?[A-Z]{0,3}/ (greedy) a dos alternativas explícitas con \b word boundary: formato nuevo /[A-Z]{2}\s?[0-9]{3}\s?[A-Z]{2}\b/ y formato viejo /[A-Z]{3}\s?[0-9]{3}\b/. (6) CasoForm.tsx: useState(true) → useState(false) para modoSecuencial.
 ARCHIVOS AFECTADOS: src/app/api/tareas/route.ts, src/components/tareas/TareasRealtimeWrapper.tsx (NUEVO), src/app/(dashboard)/tareas/page.tsx, supabase/migrations/035_realtime_tareas_rls_credenciales.sql (NUEVO), src/app/(dashboard)/directorio/valores/page.tsx, src/components/directorio/ValorFormDialog.tsx, src/lib/parser/sancor.ts, src/components/casos/CasoForm.tsx
 EFECTOS COLATERALES: (1) Peritos de calle ahora pueden crear tareas — las RLS de la tabla tareas ya permiten INSERT para usuarios autenticados (el guard estaba solo en la API route). (2) La suscripción realtime genera un router.refresh() por cada cambio en la tabla tareas de CUALQUIER usuario. En equipos grandes (>20 personas editando simultáneamente) esto podría generar re-renders frecuentes, pero para equipos pequeños es óptimo. (3) La migración 035 BORRA las políticas RLS existentes de herramientas_usuarios y las reemplaza. Debe ejecutarse en Supabase SQL Editor ANTES del deploy. (4) El regex de patente ahora es más estricto: solo acepta exactamente 6 chars (viejo: AAA000) o 7 chars (nuevo: AA000BB). Formatos irregulares o con espacios internos se normalizan.
-TESTEADO: Pendiente TypeScript --noEmit.
+TESTEADO: Pendiente TypeScript --noEmit.
+
+FECHA: 17/04/2026
+QUE SE CAMBIO: Módulo de Auditoría — Control de Rendimiento de Peritos
+POR QUE: Se necesitaba un sistema de auditoría interna para monitorear el rendimiento de los peritos de calle, detectar desvíos (casos coordinados no inspeccionados), alertar sobre pendientes de presupuesto >24hs, calcular un score de efectividad mensual, generar informes diarios formateados para WhatsApp, y exportar reportes a PDF. El módulo es visible solo para admin/coordinador.
+COMO: (1) Migración SQL 036_auditoria_modulo.sql: crea tablas informes_auditoria y scores_perito con RLS admin-only e índices. (2) Motor de cálculos compartido (auditoria-engine.ts): funciones puras para detección de desvíos, pendientes presupuesto, score de efectividad (fórmula: TASA - PEN_DESVIOS - PEN_PRESUPUESTO), generación de texto WhatsApp con emojis. (3) Server actions (auditoria/actions.ts): getDatosAuditoria(mes,anio), generarInformeDelDia(), getInformesHistoricos(), getScoresHistoricosPerito(). Usa verificarAdmin() guard. (4) AuditoriaPanel.tsx: componente client con vista general (cards por perito ordenadas por score con semáforo, tabla detallada con filtros y sort) y vista individual (score prominente, gráfico SVG de evolución, desglose detallado, listas de desvíos y pendientes, historial de scores). (5) InformeWhatsAppModal.tsx: modal oscuro con texto monospace y botón copiar al portapapeles. (6) HistorialInformes.tsx: lista de informes pasados con ver/copiar. (7) auditoria-pdf.ts: generación PDF client-side con jspdf + jspdf-autotable, página 1 resumen general + páginas por perito. (8) Cron endpoint /api/cron/informe-auditoria: protegido con CRON_SECRET, usa createAdminClient(), evalúa casos del día, guarda informe + upsert scores mensuales. (9) SidebarClient.tsx: agregado item "Auditoría" con icono ShieldCheck en sección Gestión, solo admin.
+ARCHIVOS AFECTADOS: supabase/migrations/036_auditoria_modulo.sql (NUEVO), src/lib/auditoria-engine.ts (NUEVO), src/lib/auditoria-pdf.ts (NUEVO), src/app/(dashboard)/auditoria/actions.ts (NUEVO), src/app/(dashboard)/auditoria/page.tsx (NUEVO), src/components/auditoria/AuditoriaPanel.tsx (NUEVO), src/components/auditoria/InformeWhatsAppModal.tsx (NUEVO), src/components/auditoria/HistorialInformes.tsx (NUEVO), src/app/api/cron/informe-auditoria/route.ts (NUEVO), src/components/layout/SidebarClient.tsx (MODIFICADO: +ShieldCheck import, +SidebarItem Auditoría admin-only), package.json (MODIFICADO: +jspdf, +jspdf-autotable)
+EFECTOS COLATERALES: (1) La migración 036 debe ejecutarse en Supabase SQL Editor antes del deploy. (2) El cron debe configurarse externamente (ej: cron-job.org) con URL /api/cron/informe-auditoria, header Authorization: Bearer {CRON_SECRET}, schedule 21:00 UTC lunes a viernes. (3) Dependencias nuevas: jspdf y jspdf-autotable. (4) El módulo NO afecta ningún flujo operativo existente — es lectura pura de datos + escritura a sus propias tablas.
+TESTEADO: TypeScript --noEmit OK (0 errores).

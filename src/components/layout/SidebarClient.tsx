@@ -6,7 +6,7 @@ import {
     Briefcase, Map, CarFront, Users, Wrench, Settings, LogOut,
     LayoutDashboard, CalendarCheck2, ListTodo, FileBox,
     BadgeDollarSign, BarChart3, PlusCircle, LockKeyhole, Tag, UserSquare2,
-    PanelLeftClose, PanelLeftOpen
+    PanelLeftClose, PanelLeftOpen, ShieldCheck
 } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
 
@@ -69,6 +69,9 @@ export function SidebarClient({ userRoles, pendingCargaCount = 0, pendingTasksCo
                         )}
                         {userRoles.includes("admin") && (
                             <SidebarItem href="/kilometraje" icon={Map} label="Kilometraje" pathname={pathname} isCollapsed={isCollapsed} />
+                        )}
+                        {userRoles.includes("admin") && (
+                            <SidebarItem href="/auditoria" icon={ShieldCheck} label="Auditoría" pathname={pathname} isCollapsed={isCollapsed} />
                         )}
                     </div>
                 </div>

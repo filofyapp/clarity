@@ -482,7 +482,13 @@ function PeritoCard({ perito, umbrales, onClick }: { perito: PeritoResumen; umbr
         {perito.desvios.length > 0 && (
           <div className="flex items-center gap-2 text-red-400">
             <span className="text-base">❌</span>
-            <span>{perito.desvios.length} desvíos</span>
+            <span>{perito.desvios.length} desvíos activos</span>
+          </div>
+        )}
+        {perito.desvios_resueltos.length > 0 && (
+          <div className="flex items-center gap-2 text-amber-400">
+            <span className="text-base">⚠️</span>
+            <span>{perito.desvios_resueltos.length} completados con demora</span>
           </div>
         )}
         {perito.pendientes_presupuesto.length > 0 && (
@@ -616,7 +622,8 @@ function VistaIndividual({
           <div className="space-y-3">
             <StatRow label="Total asignados" value={perito.casos_totales} />
             <StatRow label="Completados en fecha" value={`${perito.casos_cumplidos} (${Math.round(perito.tasa_cumplimiento)}%)`} color="text-color-success" />
-            <StatRow label="Desvíos" value={perito.desvios.length} color={perito.desvios.length > 0 ? "text-red-400" : undefined} />
+            <StatRow label="Desvíos activos" value={perito.desvios.length} color={perito.desvios.length > 0 ? "text-red-400" : undefined} />
+            <StatRow label="Desvíos resueltos" value={perito.desvios_resueltos.length} color={perito.desvios_resueltos.length > 0 ? "text-amber-400" : undefined} />
             <StatRow label="Tasa cumplimiento" value={`${perito.tasa_cumplimiento}%`} />
             <StatRow label="Penalidad desvíos" value={`-${perito.penalidad_desvios}`} color="text-red-400" />
             <StatRow label="Penalidad presupuesto" value={`-${perito.penalidad_presupuesto}`} color="text-amber-400" />
@@ -663,6 +670,24 @@ function VistaIndividual({
               </div>
             )}
           </div>
+
+          {/* Desvíos resueltos */}
+          {perito.desvios_resueltos.length > 0 && (
+            <div className="bg-bg-secondary rounded-xl border border-border-subtle p-5">
+              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                Completados con demora ({perito.desvios_resueltos.length})
+              </h3>
+              <div className="space-y-2">
+                {perito.desvios_resueltos.map(d => (
+                  <div key={d.caso_id} className="flex items-center justify-between text-sm border-l-2 border-amber-400 pl-3 py-1">
+                    <span className="font-mono text-xs text-text-primary">{d.numero_siniestro}</span>
+                    <span className="text-amber-400 text-xs">{d.dias_demora} días tarde</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Pendientes presupuesto */}
           <div className="bg-bg-secondary rounded-xl border border-border-subtle p-5">

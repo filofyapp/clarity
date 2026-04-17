@@ -12,6 +12,7 @@ import {
   calcularScore,
   detectarDesvios,
   detectarPendientesPresupuesto,
+  getFechaCorteStr,
   generarTextoWhatsApp,
 } from "@/lib/auditoria-engine";
 import { revalidatePath } from "next/cache";
@@ -46,9 +47,12 @@ async function verificarAdmin() {
 export async function getDatosAuditoria(mes: number, anio: number) {
   const { supabase } = await verificarAdmin();
 
+  // Fecha de corte (18:00 Argentina)
+  const fechaCorte = getFechaCorteStr();
+
   // Rango del mes
   const primerDia = `${anio}-${String(mes).padStart(2, '0')}-01`;
-  const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0]; // último día del mes
+  const ultimoDia = new Date(anio, mes, 0).toISOString().split('T')[0];
 
   // 1. Peritos de calle activos
   const { data: peritosRaw } = await supabase
@@ -62,7 +66,7 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     return roles.includes("calle");
   });
 
-  // 2. Casos del período con fecha_inspeccion_programada en el mes
+  // 2. Casos del período
   const { data: casosRaw } = await supabase
     .from("casos")
     .select(`
@@ -70,6 +74,7 @@ export async function getDatosAuditoria(mes: number, anio: number) {
       numero_siniestro,
       estado,
       fecha_inspeccion_programada,
+      fecha_inspeccion_real,
       perito_calle_id,
       tipo_inspeccion
     `)
@@ -83,23 +88,21 @@ export async function getDatosAuditoria(mes: number, anio: number) {
 
   const casoIds = casosRaw.map(c => c.id);
 
-  // 3. Verificar inspección presencial (informe_inspeccion_campo)
+  // 3. Informe campo (presencial)
   const { data: informesCampo } = await supabase
     .from("informe_inspeccion_campo")
     .select("caso_id")
     .in("caso_id", casoIds);
-
   const informesCampoSet = new Set((informesCampo || []).map(i => i.caso_id));
 
-  // 4. Verificar fotos (para determinar remota)
+  // 4. Fotos (remota)
   const { data: fotosExisten } = await supabase
     .from("fotos_inspeccion")
     .select("caso_id")
     .in("caso_id", casoIds);
-
   const fotosSet = new Set((fotosExisten || []).map(f => f.caso_id));
 
-  // 5. Historial de estados (para pendientes de presupuesto)
+  // 5. Historial para pendientes de presupuesto
   const { data: historialRaw } = await supabase
     .from("historial_estados")
     .select("caso_id, estado_nuevo, created_at")
@@ -107,7 +110,19 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     .eq("estado_nuevo", "pendiente_presupuesto")
     .order("created_at", { ascending: false });
 
-  // Además, traer historial de TODOS los casos en pdte_presupuesto (no solo los del mes)
+  // 6. Historial para desvíos resueltos (transiciones a post-inspección)
+  const { data: historialPostInsp } = await supabase
+    .from("historial_estados")
+    .select("caso_id, estado_nuevo, created_at")
+    .in("caso_id", casoIds)
+    .in("estado_nuevo", [
+      'pendiente_carga', 'pendiente_presupuesto', 'licitando_repuestos',
+      'ip_cerrada', 'facturada', 'inspeccion_anulada', 'en_consulta_cia',
+      'ip_reclamada_perito', 'esperando_respuesta_tercero'
+    ])
+    .order("created_at", { ascending: true });
+
+  // 7. Casos en pdte presupuesto global
   const { data: casosPPGlobal } = await supabase
     .from("casos")
     .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id")
@@ -134,6 +149,7 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     numero_siniestro: c.numero_siniestro,
     estado: c.estado,
     fecha_inspeccion_programada: c.fecha_inspeccion_programada,
+    fecha_inspeccion_real: c.fecha_inspeccion_real,
     perito_calle_id: c.perito_calle_id,
     perito_nombre: peritoMap.get(c.perito_calle_id!)?.nombre,
     perito_apellido: peritoMap.get(c.perito_calle_id!)?.apellido,
@@ -147,7 +163,9 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     ...historialPPGlobal,
   ];
 
-  // Incluir los casos pdte presupuesto globales en el array de casos (para pendientes)
+  const historialPostInspeccion = (historialPostInsp || []) as HistorialEstadoEntry[];
+
+  // Incluir los casos pdte presupuesto globales
   const casosConPPGlobal: CasoAuditoria[] = [...casos];
   for (const cpp of (casosPPGlobal || [])) {
     if (!casosConPPGlobal.find(c => c.id === cpp.id)) {
@@ -163,16 +181,17 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     }
   }
 
-  // Calcular resumen por perito
-  const peritosResumen = calcularDatosAuditoriaPeriodo(casos, historial, peritosCalle);
+  // Calcular resumen por perito (con fechaCorte e historial post-inspección)
+  const peritosResumen = calcularDatosAuditoriaPeriodo(
+    casos, historial, peritosCalle, fechaCorte, historialPostInspeccion
+  );
 
-  // Agregar pendientes presupuesto globales a cada perito
+  // Agregar pendientes presupuesto globales
   for (const pr of peritosResumen) {
     const ppGlobal = detectarPendientesPresupuesto(
       casosConPPGlobal.filter(c => c.perito_calle_id === pr.perito_id),
       historial
     );
-    // Merge sin duplicados
     for (const pp of ppGlobal) {
       if (!pr.pendientes_presupuesto.find(existing => existing.caso_id === pp.caso_id)) {
         pr.pendientes_presupuesto.push(pp);
@@ -181,16 +200,17 @@ export async function getDatosAuditoria(mes: number, anio: number) {
   }
 
   // Detalle para tabla
+  const allDesvios = peritosResumen.flatMap(p => [...p.desvios, ...p.desvios_resueltos]);
   const casosDetalle = casos.map(c => {
     const perito = peritoMap.get(c.perito_calle_id!);
-    const desvio = peritosResumen.flatMap(p => p.desvios).find(d => d.caso_id === c.id);
+    const desvio = allDesvios.find(d => d.caso_id === c.id);
     const pp = peritosResumen.flatMap(p => p.pendientes_presupuesto).find(p => p.caso_id === c.id);
 
     return {
       ...c,
       perito_nombre_completo: perito ? `${perito.nombre} ${perito.apellido || ''}`.trim() : 'Sin asignar',
       tipo_inspeccion_real: c.tipo_inspeccion === 'ausente' ? 'Presencial' : (c.tiene_informe_campo ? 'Presencial' : (c.tiene_fotos ? 'Remota' : '—')),
-      desvio_info: desvio ? `⚠️ ${desvio.dias_demora} días sin inspeccionar` : null,
+      desvio_info: desvio ? `⚠️ ${desvio.dias_demora} días ${ESTADOS_POST_INSPECCION_SET.has(c.estado) ? '(resuelto)' : 'sin inspeccionar'}` : null,
       pp_info: pp ? `⏱ ${pp.dias_en_estado} días en pdte. presup.` : null,
       dias_en_estado: desvio?.dias_demora || pp?.dias_en_estado || 0,
     };
@@ -202,6 +222,12 @@ export async function getDatosAuditoria(mes: number, anio: number) {
     totalCasos: casos.length,
   };
 }
+
+const ESTADOS_POST_INSPECCION_SET = new Set([
+  'pendiente_carga', 'pendiente_presupuesto', 'licitando_repuestos',
+  'ip_cerrada', 'facturada', 'inspeccion_anulada', 'en_consulta_cia',
+  'ip_reclamada_perito', 'esperando_respuesta_tercero'
+]);
 
 // ═══════════════════════════════════════════
 // GENERAR INFORME DEL DÍA
@@ -228,7 +254,7 @@ export async function generarInformeDelDia() {
   // Casos con fecha_inspeccion_programada = hoy
   const { data: casosHoy } = await supabase
     .from("casos")
-    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id, tipo_inspeccion")
+    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, fecha_inspeccion_real, perito_calle_id, tipo_inspeccion")
     .eq("fecha_inspeccion_programada", hoyStr)
     .not("perito_calle_id", "is", null);
 
@@ -311,7 +337,7 @@ export async function generarInformeDelDia() {
 
   const { data: casosMes } = await supabase
     .from("casos")
-    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id, tipo_inspeccion")
+    .select("id, numero_siniestro, estado, fecha_inspeccion_programada, fecha_inspeccion_real, perito_calle_id, tipo_inspeccion")
     .gte("fecha_inspeccion_programada", primerDiaMes)
     .lte("fecha_inspeccion_programada", ultimoDiaMes + "T23:59:59")
     .not("perito_calle_id", "is", null);
@@ -331,14 +357,36 @@ export async function generarInformeDelDia() {
     numero_siniestro: c.numero_siniestro,
     estado: c.estado,
     fecha_inspeccion_programada: c.fecha_inspeccion_programada,
+    fecha_inspeccion_real: c.fecha_inspeccion_real,
     perito_calle_id: c.perito_calle_id,
     tipo_inspeccion: c.tipo_inspeccion,
     tiene_informe_campo: informesCampoMesSet.has(c.id),
     tiene_fotos: fotosMesSet.has(c.id),
   }));
 
-  // Score mensual por perito
-  const peritosResumenMes = calcularDatosAuditoriaPeriodo(casosMesArr, historial, peritosCalle);
+  // Historial post-inspección para desvíos resueltos
+  let historialPostInsp: HistorialEstadoEntry[] = [];
+  if (casosMesIds.length > 0) {
+    const { data: hpi } = await supabase
+      .from("historial_estados")
+      .select("caso_id, estado_nuevo, created_at")
+      .in("caso_id", casosMesIds)
+      .in("estado_nuevo", [
+        'pendiente_carga', 'pendiente_presupuesto', 'licitando_repuestos',
+        'ip_cerrada', 'facturada', 'inspeccion_anulada', 'en_consulta_cia',
+        'ip_reclamada_perito', 'esperando_respuesta_tercero'
+      ])
+      .order("created_at", { ascending: true });
+    historialPostInsp = (hpi || []) as HistorialEstadoEntry[];
+  }
+
+  // Fecha de corte
+  const fechaCorte = getFechaCorteStr();
+
+  // Score mensual por perito (con fecha corte e historial post-inspección)
+  const peritosResumenMes = calcularDatosAuditoriaPeriodo(
+    casosMesArr, historial, peritosCalle, fechaCorte, historialPostInsp
+  );
 
   // Agregar pendientes globales
   for (const pr of peritosResumenMes) {
@@ -391,7 +439,7 @@ export async function generarInformeDelDia() {
         score: perito.score,
         casos_totales: perito.casos_totales,
         casos_cumplidos: perito.casos_cumplidos,
-        desvios: perito.desvios.length,
+        desvios: perito.desvios.length + perito.desvios_resueltos.length,
         datos_detalle: {
           tasa_cumplimiento: perito.tasa_cumplimiento,
           penalidad_desvios: perito.penalidad_desvios,

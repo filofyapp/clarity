@@ -6,6 +6,7 @@ import {
   InformeAuditoriaDatos,
   calcularDatosAuditoriaPeriodo,
   detectarPendientesPresupuesto,
+  getFechaCorteStr,
   generarTextoWhatsApp,
 } from "@/lib/auditoria-engine";
 
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
 
     const { data: casosMes } = await supabase
       .from("casos")
-      .select("id, numero_siniestro, estado, fecha_inspeccion_programada, perito_calle_id, tipo_inspeccion")
+      .select("id, numero_siniestro, estado, fecha_inspeccion_programada, fecha_inspeccion_real, perito_calle_id, tipo_inspeccion")
       .gte("fecha_inspeccion_programada", primerDiaMes)
       .lte("fecha_inspeccion_programada", ultimoDiaMes + "T23:59:59")
       .not("perito_calle_id", "is", null);
@@ -114,14 +115,35 @@ export async function GET(req: NextRequest) {
       numero_siniestro: c.numero_siniestro,
       estado: c.estado,
       fecha_inspeccion_programada: c.fecha_inspeccion_programada,
+      fecha_inspeccion_real: c.fecha_inspeccion_real,
       perito_calle_id: c.perito_calle_id,
       tipo_inspeccion: c.tipo_inspeccion,
       tiene_informe_campo: informesCampoMesSet.has(c.id),
       tiene_fotos: fotosMesSet.has(c.id),
     }));
 
-    // Calcular resumen
-    const peritosResumenMes = calcularDatosAuditoriaPeriodo(casosMesArr, historial, peritosCalle as any[]);
+    // Historial post-inspección para desvíos resueltos
+    let historialPostInsp: HistorialEstadoEntry[] = [];
+    if (casosMesIds.length > 0) {
+      const { data: hpi } = await supabase
+        .from("historial_estados")
+        .select("caso_id, estado_nuevo, created_at")
+        .in("caso_id", casosMesIds)
+        .in("estado_nuevo", [
+          'pendiente_carga', 'pendiente_presupuesto', 'licitando_repuestos',
+          'ip_cerrada', 'facturada', 'inspeccion_anulada', 'en_consulta_cia',
+          'ip_reclamada_perito', 'esperando_respuesta_tercero'
+        ])
+        .order("created_at", { ascending: true });
+      historialPostInsp = (hpi || []) as HistorialEstadoEntry[];
+    }
+
+    const fechaCorte = getFechaCorteStr();
+
+    // Calcular resumen (con fecha corte e historial post-inspección)
+    const peritosResumenMes = calcularDatosAuditoriaPeriodo(
+      casosMesArr, historial, peritosCalle as any[], fechaCorte, historialPostInsp
+    );
 
     // Agregar pendientes globales
     const allCasos: CasoAuditoria[] = [...casosMesArr];
@@ -193,7 +215,7 @@ export async function GET(req: NextRequest) {
           score: perito.score,
           casos_totales: perito.casos_totales,
           casos_cumplidos: perito.casos_cumplidos,
-          desvios: perito.desvios.length,
+          desvios: perito.desvios.length + perito.desvios_resueltos.length,
           datos_detalle: {
             tasa_cumplimiento: perito.tasa_cumplimiento,
             penalidad_desvios: perito.penalidad_desvios,

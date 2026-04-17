@@ -14,12 +14,13 @@ export interface CasoAuditoria {
   numero_siniestro: string;
   estado: string;
   fecha_inspeccion_programada: string | null;
+  fecha_inspeccion_real?: string | null; // TIMESTAMPTZ real de inspección
   perito_calle_id: string | null;
   perito_nombre?: string;
   perito_apellido?: string;
-  tipo_inspeccion?: string | null; // tipo de IP original (ausente, remota, etc.)
-  tiene_informe_campo: boolean; // true = presencial
-  tiene_fotos: boolean;         // true si tiene fotos de inspeccion
+  tipo_inspeccion?: string | null;
+  tiene_informe_campo: boolean;
+  tiene_fotos: boolean;
 }
 
 export interface HistorialEstadoEntry {
@@ -34,6 +35,7 @@ export interface PeritoResumen {
   casos_totales: number;
   casos_cumplidos: number;
   desvios: DesvioDetalle[];
+  desvios_resueltos: DesvioDetalle[]; // desvíos que fueron tarde pero se completaron
   pendientes_presupuesto: PendientePresupuestoDetalle[];
   presenciales: number;
   remotas: number;
@@ -121,27 +123,54 @@ export function getScoreLabel(score: number, u: UmbralesScore = UMBRALES_SCORE_D
 // ═══════════════════════════════════════════
 
 /**
- * Detecta casos en desvío: fecha_inspeccion_programada <= hoy/fechaRef
- * y el caso NO está en un estado post-inspección.
+ * Calcula la fecha de corte de auditoría basada en las 18:00 Argentina (UTC-3).
+ * - Antes de las 18:00 AR: los casos de hoy aún tienen tiempo → corte = ayer.
+ * - Después de las 18:00 AR: los casos de hoy ya debieron completarse → corte = hoy.
+ */
+export function getFechaCorteStr(ahora: Date = new Date()): string {
+  const utcH = ahora.getUTCHours();
+  const argH = ((utcH - 3) % 24 + 24) % 24;
+
+  // Si UTC < 3, en Argentina todavía es el día anterior
+  const argDate = new Date(ahora.getTime());
+  if (utcH < 3) {
+    argDate.setUTCDate(argDate.getUTCDate() - 1);
+  }
+  const argDateStr = argDate.toISOString().split('T')[0];
+
+  if (argH >= 18) {
+    return argDateStr; // Hoy: las 18hs ya pasaron
+  } else {
+    // Los casos de hoy aún tienen tiempo
+    const ayer = new Date(argDate.getTime());
+    ayer.setUTCDate(ayer.getUTCDate() - 1);
+    return ayer.toISOString().split('T')[0];
+  }
+}
+
+/**
+ * Detecta desvíos ACTIVOS: casos con fecha_ip <= fechaCorte
+ * que NO están en estado post-inspección.
  */
 export function detectarDesvios(
   casos: CasoAuditoria[],
-  fechaRef: Date = new Date()
+  fechaCorteStr: string,
+  ahora: Date = new Date()
 ): DesvioDetalle[] {
-  const hoyStr = fechaRef.toISOString().split('T')[0];
   const desvios: DesvioDetalle[] = [];
 
   for (const caso of casos) {
     if (!caso.fecha_inspeccion_programada) continue;
 
     const fechaIP = caso.fecha_inspeccion_programada.split('T')[0];
-    if (fechaIP > hoyStr) continue; // futuro, no es desvío
+    if (fechaIP > fechaCorteStr) continue; // aún no vence
 
-    if (ESTADOS_POST_INSPECCION.includes(caso.estado)) continue; // ya completado
+    if (ESTADOS_POST_INSPECCION.includes(caso.estado)) continue; // completado
 
-    // Es desvío: estaba coordinada para ese día (o antes) y no fue completada
+    // Deadline: 18:00 Argentina = 21:00 UTC del día programado
+    const deadline = new Date(fechaIP + 'T21:00:00Z');
     const diasDemora = Math.max(1, Math.ceil(
-      (fechaRef.getTime() - new Date(fechaIP + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24)
+      (ahora.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24)
     ));
 
     desvios.push({
@@ -151,6 +180,69 @@ export function detectarDesvios(
       estado_actual: caso.estado,
       dias_demora: diasDemora,
     });
+  }
+
+  return desvios;
+}
+
+/**
+ * Detecta desvíos RESUELTOS: casos que se completaron TARDE
+ * (después de su deadline 18:00 AR del día programado).
+ * Usa fecha_inspeccion_real o historial_estados como fallback.
+ */
+export function detectarDesviosResueltos(
+  casos: CasoAuditoria[],
+  historialPostInspeccion: HistorialEstadoEntry[],
+  fechaCorteStr: string
+): DesvioDetalle[] {
+  const desvios: DesvioDetalle[] = [];
+
+  for (const caso of casos) {
+    if (!caso.fecha_inspeccion_programada) continue;
+    const fechaIP = caso.fecha_inspeccion_programada.split('T')[0];
+    if (fechaIP > fechaCorteStr) continue; // aún no vencía
+    if (!ESTADOS_POST_INSPECCION.includes(caso.estado)) continue; // no completado → activo, no resuelto
+
+    const deadline = new Date(fechaIP + 'T21:00:00Z'); // 18:00 AR
+
+    // 1. Usar fecha_inspeccion_real si existe
+    if (caso.fecha_inspeccion_real) {
+      const realDate = new Date(caso.fecha_inspeccion_real);
+      if (realDate > deadline) {
+        const diasDemora = Math.max(1, Math.ceil(
+          (realDate.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24)
+        ));
+        desvios.push({
+          caso_id: caso.id,
+          numero_siniestro: caso.numero_siniestro,
+          fecha_inspeccion_programada: fechaIP,
+          estado_actual: caso.estado,
+          dias_demora: diasDemora,
+        });
+      }
+      continue;
+    }
+
+    // 2. Fallback: buscar en historial la primera transición a post-inspección
+    const transitions = historialPostInspeccion
+      .filter(h => h.caso_id === caso.id)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    if (transitions.length > 0) {
+      const firstTransition = new Date(transitions[0].created_at);
+      if (firstTransition > deadline) {
+        const diasDemora = Math.max(1, Math.ceil(
+          (firstTransition.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24)
+        ));
+        desvios.push({
+          caso_id: caso.id,
+          numero_siniestro: caso.numero_siniestro,
+          fecha_inspeccion_programada: fechaIP,
+          estado_actual: caso.estado,
+          dias_demora: diasDemora,
+        });
+      }
+    }
   }
 
   return desvios;
@@ -244,13 +336,16 @@ export function calcularScore(
 
 /**
  * Calcula datos de auditoría completos para un período dado.
+ * Solo cuenta casos con fecha_ip <= fechaCorte en el denominador del score.
  */
 export function calcularDatosAuditoriaPeriodo(
   casos: CasoAuditoria[],
   historialEstados: HistorialEstadoEntry[],
   peritosCalle: { id: string; nombre: string; apellido: string }[],
-  fechaRef: Date = new Date()
+  fechaCorteStr?: string,
+  historialPostInspeccion?: HistorialEstadoEntry[]
 ): PeritoResumen[] {
+  const corte = fechaCorteStr || getFechaCorteStr();
   const resumenPeritos: PeritoResumen[] = [];
 
   for (const perito of peritosCalle) {
@@ -258,19 +353,31 @@ export function calcularDatosAuditoriaPeriodo(
 
     if (casosPerito.length === 0) continue;
 
-    // Casos completados en fecha
-    const casosCumplidos = casosPerito.filter(c => {
+    // Casos ELEGIBLES: solo los que ya vencieron (fecha_ip <= corte)
+    const casosElegibles = casosPerito.filter(c => {
       if (!c.fecha_inspeccion_programada) return false;
-      return ESTADOS_POST_INSPECCION.includes(c.estado);
+      return c.fecha_inspeccion_programada.split('T')[0] <= corte;
     });
 
-    // Desvíos
-    const desvios = detectarDesvios(casosPerito, fechaRef);
+    // Casos completados (dentro de los elegibles)
+    const casosCumplidos = casosElegibles.filter(c =>
+      ESTADOS_POST_INSPECCION.includes(c.estado)
+    );
+
+    // Desvíos activos
+    const desvios = detectarDesvios(casosPerito, corte);
+
+    // Desvíos resueltos (completados tarde)
+    const desviosResueltos = detectarDesviosResueltos(
+      casosPerito,
+      historialPostInspeccion || [],
+      corte
+    );
 
     // Pendientes presupuesto
-    const pendientesPresupuesto = detectarPendientesPresupuesto(casosPerito, historialEstados, fechaRef);
+    const pendientesPresupuesto = detectarPendientesPresupuesto(casosPerito, historialEstados);
 
-    // Tipo inspección
+    // Tipo inspección (sobre completados)
     let presenciales = 0;
     let remotas = 0;
     let sinInspeccion = 0;
@@ -285,20 +392,22 @@ export function calcularDatosAuditoriaPeriodo(
       else sinInspeccion++;
     }
 
-    // Score
+    // Score: ALL desvíos (activos + resueltos) penalizan
+    const todosDesvios = [...desvios, ...desviosResueltos];
     const { score, tasa, penDesvios, penPresupuesto } = calcularScore(
-      casosPerito.length,
+      casosElegibles.length,
       casosCumplidos.length,
-      desvios,
+      todosDesvios,
       pendientesPresupuesto
     );
 
     resumenPeritos.push({
       perito_id: perito.id,
       perito_nombre: `${perito.nombre} ${perito.apellido || ''}`.trim(),
-      casos_totales: casosPerito.length,
+      casos_totales: casosElegibles.length,
       casos_cumplidos: casosCumplidos.length,
       desvios,
+      desvios_resueltos: desviosResueltos,
       pendientes_presupuesto: pendientesPresupuesto,
       presenciales,
       remotas,
@@ -340,11 +449,20 @@ export function generarTextoWhatsApp(datos: InformeAuditoriaDatos): string {
       }
     }
 
-    // Desvíos del día
-    const desviosDia = perito.desvios;
-    texto += `❌ No realizadas: ${desviosDia.length}\n`;
-    for (const d of desviosDia) {
-      texto += `   → Stro ${d.numero_siniestro} (coordinada para ${formatearFechaCorta(d.fecha_inspeccion_programada)}, sin inspeccionar)\n`;
+    // Desvíos activos
+    if (perito.desvios.length > 0) {
+      texto += `❌ No realizadas: ${perito.desvios.length}\n`;
+      for (const d of perito.desvios) {
+        texto += `   → Stro ${d.numero_siniestro} (coordinada ${formatearFechaCorta(d.fecha_inspeccion_programada)}, ${d.dias_demora} días)\n`;
+      }
+    }
+
+    // Desvíos resueltos (completados tarde)
+    if (perito.desvios_resueltos.length > 0) {
+      texto += `⚠️ Completadas con demora: ${perito.desvios_resueltos.length}\n`;
+      for (const d of perito.desvios_resueltos) {
+        texto += `   → Stro ${d.numero_siniestro} (${d.dias_demora} días tarde)\n`;
+      }
     }
 
     // Pendientes presupuesto

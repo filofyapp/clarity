@@ -392,11 +392,12 @@ export function calcularDatosAuditoriaPeriodo(
       else sinInspeccion++;
     }
 
-    // Score: ALL desvíos (activos + resueltos) penalizan
+    // Score: cumplidos EN FECHA = completados - resueltos tarde
     const todosDesvios = [...desvios, ...desviosResueltos];
+    const cumplidosEnFecha = Math.max(0, casosCumplidos.length - desviosResueltos.length);
     const { score, tasa, penDesvios, penPresupuesto } = calcularScore(
       casosElegibles.length,
-      casosCumplidos.length,
+      cumplidosEnFecha,
       todosDesvios,
       pendientesPresupuesto
     );
@@ -405,7 +406,7 @@ export function calcularDatosAuditoriaPeriodo(
       perito_id: perito.id,
       perito_nombre: `${perito.nombre} ${perito.apellido || ''}`.trim(),
       casos_totales: casosElegibles.length,
-      casos_cumplidos: casosCumplidos.length,
+      casos_cumplidos: cumplidosEnFecha,
       desvios,
       desvios_resueltos: desviosResueltos,
       pendientes_presupuesto: pendientesPresupuesto,

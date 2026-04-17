@@ -474,16 +474,7 @@ export function generarTextoWhatsApp(datos: InformeAuditoriaDatos): string {
     }
   }
 
-  // Resumen del estudio
-  const totalCompMes = datos.total_presenciales + datos.total_remotas;
-  texto += `\n──────────────\n`;
-  texto += `📈 *RESUMEN DEL ESTUDIO*\n`;
-  texto += `Inspecciones programadas hoy: ${datos.total_inspecciones_dia}\n`;
-  texto += `Total del mes: ${datos.total_inspecciones_mes} (Presenciales: ${datos.total_presenciales} ${totalCompMes > 0 ? `(${Math.round((datos.total_presenciales / totalCompMes) * 100)}%)` : ''} | Remotas: ${datos.total_remotas} ${totalCompMes > 0 ? `(${Math.round((datos.total_remotas / totalCompMes) * 100)}%)` : ''})\n`;
-  texto += `Desvíos del día: ${datos.total_desvios}\n`;
-  texto += `Pdte. presupuesto activos: ${datos.total_pendientes_presupuesto}`;
-
-  return texto;
+  return texto.trimEnd();
 }
 
 // ═══════════════════════════════════════════

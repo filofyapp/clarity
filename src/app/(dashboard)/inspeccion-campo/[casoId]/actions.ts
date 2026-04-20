@@ -24,10 +24,10 @@ export async function guardarInspeccionCampo(data: InspeccionCampoData) {
     const supabase = await createClient();
 
     try {
-        // 1. Insert informe_inspeccion_campo
+        // 1. Upsert informe_inspeccion_campo (upsert para evitar error duplicate key si el perito reenvía)
         const { error: insertError } = await supabase
             .from("informe_inspeccion_campo")
-            .insert({
+            .upsert({
                 caso_id: data.casoId,
                 perito_id: data.peritoId,
                 mano_de_obra: data.manoDeObra,
@@ -42,7 +42,7 @@ export async function guardarInspeccionCampo(data: InspeccionCampoData) {
                 firma_timestamp: data.firmaTimestamp,
                 firma_latitud: data.firmaLatitud,
                 firma_longitud: data.firmaLongitud,
-            });
+            }, { onConflict: "caso_id" });
 
         if (insertError) {
             console.error("[InspeccionCampo] Insert error:", insertError);

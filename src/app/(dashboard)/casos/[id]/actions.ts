@@ -98,9 +98,11 @@ export async function marcarInspeccionAusente(casoId: string, formData: FormData
     if (!caso) return { error: "Caso no encontrado." };
     if (caso.estado !== "ip_coordinada") return { error: "El caso no está en estado IP Coordinada." };
 
-    const { data: usuario } = await supabase.from("usuarios").select("rol").eq("id", user.id).single();
+    const { data: usuario } = await supabase.from("usuarios").select("rol, roles").eq("id", user.id).single();
     if (!usuario) return { error: "Usuario no encontrado." };
-    if (usuario.rol !== "admin" && caso.perito_calle_id !== user.id) {
+    const roles: string[] = usuario.roles || [usuario.rol];
+    const esAdmin = roles.includes("admin");
+    if (!esAdmin && caso.perito_calle_id !== user.id) {
         return { error: "Solo el perito de calle asignado puede marcar ausente." };
     }
 

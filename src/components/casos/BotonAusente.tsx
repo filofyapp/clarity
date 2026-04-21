@@ -6,6 +6,65 @@ import { marcarInspeccionAusente } from "@/app/(dashboard)/casos/[id]/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+// ═══ Compresión de imagen (misma lógica que WizardCaptura/InspeccionCampoWizard) ═══
+async function compressImage(file: Blob, maxWidth = 1920, quality = 0.8): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const canvas = document.createElement("canvas");
+            let w = img.width, h = img.height;
+            if (w > maxWidth) { h = (maxWidth / w) * h; w = maxWidth; }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) { resolve(file); return; }
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(
+                (blob) => (blob ? resolve(blob) : resolve(file)),
+                "image/jpeg",
+                quality
+            );
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+}
+
+// ═══ Conversión HEIC → JPEG (misma lógica que WizardCaptura) ═══
+async function convertirSiEsHeic(file: File | Blob): Promise<Blob> {
+    const tipo = (file as File).type?.toLowerCase() || "";
+    const nombre = ((file as File).name || "").toLowerCase();
+    const esHeic = tipo.includes("heic") || tipo.includes("heif") ||
+        nombre.endsWith(".heic") || nombre.endsWith(".heif") ||
+        (tipo === "" && nombre === ""); // iOS a veces envía MIME vacío
+    if (!esHeic) return file;
+    try {
+        const heic2any = (await import("heic2any")).default;
+        const result = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+        return Array.isArray(result) ? result[0] : result;
+    } catch {
+        return file; // fallback seguro: devolver original
+    }
+}
+
+// ═══ Pipeline completo: HEIC → Compress (con timeout 30s) ═══
+async function procesarImagen(file: File | Blob): Promise<Blob> {
+    const timeout = new Promise<Blob>((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout procesando imagen")), 30000)
+    );
+    const proceso = (async () => {
+        const converted = await convertirSiEsHeic(file as File);
+        return compressImage(converted);
+    })();
+    try {
+        return await Promise.race([proceso, timeout]);
+    } catch {
+        return file; // fallback: enviar original si falla
+    }
+}
+
 interface BotonAusenteProps {
     casoId: string;
 }
@@ -13,7 +72,9 @@ interface BotonAusenteProps {
 export function BotonAusente({ casoId }: BotonAusenteProps) {
     const [open, setOpen] = useState(false);
     const [foto, setFoto] = useState<File | null>(null);
+    const [fotoComprimida, setFotoComprimida] = useState<Blob | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     // BUG-014: Dual input — separated for camera vs gallery
@@ -21,24 +82,44 @@ export function BotonAusente({ casoId }: BotonAusenteProps) {
     const inputGalleryRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
-    const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        e.target.value = "";
+
         setFoto(file);
         setPreview(URL.createObjectURL(file));
-        e.target.value = "";
+        setIsProcessing(true);
+
+        try {
+            // Comprimir la imagen (HEIC → JPEG + resize)
+            const comprimida = await procesarImagen(file);
+            setFotoComprimida(comprimida);
+        } catch {
+            // Si falla la compresión, usar el original
+            setFotoComprimida(file);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     const handleConfirmar = async () => {
-        if (!foto) {
+        const fotoParaSubir = fotoComprimida || foto;
+        if (!fotoParaSubir) {
             toast.error("Subí la foto de ausencia primero.");
+            return;
+        }
+        if (isProcessing) {
+            toast.error("Esperá que termine de procesar la foto...");
             return;
         }
 
         setIsSubmitting(true);
         try {
             const fd = new FormData();
-            fd.append("foto", foto);
+            // Usar la foto comprimida con nombre .jpg
+            const fileName = (foto?.name || "ausente.jpg").replace(/\.(heic|heif)$/i, ".jpg");
+            fd.append("foto", fotoParaSubir, fileName);
 
             const result = await marcarInspeccionAusente(casoId, fd);
 
@@ -59,8 +140,10 @@ export function BotonAusente({ casoId }: BotonAusenteProps) {
     };
 
     const handleClose = () => {
+        if (preview) URL.revokeObjectURL(preview);
         setOpen(false);
         setFoto(null);
+        setFotoComprimida(null);
         setPreview(null);
         setSuccess(false);
     };
@@ -127,8 +210,21 @@ export function BotonAusente({ casoId }: BotonAusenteProps) {
                         alt="Foto de ausencia"
                         className="w-full max-h-48 object-cover rounded-lg border border-border"
                     />
+                    {isProcessing && (
+                        <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
+                            <div className="flex items-center gap-2 text-white text-sm font-medium">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Procesando...
+                            </div>
+                        </div>
+                    )}
                     <button
-                        onClick={() => { setFoto(null); setPreview(null); }}
+                        onClick={() => {
+                            if (preview) URL.revokeObjectURL(preview);
+                            setFoto(null);
+                            setFotoComprimida(null);
+                            setPreview(null);
+                        }}
                         disabled={isSubmitting}
                         className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors disabled:opacity-40"
                     >
@@ -156,10 +252,15 @@ export function BotonAusente({ casoId }: BotonAusenteProps) {
 
             <button
                 onClick={handleConfirmar}
-                disabled={!foto || isSubmitting}
+                disabled={!foto || isSubmitting || isProcessing}
                 className="w-full py-3 bg-danger text-white rounded-xl font-bold text-sm hover:bg-danger/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-                {isSubmitting ? (
+                {isProcessing ? (
+                    <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Procesando foto...
+                    </>
+                ) : isSubmitting ? (
                     <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Procesando...
